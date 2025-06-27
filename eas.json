@@ -1,0 +1,28 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qlbtkzikcdfnjhuxnbsn.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsYnRremlrY2RmbmpodXhuYnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MDEyODAsImV4cCI6MjA2MzQ3NzI4MH0.cibjs-dCzV-_xSbAeOJYxY5NAt8Srp0uWuXqmUk9_VQ",
+        "EXPO_PUBLIC_MAPTILER_TOKEN": "XSJRg4GXeLgDiZ98hfVp",
+        "EXPO_PUBLIC_MAPBOX_TOKEN": "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21hcjk0dWJxMDljZjJpc2ZpNTBmYzJlaSJ9.g9Gtb_MLi1v916-lt7ZrWg",
+        "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
+      }
+    },
+    "production": {},
+    "ios-simulator": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      }
+    }
+  }
+}
