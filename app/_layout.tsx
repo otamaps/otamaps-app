@@ -1,29 +1,60 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { PortalProvider } from '@gorhom/portal';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+// Load the Figtree font
+function useLoadedAssets() {
+  const [fontsLoaded] = useFonts({
+    'Figtree-Regular': require('../assets/fonts/Figtree-Regular.ttf'),
+    'Figtree-Medium': require('../assets/fonts/Figtree-Medium.ttf'),
+    'Figtree-SemiBold': require('../assets/fonts/Figtree-SemiBold.ttf'),
+    'Figtree-Bold': require('../assets/fonts/Figtree-Bold.ttf'),
   });
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
+  return fontsLoaded;
+}
+
+function RootLayoutNav() {
+  const segments = useSegments();
+  const router = useRouter();
+  const fontsLoaded = useLoadedAssets();
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <PortalProvider>
+          <RootLayoutNav />
+          <StatusBar style="auto" />
+        </PortalProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
