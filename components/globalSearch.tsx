@@ -62,7 +62,6 @@ export default GlobalSearch;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    zIndex: 1000,
     width: '100%',
     paddingHorizontal: 10,
     flexDirection: 'row',

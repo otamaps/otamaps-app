@@ -2,14 +2,35 @@ import { geojson } from "@/assets/geos/map";
 import FriendItem from "@/components/friendItem";
 import { getCachedGeoJSON } from "@/components/functions/geoJson";
 import GlobalSearch from "@/components/globalSearch";
+import RoomItem from "@/components/hRoomItem";
 import MapBottomSheet from "@/components/mapBottomSheet";
 import { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
+import { useRoomStore } from '@/lib/roomService';
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+type RoomItemData = {
+  id: string;
+  name: string;
+  floor: string;
+  capacity: number;
+  isAvailable: boolean;
+};
+
+type RoomWithEquipment = {
+  id: string;
+  room_number: string;
+  title: string;
+  seats: number;
+  status: string;
+  equipment?: {
+    floor?: string;
+  };
+};
 
 const geojson3D = geojson;
 
@@ -55,6 +76,32 @@ export default function HomeScreen() {
     { name: 'Maximilian Bergström', id: '4', lat: 60.18394233125424, lon: 24.818510511790645 },
   ]);
   const [selectedTab, setSelectedTab] = useState('people');
+  const { rooms, loading, error, fetchRooms } = useRoomStore();
+  const [roomData, setRoomData] = useState<RoomItemData[]>([]);
+  const fetchRoomsRef = useRef(fetchRooms);
+
+  useEffect(() => {
+    fetchRoomsRef.current = fetchRooms;
+  }, [fetchRooms]);
+
+  useEffect(() => {
+    fetchRoomsRef.current();
+  }, []);
+
+  useEffect(() => {
+    if (rooms.length > 0) {
+      const formattedRooms = (rooms as RoomWithEquipment[]).map((room) => ({
+        id: room.id,
+        name: room.title || `Room ${room.room_number}`,
+        floor: room.equipment?.floor ? `${room.equipment.floor} Floor` : 'N/A',
+        capacity: room.seats || 0,
+        isAvailable: room.status === 'available' || room.status === 'bookable'
+      }));
+      setRoomData(formattedRooms);
+    } else {
+      setRoomData([]);
+    }
+  }, [rooms]);
 
   const handleAddFriend = () => {
     console.log('[HomeScreen] modal ref is', friendModalRef.current);
@@ -145,23 +192,73 @@ export default function HomeScreen() {
           </View>
           {selectedTab === 'people' && (
             <BottomSheetFlatList 
-              data={[{ name: 'Faru Yusupov', id: '1' }, { name: 'Toivo Kallio', id: '2' }, { name: 'Wilmer von Harpe', id: '3' }, { name: 'Maximilian Bergström', id: '4' }]}
+              data={[
+                { 
+                  name: 'Faru Yusupov', 
+                  id: '1', 
+                  status: 'online' as const, 
+                  lastSeen: new Date(Date.now() - 5 * 60 * 1000).toISOString() // 5 minutes ago
+                }, 
+                { 
+                  name: 'Toivo Kallio', 
+                  id: '2', 
+                  status: 'local' as const, 
+                  lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+                }, 
+                { 
+                  name: 'Wilmer von Harpe', 
+                  id: '3', 
+                  status: 'local' as const, 
+                  lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 1 day ago
+                }, 
+                { 
+                  name: 'Maximilian Bergström', 
+                  id: '4', 
+                  status: 'local' as const, 
+                  lastSeen: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+                }
+              ]}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <FriendItem {...item}/>
+                <FriendItem friend={item} onPress={() => console.log('Selected friend:', item.id)}/>
               )}
               contentContainerStyle={{ paddingBottom: 20, flex: 1, height: '100%' }}
-            />
+            /> 
           )}
           {selectedTab === 'rooms' && (
-            <BottomSheetFlatList 
-              data={[{ name: 'Room 101', id: '101' }, { name: 'Room 102', id: '102' }, { name: 'Room 103', id: '103' }, { name: 'Room 104', id: '104' }]}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <FriendItem {...item}/>
-              )}
-              contentContainerStyle={{ paddingBottom: 20, flex: 1, height: '100%' }}
-            />
+            loading ? (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#4A89EE" />
+              </View>
+            ) : error ? (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: 'red', textAlign: 'center' }}>Error loading rooms: {error}</Text>
+                <Pressable 
+                  onPress={() => fetchRoomsRef.current(true)}
+                  style={{ marginTop: 10, padding: 10, backgroundColor: '#4A89EE', borderRadius: 5 }}
+                >
+                  <Text style={{ color: 'white' }}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <BottomSheetFlatList<RoomItemData>
+                data={roomData}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <RoomItem 
+                    room={item}
+                    onPress={() => console.log('Selected room:', item.id)}
+                  />
+                )}
+                contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
+                style={{ flex: 1 }}
+                ListEmptyComponent={
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text>No rooms available</Text>
+                  </View>
+                }
+              />
+            )
           )}
         </View>
       </MapBottomSheet>
