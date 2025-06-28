@@ -1,21 +1,22 @@
-import { BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
-import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { MaterialIcons } from '@expo/vector-icons';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
+import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface Room {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  price_per_night: number;
-  capacity: number;
+  seats: number;
   size: number;
-  amenities: string[];
+  type: 'classroom' | 'meeting_room' | 'auditorium' | 'lab';
+  floor: string;
+  building: string;
+  equipment: string[];
   images: string[];
-  rating: number;
-  reviews_count: number;
+  is_accessible: boolean;
 }
 
 interface RoomModalSheetMethods {
@@ -139,7 +140,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
     <BottomSheetModal 
       ref={bottomSheetModalRef} 
       style={styles.background} 
-      snapPoints={[500, '100%']} 
+      snapPoints={['43%', '60%', '80%']} 
       enablePanDownToClose={true}
       onDismiss={onDismiss}
     >
@@ -148,7 +149,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Image Gallery */}
+          {/* Room Images */}
           <View style={styles.imageContainer}>
             {room.images?.[0] ? (
               <Image 
@@ -181,53 +182,65 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
             </View>
           </View>
 
+          {/* Action Buttons */}
+          <View style={styles.footerActions}>
+            <Pressable style={[styles.actionButton, styles.directionsButton]}>
+              <MaterialIcons name="directions" size={20} color="#4A89EE" />
+              <Text style={[styles.actionButtonText, {color: '#4A89EE'}]}>Directions</Text>
+            </Pressable>
+            <Pressable style={[styles.actionButton, styles.bookButton]}>
+              <Text style={styles.actionButtonText}>Check Availability</Text>
+            </Pressable>
+          </View>
 
           {/* Room Details */}
           <View style={styles.detailsContainer}>
             <View style={styles.headerRow}>
-              <Text style={styles.roomName}>{room.name}</Text>
-              <View style={styles.priceContainer}>
-                <Text style={styles.price}>${room.price_per_night}</Text>
-                <Text style={styles.perNight}>/ night</Text>
+              <View>
+                <Text style={styles.roomName}>{room.title}</Text>
+                <Text style={styles.roomLocation}>
+                  {room.building} • Floor {
+                    room.floor || 
+                    (() => {
+                      const match = room.title.match(/\d/);
+                      return match ? match[0] : '?';
+                    })()
+                  }
+                </Text>
               </View>
-            </View>
-
-            <View style={styles.ratingContainer}>
-              <View style={styles.starsContainer}>
-                {renderStars(room.rating || 0)}
+              <View style={styles.roomTypeBadge}>
+                <Text style={styles.roomTypeText}>
+                  {(room.type || 'room').split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                </Text>
               </View>
-              <Text style={styles.ratingText}>
-                {room.rating?.toFixed(1)} ({room.reviews_count || 0} reviews)
-              </Text>
             </View>
 
             <View style={styles.roomInfo}>
               <View style={styles.infoItem}>
                 <MaterialIcons name="people" size={20} color="#666" />
-                <Text style={styles.infoText}>{room.capacity} Guests</Text>
+                <Text style={styles.infoText}>Up to {room.seats} people</Text>
               </View>
               <View style={styles.infoItem}>
                 <MaterialIcons name="straighten" size={20} color="#666" />
                 <Text style={styles.infoText}>{room.size} m²</Text>
               </View>
+              {room.is_accessible && (
+                <View style={styles.infoItem}>
+                  <MaterialIcons name="accessible" size={20} color="#666" />
+                  <Text style={styles.infoText}>Wheelchair accessible</Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.sectionTitle}>About This Room</Text>
             <Text style={styles.description}>{room.description}</Text>
 
-            <Text style={styles.sectionTitle}>Amenities</Text>
+            <Text style={styles.sectionTitle}>Equipment</Text>
             <View style={styles.amenitiesContainer}>
-              {room.amenities?.map(amenity => renderAmenityIcon(amenity))}
+              {room.equipment?.map(item => renderAmenityIcon(item))}
             </View>
           </View>
         </BottomSheetScrollView>
-
-        {/* Book Now Button */}
-        <View style={styles.footer}>
-          <Pressable style={styles.bookButton} onPress={() => {}}>
-            <Text style={styles.bookButtonText}>Book Now</Text>
-          </Pressable>
-        </View>
       </BottomSheetView>
     </BottomSheetModal>
   );
@@ -330,6 +343,7 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     padding: 24,
+    paddingTop: 12,
     paddingBottom: 120, // Extra padding for the fixed button
   },
   headerRow: {
@@ -344,17 +358,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4A89EE',
-  },
-  perNight: {
+  roomLocation: {
     fontSize: 14,
     color: '#666',
+    marginTop: 2,
+  },
+  roomTypeBadge: {
+    backgroundColor: '#EFF4FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  roomTypeText: {
+    color: '#4A89EE',
+    fontSize: 12,
+    fontWeight: '600',
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -417,25 +436,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#444',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
+  footerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
     padding: 16,
-    borderTopWidth: 1,
-    borderColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  directionsButton: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#4A89EE',
   },
   bookButton: {
     backgroundColor: '#4A89EE',
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
   },
-  bookButtonText: {
+  actionButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   background: {

@@ -63,14 +63,15 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
       <BottomSheet
         ref={sheetRef}
         index={initialIndex}
-        snapPoints={['20%', '35%', '85%']}
+        snapPoints={[minHeight, midHeight, maxHeight]}
         enablePanDownToClose={false}
         style={styles.container}
         backgroundStyle={styles.background}
         handleIndicatorStyle={styles.handle}
         keyboardBehavior='extend'
+        enableDynamicSizing={false}
       >
-        <BottomSheetView>
+        <BottomSheetView style={{ flex: 1 }}>
           {children}
         </BottomSheetView>
       </BottomSheet>
@@ -78,7 +79,6 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
   }
 );
 
-MapBottomSheet.displayName = 'MapBottomSheet';
 
 export default MapBottomSheet;
 

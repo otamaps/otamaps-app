@@ -6,6 +6,7 @@ interface RoomItemProps {
   room: {
     id: string;
     name: string;
+    room_number: string;
     capacity?: number;
     floor?: string;
     isAvailable?: boolean;
@@ -36,14 +37,20 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
           {room.name}
         </Text>
         <View style={styles.metaContainer}>
-          {room.floor && (
-            <View style={styles.metaItem}>
-              <MaterialIcons name="layers" size={14} color="#666" />
-              <Text style={styles.metaText}>
-                {room.floor}
-              </Text>
-            </View>
-          )}
+          <View style={styles.metaItem}>
+            <MaterialIcons name="layers" size={14} color="#666" />
+            <Text style={styles.metaText}>
+              {(() => {
+                console.log('Room name:', room.room_number);
+                console.log('Room floor:', room.floor);
+                const match = room.room_number;
+                console.log('Match result:', match);
+                const result = match ? `Floor ${match[0]}` : '?';
+                console.log('Final floor display:', result);
+                return result;
+              })()}
+            </Text>
+          </View>
           {typeof room.capacity === 'number' && (
             <View style={styles.metaItem}>
               <MaterialIcons name="people" size={14} color="#666" />
@@ -54,6 +61,7 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
           )}
         </View>
       </View>
+
       <View style={styles.actionsContainer}>
         <Pressable 
           onPress={(e) => {
