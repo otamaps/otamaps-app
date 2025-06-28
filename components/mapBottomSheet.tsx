@@ -1,3 +1,7 @@
+/**
+ * Used in:
+ * - app/(tabs)/index.tsx - Main map screen
+ */
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { forwardRef, ReactNode, useImperativeHandle, useMemo, useRef } from 'react';
 import { Dimensions, StyleSheet } from 'react-native';

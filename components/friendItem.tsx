@@ -6,8 +6,9 @@ interface FriendItemProps {
   friend: {
     id: string;
     name: string;
-    status?: 'online' | 'offline' | 'busy' | 'local';
+    status?: 'online' | 'away' | 'busy' | 'at school';
     lastSeen?: string | number; // Can be ISO string or timestamp
+    isFavorite?: boolean;
   };
   onPress?: () => void;
 }
@@ -87,7 +88,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
               </Text>
             </View>
           )}
-          {friend.lastSeen && (
+          {friend.lastSeen && friend.status !== 'online' && (
             <View style={styles.metaItem}>
               <MaterialIcons name="schedule" size={14} color="#666" />
               <Text style={styles.metaText}>
@@ -112,6 +113,8 @@ const getStatusColor = (status?: string) => {
       return '#4CAF50';
     case 'busy':
       return '#F44336';
+    case 'at school':
+      return '#FFC107';
     default:
       return '#9E9E9E';
   }

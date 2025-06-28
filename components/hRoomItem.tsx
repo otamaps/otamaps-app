@@ -9,6 +9,8 @@ interface RoomItemProps {
     capacity?: number;
     floor?: string;
     isAvailable?: boolean;
+    isFavorite?: boolean;
+    onFavoritePress?: () => void;
   };
   onPress?: () => void;
 }
@@ -52,11 +54,26 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
           )}
         </View>
       </View>
-      <MaterialIcons 
-        name="chevron-right" 
-        size={24} 
-        color="#B5B5B5" 
-      />
+      <View style={styles.actionsContainer}>
+        <Pressable 
+          onPress={(e) => {
+            e.stopPropagation();
+            room.onFavoritePress?.();
+          }}
+          style={styles.favoriteButton}
+        >
+          <MaterialIcons 
+            name={room.isFavorite ? 'star' : 'star-outline'} 
+            size={24} 
+            color={room.isFavorite ? '#FFD700' : '#B5B5B5'} 
+          />
+        </Pressable>
+        <MaterialIcons 
+          name="chevron-right" 
+          size={24} 
+          color="#B5B5B5" 
+        />
+      </View>
     </Pressable>
   );
 };
@@ -86,13 +103,21 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
   roomName: {
     fontSize: 16,
     fontFamily: 'Figtree-SemiBold',
     color: '#333',
     marginBottom: 4,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favoriteButton: {
+    padding: 4,
+    marginRight: 4,
   },
   metaContainer: {
     flexDirection: 'row',

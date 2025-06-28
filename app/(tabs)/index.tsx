@@ -3,13 +3,15 @@ import FriendItem from "@/components/friendItem";
 import { getCachedGeoJSON } from "@/components/functions/geoJson";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
-import MapBottomSheet from "@/components/mapBottomSheet";
+import MapBottomSheet, { BottomSheetMethods } from "@/components/mapBottomSheet";
 import { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
+import RoomModalSheet, { RoomModalSheetMethods } from "@/components/sheets/roomModalSheet";
 import { useRoomStore } from '@/lib/roomService';
-import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { MaterialIcons } from "@expo/vector-icons";
+import { BottomSheetFlatList, BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
@@ -65,20 +67,32 @@ const eraser = {
 export default function HomeScreen() {
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string
 
-  setAccessToken("sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC5868EU0LR_Cq1XkEWtQ")
+  setAccessToken("sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ")
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);
+  const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
+  const roomModalRef = useRef<RoomModalSheetMethods>(null); 
   const [friends, setFriends] = useState([
     { name: 'Faru Yusupov', id: '1', lat: 60.18394233125424, lon: 24.818510511790645 },
     { name: 'Toivo Kallio', id: '2', lat: 60.18394233125424, lon: 24.818510511790645 },
     { name: 'Wilmer von Harpe', id: '3', lat: 60.18394233125424, lon: 24.818510511790645 },
     { name: 'Maximilian Bergström', id: '4', lat: 60.18394233125424, lon: 24.818510511790645 },
   ]);
-  const [selectedTab, setSelectedTab] = useState('people');
+  const [selectedTab, setSelectedTab] = useState('people'); 
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
-  const [roomData, setRoomData] = useState<RoomItemData[]>([]);
+  const [roomData, setRoomData] = useState<Array<RoomItemData & { id: string; isFavorite: boolean }>>([]);
   const fetchRoomsRef = useRef(fetchRooms);
+  
+  const handleTabPress = (tab: string) => {
+    if (selectedTab === tab) {
+      setShowFavoritesOnly(!showFavoritesOnly);
+    } else {
+      setSelectedTab(tab);
+      setShowFavoritesOnly(false);
+    }
+  };
 
   useEffect(() => {
     fetchRoomsRef.current = fetchRooms;
@@ -95,7 +109,8 @@ export default function HomeScreen() {
         name: room.title || `Room ${room.room_number}`,
         floor: room.equipment?.floor ? `${room.equipment.floor} Floor` : 'N/A',
         capacity: room.seats || 0,
-        isAvailable: room.status === 'available' || room.status === 'bookable'
+        isAvailable: room.status === 'available' || room.status === 'bookable',
+        isFavorite: Math.random() > 0.5 // Randomly assign favorite status for demo
       }));
       setRoomData(formattedRooms);
     } else {
@@ -121,8 +136,14 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  const handleRoomPress = useCallback((roomId: string) => {
+    roomModalRef.current?.open(roomId);
+    mapBottomSheetRef.current?.snapToMin();
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.container}>
+    <BottomSheetModalProvider>
       <StatusBar style="dark" />
       <MapView
         style={styles.map}
@@ -143,11 +164,14 @@ export default function HomeScreen() {
         />
         <ShapeSource id="buildingSource" shape={geojson3D}>
           <FillExtrusionLayer
-            id="extrusionLayer"
+            id="3d-buildings"
+            sourceLayerID="building"
+            minZoomLevel={14}
+            maxZoomLevel={24}
             style={{
-              fillExtrusionHeight: 10,
+              fillExtrusionHeight: 5,
               fillExtrusionBase: 0,
-              fillExtrusionColor: '#444444', 
+              fillExtrusionColor: '#ccc',
               fillExtrusionOpacity: 0.8,
             }}
           />
@@ -177,17 +201,31 @@ export default function HomeScreen() {
       </MapView>
 
       <GlobalSearch/>
+
+      <RoomModalSheet
+        ref={roomModalRef}
+        onDismiss={() => {
+          // Any cleanup when modal is dismissed
+        }}
+      />
       
       <MapBottomSheet
+        ref={mapBottomSheetRef}
         initialSnap="mid"
       >
         <View style={{ flex: 12, backgroundColor: 'white' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Pressable onPress={() => setSelectedTab('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#4A89EE' }}>
+            <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
               <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#4A89EE' : '#333' }}>People</Text>
+              {showFavoritesOnly && selectedTab === 'people' && (
+                <MaterialIcons name="star" size={16} color="#4A89EE" style={{ marginLeft: 8 }}/>
+              )}
             </Pressable>
-            <Pressable onPress={() => setSelectedTab('rooms')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'rooms' ? 2 : 0, borderBottomColor: '#4A89EE' }}>
+            <Pressable onPress={() => handleTabPress('rooms')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'rooms' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
               <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'rooms' ? '#4A89EE' : '#333' }}>Rooms</Text>
+              {showFavoritesOnly && selectedTab === 'rooms' && (
+                <MaterialIcons name="star" size={16} color="#4A89EE" style={{ marginLeft: 8 }} />
+              )}
             </Pressable>
           </View>
           {selectedTab === 'people' && (
@@ -200,32 +238,71 @@ export default function HomeScreen() {
                   lastSeen: new Date(Date.now() - 5 * 60 * 1000).toISOString() // 5 minutes ago
                 }, 
                 { 
-                  name: 'Toivo Kallio', 
+                  name: 'Toivo Kallio',
                   id: '2', 
-                  status: 'local' as const, 
+                  status: 'at school' as const, 
                   lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
                 }, 
                 { 
                   name: 'Wilmer von Harpe', 
                   id: '3', 
-                  status: 'local' as const, 
+                  status: 'at school' as const, 
                   lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 1 day ago
                 }, 
                 { 
                   name: 'Maximilian Bergström', 
                   id: '4', 
-                  status: 'local' as const, 
+                  status: 'at school' as const, 
                   lastSeen: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
                 }
               ]}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <FriendItem friend={item} onPress={() => console.log('Selected friend:', item.id)}/>
+                <FriendItem 
+                  friend={item} 
+                  onPress={() => console.log('Selected friend:', item.id)}
+                />
               )}
               contentContainerStyle={{ paddingBottom: 20, flex: 1, height: '100%' }}
+              ListEmptyComponent={
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text>No {showFavoritesOnly ? 'favorite ' : ''}people found</Text>
+                </View>
+              }
             /> 
           )}
-          {selectedTab === 'rooms' && (
+          {selectedTab === 'rooms' && !showFavoritesOnly && (
+            <BottomSheetFlatList 
+              data={roomData}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <RoomItem 
+                  room={{
+                    ...item,
+                    isFavorite: item.isFavorite || false,
+                    onFavoritePress: () => {
+                      setRoomData(prev => 
+                        prev.map(room => 
+                          room.id === item.id 
+                            ? { ...room, isFavorite: !room.isFavorite } 
+                            : room
+                        )
+                      );
+                    }
+                  }}
+                  onPress={() => handleRoomPress(item.id)}
+                />
+              )}
+              contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
+              style={{ flex: 1 }}
+              ListEmptyComponent={
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text>No rooms available</Text>
+                </View>
+              }
+            />
+          )}
+          {selectedTab === 'rooms' && showFavoritesOnly && (
             loading ? (
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#4A89EE" />
@@ -241,8 +318,8 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             ) : (
-              <BottomSheetFlatList<RoomItemData>
-                data={roomData}
+              <BottomSheetFlatList
+                data={roomData.filter(room => room.isFavorite)}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <RoomItem 
@@ -262,6 +339,7 @@ export default function HomeScreen() {
           )}
         </View>
       </MapBottomSheet>
+    </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
@@ -303,5 +381,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
+  },
+  bottomSheetContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    zIndex: 1000,
+  },
+  bottomSheetContent: {
+    flex: 1,
+    padding: 24,
+  },
+  bottomSheetTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 24,
+  },
+  bottomSheetButton: {
+    backgroundColor: '#4A89EE',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bottomSheetButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

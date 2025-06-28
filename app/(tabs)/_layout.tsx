@@ -1,14 +1,12 @@
-import { Tabs } from 'expo-router';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PortalProvider } from '@gorhom/portal';
+import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
-    <BottomSheetModalProvider>
-      <PortalProvider>
-        <Tabs
+    <PortalProvider>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: Platform.select({
@@ -32,7 +30,6 @@ export default function TabLayout() {
         }}
         />
       </Tabs>
-      </PortalProvider>
-    </BottomSheetModalProvider>
+    </PortalProvider>
   );
 }
