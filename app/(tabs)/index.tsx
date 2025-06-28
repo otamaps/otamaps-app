@@ -213,7 +213,7 @@ export default function HomeScreen() {
         ref={mapBottomSheetRef}
         initialSnap="mid"
       >
-        <View style={{ flex: 12, backgroundColor: 'white' }}>
+        <View style={{ flex: 1, backgroundColor: 'white' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
               <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#4A89EE' : '#333' }}>People</Text>
@@ -275,6 +275,7 @@ export default function HomeScreen() {
             <BottomSheetFlatList 
               data={roomData}
               keyExtractor={(item) => item.id}
+              scrollEnabled={true}
               renderItem={({ item }) => (
                 <RoomItem 
                   room={{
@@ -289,12 +290,11 @@ export default function HomeScreen() {
                         )
                       );
                     }
-                  }}
+                  }} 
                   onPress={() => handleRoomPress(item.id)}
                 />
               )}
-              contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
-              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingTop: 8, paddingBottom: 20 }}
               ListEmptyComponent={
                 <View style={{ padding: 20, alignItems: 'center' }}>
                   <Text>No rooms available</Text>
@@ -320,6 +320,7 @@ export default function HomeScreen() {
             ) : (
               <BottomSheetFlatList
                 data={roomData.filter(room => room.isFavorite)}
+                scrollEnabled={true}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <RoomItem 
@@ -327,7 +328,7 @@ export default function HomeScreen() {
                     onPress={() => console.log('Selected room:', item.id)}
                   />
                 )}
-                contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
+                contentContainerStyle={{ paddingTop: 8, paddingBottom: 20, flexGrow: 1 }}
                 style={{ flex: 1 }}
                 ListEmptyComponent={
                   <View style={{ padding: 20, alignItems: 'center' }}>
