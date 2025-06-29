@@ -101,14 +101,13 @@ const styles = StyleSheet.create({
   },
   buttonSelected: {
     padding: 8,
-    paddingVertical: 12,
     borderRadius: 10,
     height: 48,
     flex: 1,
     justifyContent: 'center', 
     alignItems: 'center',
     backgroundColor: '#ddd',
-    width: 48,
+    width: 52,
   },
   spacer: {
     height: 1,

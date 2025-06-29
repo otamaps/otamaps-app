@@ -12,7 +12,7 @@ import { BottomSheetFlatList, BottomSheetModalProvider } from "@gorhom/bottom-sh
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 type RoomItemData = {
@@ -21,6 +21,8 @@ type RoomItemData = {
   floor: string;
   capacity: number;
   isAvailable: boolean;
+  isFavorite: boolean;
+  room_number: string;
 };
 
 type RoomWithEquipment = {
@@ -104,15 +106,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (rooms.length > 0) {
-      const formattedRooms = (rooms as RoomWithEquipment[]).map((room) => ({
-        id: room.id,
-        name: room.title || `Room ${room.room_number}`,
-        floor: room.equipment?.floor ? `${room.equipment.floor} Floor` : 'N/A',
-        capacity: room.seats || 0,
-        isAvailable: room.status === 'available' || room.status === 'bookable',
-        isFavorite: Math.random() > 0.5 // Randomly assign favorite status for demo
-      }));
-      setRoomData(formattedRooms);
+      setRoomData(rooms);
     } else {
       setRoomData([]);
     }
@@ -144,6 +138,7 @@ export default function HomeScreen() {
   return (
     <GestureHandlerRootView style={styles.container}>
     <BottomSheetModalProvider>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <MapView
         style={styles.map}
@@ -234,8 +229,8 @@ export default function HomeScreen() {
                 { 
                   name: 'Faru Yusupov', 
                   id: '1', 
-                  status: 'online' as const, 
-                  lastSeen: new Date(Date.now() - 5 * 60 * 1000).toISOString() // 5 minutes ago
+                  status: 'at school' as const, 
+                  lastSeen: new Date().toISOString() // Now (will show as 'Just now' if within 30s)
                 }, 
                 { 
                   name: 'Toivo Kallio',
@@ -247,13 +242,13 @@ export default function HomeScreen() {
                   name: 'Wilmer von Harpe', 
                   id: '3', 
                   status: 'at school' as const, 
-                  lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 1 day ago
+                  lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() // 4 hours ago
                 }, 
                 { 
                   name: 'Maximilian Bergström', 
                   id: '4', 
                   status: 'at school' as const, 
-                  lastSeen: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+                  lastSeen: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() 
                 }
               ]}
               keyExtractor={(item) => item.id}
@@ -276,24 +271,27 @@ export default function HomeScreen() {
               data={roomData}
               keyExtractor={(item) => item.id}
               scrollEnabled={true}
-              renderItem={({ item }) => (
-                <RoomItem 
-                  room={{
-                    ...item,
-                    isFavorite: item.isFavorite || false,
-                    onFavoritePress: () => {
-                      setRoomData(prev => 
-                        prev.map(room => 
-                          room.id === item.id 
-                            ? { ...room, isFavorite: !room.isFavorite } 
-                            : room
-                        )
-                      );
-                    }
-                  }} 
-                  onPress={() => handleRoomPress(item.id)}
-                />
-              )}
+              renderItem={({ item }) => {
+                const roomWithFavorite = {
+                  ...item,
+                  isFavorite: item.isFavorite || false,
+                  onFavoritePress: () => {
+                    setRoomData(prev => 
+                      prev.map(room => 
+                        room.id === item.id 
+                          ? { ...room, isFavorite: !room.isFavorite } 
+                          : room
+                      )
+                    );
+                  }
+                };
+                return (
+                  <RoomItem 
+                    room={roomWithFavorite}
+                    onPress={() => handleRoomPress(item.id)}
+                  />
+                );
+              }}
               contentContainerStyle={{ paddingTop: 8, paddingBottom: 20 }}
               ListEmptyComponent={
                 <View style={{ padding: 20, alignItems: 'center' }}>
@@ -318,18 +316,16 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             ) : (
-              <BottomSheetFlatList
+              <FlatList
                 data={roomData.filter(room => room.isFavorite)}
                 scrollEnabled={true}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <RoomItem 
+                  <RoomItem
                     room={item}
                     onPress={() => console.log('Selected room:', item.id)}
                   />
                 )}
-                contentContainerStyle={{ paddingTop: 8, paddingBottom: 20, flexGrow: 1 }}
-                style={{ flex: 1 }}
                 ListEmptyComponent={
                   <View style={{ padding: 20, alignItems: 'center' }}>
                     <Text>No rooms available</Text>
@@ -340,6 +336,7 @@ export default function HomeScreen() {
           )}
         </View>
       </MapBottomSheet>
+    </View>
     </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );

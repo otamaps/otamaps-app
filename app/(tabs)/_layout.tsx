@@ -1,11 +1,11 @@
-import { PortalProvider } from '@gorhom/portal';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
-    <PortalProvider>
+    <>
       <Tabs
       screenOptions={{
         headerShown: false,
@@ -21,15 +21,30 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="find"
         options={{
-          title: 'Explore',
+          title: 'Find',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="search" size={size} color={color} />
+          ),
         }}
         />
+        <Tabs.Screen
+          name="debug"
+          options={{
+            title: 'Debug',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="bug-report" size={size} color={color} />
+            ),
+          }}
+        />
       </Tabs>
-    </PortalProvider>
+    </>
   );
 }
