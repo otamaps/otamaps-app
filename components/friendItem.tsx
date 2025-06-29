@@ -6,7 +6,7 @@ interface FriendItemProps {
   friend: {
     id: string;
     name: string;
-    status?: 'online' | 'away' | 'busy' | 'at school';
+    status?: 'away' | 'busy' | 'at school';
     lastSeen?: string | number; // Can be ISO string or timestamp
     isFavorite?: boolean;
   };
@@ -22,14 +22,14 @@ const formatLastSeen = (lastSeen?: string | number): string => {
     date = new Date(lastSeen);
   } else {
     date = new Date(lastSeen * 1000); // Convert seconds to milliseconds if needed
-  }
-  
+  } 
+
   if (isNaN(date.getTime())) return 'Unknown';
-  
+
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   
-  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 30) return 'Just now';
   if (diffInSeconds < 3600) {
     const minutes = Math.floor(diffInSeconds / 60);
     return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
@@ -67,7 +67,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
         <MaterialIcons 
           name="person" 
           size={24} 
-          color={getStatusColor(friend.status)} 
+          color={getStatusColor(friend.status, friend.lastSeen)} 
         />
       </View>
       <View style={styles.detailsContainer}>
@@ -75,12 +75,12 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
           {friend.name}
         </Text>
         <View style={styles.metaContainer}>
-          {friend.status && (
+          {friend.status && friend.status !== 'online' && (
             <View style={styles.metaItem}>
               <View 
                 style={[
                   styles.statusIndicator, 
-                  { backgroundColor: getStatusColor(friend.status) }
+                  { backgroundColor: getStatusColor(friend.status, friend.lastSeen) }
                 ]} 
               />
               <Text style={styles.metaText}>
@@ -107,17 +107,46 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
   );
 };
 
-const getStatusColor = (status?: string) => {
-  switch (status) {
-    case 'online':
-      return '#4CAF50';
-    case 'busy':
-      return '#F44336';
-    case 'at school':
-      return '#FFC107';
-    default:
-      return '#9E9E9E';
+const getStatusColor = (status?: string, lastSeen?: string | number) => {
+  // For non-'at school' statuses, return their respective colors
+  if (status !== 'at school') {
+    switch (status) {
+      case 'busy':
+        return '#F44336';
+      default:
+        return '#9E9E9E';
+    }
   }
+  
+  // For 'at school' status, calculate fade based on lastSeen
+  if (!lastSeen) return '#4CAF50';
+  
+  let date: Date;
+  if (typeof lastSeen === 'string') {
+    date = new Date(lastSeen);
+  } else {
+    date = new Date(lastSeen * 1000);
+  }
+  
+  if (isNaN(date.getTime())) return '#4CAF50';
+  
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  
+  // Full color for less than 30 minutes
+  if (diffInHours < 0.5) return '#4CAF50';
+  
+  // Fade from green to gray between 30 minutes and 6 hours
+  if (diffInHours < 6) {
+    const fadeFactor = (6 - diffInHours) / 5.5; // Goes from 1 to ~0.09
+    const r = Math.round(76 + (158 - 76) * (1 - fadeFactor));
+    const g = Math.round(175 + (158 - 175) * (1 - fadeFactor));
+    const b = Math.round(80 + (158 - 80) * (1 - fadeFactor));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  
+  // After 6 hours, return gray
+  return '#9E9E9E';
 };
 
 const styles = StyleSheet.create({

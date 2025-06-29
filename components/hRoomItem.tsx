@@ -5,9 +5,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 interface RoomItemProps {
   room: {
     id: string;
-    name: string;
+    title: string;
     room_number: string;
-    capacity?: number;
+    seats?: number;
     floor?: string;
     isAvailable?: boolean;
     isFavorite?: boolean;
@@ -34,7 +34,7 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
       </View>
       <View style={styles.detailsContainer}>
         <Text style={styles.roomName} numberOfLines={1} ellipsizeMode="tail">
-          {room.name}
+          {room.title}
         </Text>
         <View style={styles.metaContainer}>
           <View style={styles.metaItem}>
@@ -51,11 +51,11 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
               })()}
             </Text>
           </View>
-          {typeof room.capacity === 'number' && (
+          {typeof room.seats === 'number' && (
             <View style={styles.metaItem}>
               <MaterialIcons name="people" size={14} color="#666" />
               <Text style={styles.metaText}>
-                {room.capacity} {room.capacity === 1 ? 'person' : 'people'}
+                {room.seats} {room.seats === 1 ? 'person' : 'people'}
               </Text>
             </View>
           )}

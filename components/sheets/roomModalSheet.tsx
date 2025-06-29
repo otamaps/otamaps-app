@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { useRoomStore } from '@/lib/roomService';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,7 @@ interface Room {
   size: number;
   type: 'classroom' | 'meeting_room' | 'auditorium' | 'lab';
   floor: string;
+  room_number: string;
   building: string;
   equipment: string[];
   images: string[];
@@ -36,21 +37,32 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [roomId, setRoomId] = useState<string | null>(null);
 
+  const { rooms, fetchRooms } = useRoomStore();
+
   const fetchRoomDetails = async (id: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      const { data, error: fetchError } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
+      // First, check if the room is already in the store
+      const existingRoom = rooms.find(room => room.id === id);
       
-      setRoom(data);
-      bottomSheetModalRef.current?.present();
+      if (existingRoom) {
+        setRoom(existingRoom);
+        bottomSheetModalRef.current?.present();
+        return;
+      }
+      
+      // If not in the store, fetch all rooms and try again
+      await fetchRooms();
+      const updatedRoom = useRoomStore.getState().rooms.find(room => room.id === id);
+      
+      if (updatedRoom) {
+        setRoom(updatedRoom);
+        bottomSheetModalRef.current?.present();
+      } else {
+        throw new Error('Room not found');
+      }
     } catch (err) {
       console.error('Error fetching room details:', err);
       setError('Failed to load room details. Please try again.');
@@ -73,6 +85,12 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
     open,
     close,
   }));
+
+  const getFloor = (room: Room) => {
+    if (room.floor) return room.floor;
+    const match = room.room_number.match(/\d/);
+    return match ? match[0] : '?';
+  }
 
   const renderStars = (rating: number) => {
     return Array(5).fill(0).map((_, i) => {
@@ -199,13 +217,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
               <View>
                 <Text style={styles.roomName}>{room.title}</Text>
                 <Text style={styles.roomLocation}>
-                  {room.building} • Floor {
-                    room.floor || 
-                    (() => {
-                      const match = room.title.match(/\d/);
-                      return match ? match[0] : '?';
-                    })()
-                  }
+                  Floor {getFloor(room)}
                 </Text>
               </View>
               <View style={styles.roomTypeBadge}>
@@ -350,7 +362,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   roomName: {
     fontSize: 24,

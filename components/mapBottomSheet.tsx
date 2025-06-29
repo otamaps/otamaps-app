@@ -90,6 +90,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     zIndex: 3,
+    paddingBottom: 5,
   },
   background: {
     backgroundColor: '#fff',
