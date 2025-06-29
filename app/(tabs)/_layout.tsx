@@ -1,3 +1,4 @@
+import { AuthProvider } from '@/context/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -5,7 +6,7 @@ import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
-    <>
+    <AuthProvider>
       <Tabs
       screenOptions={{
         headerShown: false,
@@ -45,6 +46,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </>
+    </AuthProvider>
   );
 }

@@ -176,7 +176,6 @@ export default function HomeScreen() {
               fillColor: '#444444',
               fillOpacity: 0.5,
             }}
-
           />
         </ShapeSource>
 
