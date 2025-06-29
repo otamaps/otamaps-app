@@ -12,7 +12,7 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <View style={styles.backgroundContainer}>
         <ImageBackground
-          source={require('../../assets/images/login-bg.png')}
+          source={require('@/assets/images/login-bg.png')}
           style={styles.backgroundImage}
         >
           {/* Top white gradient */}
@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
         <View style={styles.topContainer}>
           <Text style={styles.tervetuloa}>Tervetuloa!</Text>
           <Image
-            source={require('../../assets/images/otamaps-logo.png')}
+            source={require('@/assets/images/otamaps-logo.png')}
             style={styles.omLogo}
             resizeMode="contain"
           />
@@ -42,7 +42,7 @@ export default function WelcomeScreen() {
         <View style={styles.logoContainer}>
           <Text style={styles.mahdollistanut}>Mahdollistanut</Text>
           <Image
-            source={require('../../assets/images/streetsmarts.png')} 
+            source={require('@/assets/images/streetsmarts.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
