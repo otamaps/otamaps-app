@@ -13,7 +13,7 @@ interface FriendItemProps {
   onPress?: () => void;
 }
 
-const formatLastSeen = (lastSeen?: string | number): string => {
+export const formatLastSeen = (lastSeen?: string | number): string => {
   if (!lastSeen) return '';
   
   let date: Date;

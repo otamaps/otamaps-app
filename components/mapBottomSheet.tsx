@@ -3,7 +3,7 @@
  * - app/(tabs)/index.tsx - Main map screen
  */
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
-import React, { forwardRef, ReactNode, useImperativeHandle, useMemo, useRef } from 'react';
+import React, { forwardRef, ReactNode, useImperativeHandle, useRef, useState } from 'react';
 import { Dimensions, StyleSheet } from 'react-native';
 
 export type BottomSheetMethods = {
@@ -13,11 +13,13 @@ export type BottomSheetMethods = {
   snapToMid: () => void;
   /** Snap to collapsed */
   snapToMin: () => void;
+  /** Get current snap point index */
+  getCurrentSnapIndex: () => number;
 };
 
 export interface BottomSheetProps {
   /** Content to render inside the sheet */
-  children: ReactNode;
+  children: (props: { currentSnapIndex: number }) => ReactNode;
   /** Which position to start in (default “mid”) */
   initialSnap?: 'max' | 'mid' | 'min';
   /** Heights (in px) for each snap point */
@@ -39,30 +41,40 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
     },
     ref
   ) => {
-    const initialIndex = useMemo(() => {
-      switch (initialSnap) {
-        case 'max':
-          return 2;
-        case 'mid':
-          return 1;
-        case 'min':
-        default:
-          return 0;
-      }
-    }, [initialSnap]);
+    const [currentSnapIndex, setCurrentSnapIndex] = useState<number>(() => {
+    switch (initialSnap) {
+      case 'max':
+        return 2;
+      case 'mid':
+        return 1;
+      case 'min':
+      default:
+        return 0;
+    }
+  });
 
-    const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<BottomSheet>(null);
 
     useImperativeHandle(ref, () => ({
-      snapToMax: () => sheetRef.current?.snapToIndex(2),
-      snapToMid: () => sheetRef.current?.snapToIndex(1),
-      snapToMin: () => sheetRef.current?.snapToIndex(0),
-    }));
+      snapToMax: () => {
+        sheetRef.current?.snapToIndex(2);
+        setCurrentSnapIndex(2);
+      },
+      snapToMid: () => {
+        sheetRef.current?.snapToIndex(1);
+        setCurrentSnapIndex(1);
+      },
+      snapToMin: () => {
+        sheetRef.current?.snapToIndex(0);
+        setCurrentSnapIndex(0);
+      },
+      getCurrentSnapIndex: () => currentSnapIndex,
+    }), [currentSnapIndex]);
 
     return (
       <BottomSheet
         ref={sheetRef}
-        index={initialIndex}
+        index={currentSnapIndex}
         snapPoints={[minHeight, midHeight, maxHeight]}
         enablePanDownToClose={false}
         style={styles.container}
@@ -70,15 +82,15 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
         handleIndicatorStyle={styles.handle}
         keyboardBehavior='extend'
         enableDynamicSizing={false}
+        onChange={(index) => setCurrentSnapIndex(index)}
       >
-        <BottomSheetView style={{ flex: 1 }}>
-          {children}
+        <BottomSheetView style={{ flex: 1, height: '100%' }}>
+          {children({ currentSnapIndex })}
         </BottomSheetView>
       </BottomSheet>
     );
   }
 );
-
 
 export default MapBottomSheet;
 

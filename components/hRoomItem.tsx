@@ -34,19 +34,15 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
       </View>
       <View style={styles.detailsContainer}>
         <Text style={styles.roomName} numberOfLines={1} ellipsizeMode="tail">
-          {room.title}
+          {room.room_number} | {room.title}
         </Text>
         <View style={styles.metaContainer}>
           <View style={styles.metaItem}>
             <MaterialIcons name="layers" size={14} color="#666" />
             <Text style={styles.metaText}>
               {(() => {
-                console.log('Room name:', room.room_number);
-                console.log('Room floor:', room.floor);
                 const match = room.room_number;
-                console.log('Match result:', match);
                 const result = match ? `Floor ${match[0]}` : '?';
-                console.log('Final floor display:', result);
                 return result;
               })()}
             </Text>

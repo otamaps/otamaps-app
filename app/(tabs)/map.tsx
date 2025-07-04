@@ -1,19 +1,20 @@
 import { geojson } from "@/assets/geos/map";
-import FriendItem from "@/components/friendItem";
+import { fmstyles } from "@/assets/styles/friendModalStyles";
+import FriendItem, { formatLastSeen } from "@/components/friendItem";
 import { getCachedGeoJSON } from "@/components/functions/geoJson";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import MapBottomSheet, { BottomSheetMethods } from "@/components/mapBottomSheet";
-import { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
+import FriendModalSheet, { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
 import RoomModalSheet, { RoomModalSheetMethods } from "@/components/sheets/roomModalSheet";
 import { useRoomStore } from '@/lib/roomService';
 import { MaterialIcons } from "@expo/vector-icons";
-import { BottomSheetFlatList, BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { BottomSheetFlatList, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 
 type RoomItemData = {
   id: string;
@@ -76,16 +77,37 @@ export default function HomeScreen() {
   const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
   const roomModalRef = useRef<RoomModalSheetMethods>(null); 
   const [friends, setFriends] = useState([
-    { name: 'Faru Yusupov', id: '1', lat: 60.18394233125424, lon: 24.818510511790645 },
-    { name: 'Toivo Kallio', id: '2', lat: 60.18394233125424, lon: 24.818510511790645 },
-    { name: 'Wilmer von Harpe', id: '3', lat: 60.18394233125424, lon: 24.818510511790645 },
-    { name: 'Maximilian Bergström', id: '4', lat: 60.18394233125424, lon: 24.818510511790645 },
+    { 
+      name: 'Faru Yusupov', 
+      id: '1', 
+      status: 'at school' as const, 
+      lastSeen: new Date().toISOString() // Now (will show as 'Just now' if within 30s)
+    }, 
+    { 
+      name: 'Toivo Kallio',
+      id: '2', 
+      status: 'at school' as const, 
+      lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+    }, 
+    { 
+      name: 'Wilmer von Harpe', 
+      id: '3', 
+      status: 'at school' as const, 
+      lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() // 4 hours ago
+    }, 
+    { 
+      name: 'Maximilian Bergström', 
+      id: '4', 
+      status: 'at school' as const, 
+      lastSeen: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() 
+    }
   ]);
   const [selectedTab, setSelectedTab] = useState('people'); 
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const [roomData, setRoomData] = useState<Array<RoomItemData & { id: string; isFavorite: boolean }>>([]);
   const fetchRoomsRef = useRef(fetchRooms);
+  const [friendId, setFriendId] = useState('');
   
   const handleTabPress = (tab: string) => {
     if (selectedTab === tab) {
@@ -135,6 +157,16 @@ export default function HomeScreen() {
     mapBottomSheetRef.current?.snapToMin();
   }, []);
 
+  const handleFriendOpen = (friendId: string) => {
+    setFriendId(friendId);
+    friendModalRef.current?.present();
+    mapBottomSheetRef.current?.snapToMin();
+  };
+
+  const handlePress = (e: any) => {
+    console.log('Pressed', e.features);
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
     <BottomSheetModalProvider>
@@ -157,7 +189,7 @@ export default function HomeScreen() {
           }}
           minZoomLevel={9}
         />
-        <ShapeSource id="buildingSource" shape={geojson3D}>
+        <ShapeSource id="buildingSource" shape={geojson3D} onPress={handlePress}>
           <FillExtrusionLayer
             id="3d-buildings"
             sourceLayerID="building"
@@ -166,6 +198,30 @@ export default function HomeScreen() {
             style={{
               fillExtrusionHeight: 5,
               fillExtrusionBase: 0,
+              fillExtrusionColor: '#ccc',
+              fillExtrusionOpacity: 0.8,
+            }}
+          />
+          <FillExtrusionLayer
+            id="3d-doors"
+            sourceLayerID="door"
+            minZoomLevel={14}
+            maxZoomLevel={24}
+            style={{
+              fillExtrusionHeight: 1,
+              fillExtrusionBase: 4,
+              fillExtrusionColor: '#ccc',
+              fillExtrusionOpacity: 0.8,
+            }}
+          />
+          <FillExtrusionLayer
+            id="3d-furniture"
+            sourceLayerID="furniture"
+            minZoomLevel={14}
+            maxZoomLevel={24}
+            style={{
+              fillExtrusionHeight: 2,
+              fillExtrusionBase: 0.5,
               fillExtrusionColor: '#ccc',
               fillExtrusionOpacity: 0.8,
             }}
@@ -202,12 +258,52 @@ export default function HomeScreen() {
           // Any cleanup when modal is dismissed
         }}
       />
+
+      <FriendModalSheet
+        ref={friendModalRef}
+        onDismiss={() => {
+          // Any cleanup when modal is dismisseds
+        }}
+        initialSnap="mid"
+      >
+        <View style={fmstyles.headerContainer}>
+          <View style={fmstyles.headerLeft}>
+            <Text style={fmstyles.name}>{friends.find(f => f.id === friendId)?.name}</Text>
+            <Text style={fmstyles.status}>{friends.find(f => f.id === friendId)?.status.charAt(0).toUpperCase() + friends.find(f => f.id === friendId)?.status.slice(1)} • {formatLastSeen(friends.find(f => f.id === friendId)?.lastSeen)}</Text>
+          </View>
+          <Pressable onPress={() => friendModalRef.current?.close()}>
+            <MaterialIcons name="close" size={24} color="#666" />
+          </Pressable>
+        </View>
+        <View style={fmstyles.navigateButton}>
+          <Text style={fmstyles.navigateButtonText}>Reittiohjeet</Text>
+          <MaterialIcons name="directions" size={24} color="white" />
+        </View>
+
+        <Pressable style={fmstyles.button}>
+          <MaterialIcons name="edit" size={20} color="black" />
+          <Text style={fmstyles.buttonText}>Muokkaa nimeä</Text>
+        </Pressable>
+
+        <View style={{ height: 8 }}/>
+
+        <Pressable style={fmstyles.redButton}>
+          <Text style={fmstyles.redButtonText}>Lopeta oman sijainnin jako</Text>
+        </Pressable>
+        <Pressable style={fmstyles.redButton}>
+          <Text style={fmstyles.redButtonText}>Estä {friends.find(f => f.id === friendId)?.name}</Text>
+        </Pressable>
+        <Pressable style={fmstyles.redButton}>
+          <Text style={fmstyles.redButtonText}>Ilmianna {friends.find(f => f.id === friendId)?.name}</Text>
+        </Pressable>
+      </FriendModalSheet>
       
       <MapBottomSheet
         ref={mapBottomSheetRef}
         initialSnap="mid"
       >
-        <View style={{ flex: 1, backgroundColor: 'white' }}>
+        {({ currentSnapIndex }) => (
+        <BottomSheetView style={{ flex: 1, backgroundColor: 'white', height: '100%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
               <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#4A89EE' : '#333' }}>People</Text>
@@ -254,10 +350,15 @@ export default function HomeScreen() {
               renderItem={({ item }) => (
                 <FriendItem 
                   friend={item} 
-                  onPress={() => console.log('Selected friend:', item.id)}
+                  onPress={() => handleFriendOpen(item.id)}
                 />
               )}
-              contentContainerStyle={{ paddingBottom: 20, flex: 1, height: '100%' }}
+              scrollEnabled={currentSnapIndex === 2}
+              contentContainerStyle={{ 
+                paddingBottom: 20, 
+                flex: currentSnapIndex === 2 ? 1 : 0,
+                height: currentSnapIndex === 2 ? '100%' : 'auto'
+              }}
               ListEmptyComponent={
                 <View style={{ padding: 20, alignItems: 'center' }}>
                   <Text>No {showFavoritesOnly ? 'favorite ' : ''}people found</Text>
@@ -266,10 +367,9 @@ export default function HomeScreen() {
             /> 
           )}
           {selectedTab === 'rooms' && !showFavoritesOnly && (
-            <BottomSheetFlatList 
+            <FlatList 
               data={roomData}
               keyExtractor={(item) => item.id}
-              scrollEnabled={true}
               renderItem={({ item }) => {
                 const roomWithFavorite = {
                   ...item,
@@ -291,7 +391,13 @@ export default function HomeScreen() {
                   />
                 );
               }}
-              contentContainerStyle={{ paddingTop: 8, paddingBottom: 20 }}
+              scrollEnabled={currentSnapIndex === 2}
+              contentContainerStyle={{ 
+                paddingTop: 8, 
+                paddingBottom: 20,
+                flex: currentSnapIndex === 2 ? 1 : 0,
+                height: currentSnapIndex === 2 ? '100%' : 'auto'
+              }}
               ListEmptyComponent={
                 <View style={{ padding: 20, alignItems: 'center' }}>
                   <Text>No rooms available</Text>
@@ -317,7 +423,7 @@ export default function HomeScreen() {
             ) : (
               <FlatList
                 data={roomData.filter(room => room.isFavorite)}
-                scrollEnabled={true}
+                scrollEnabled={currentSnapIndex === 2}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <RoomItem
@@ -325,6 +431,12 @@ export default function HomeScreen() {
                     onPress={() => console.log('Selected room:', item.id)}
                   />
                 )}
+                contentContainerStyle={{ 
+                  paddingTop: 8, 
+                  paddingBottom: 20,
+                  flex: currentSnapIndex === 2 ? 1 : 0,
+                  height: currentSnapIndex === 2 ? '100%' : 'auto'
+                }}
                 ListEmptyComponent={
                   <View style={{ padding: 20, alignItems: 'center' }}>
                     <Text>No rooms available</Text>
@@ -333,7 +445,8 @@ export default function HomeScreen() {
               />
             )
           )}
-        </View>
+        </BottomSheetView>
+        )}
       </MapBottomSheet>
     </View>
     </BottomSheetModalProvider>
