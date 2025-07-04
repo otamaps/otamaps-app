@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     paddingHorizontal: 10,
-    zIndex: 1000,
+    zIndex: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',

@@ -1,6 +1,6 @@
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, View } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -13,22 +13,18 @@ export type FriendModalSheetRef = {
 
 type FriendModalSheetProps = {
   children: React.ReactNode;
-  name: string;
   onDismiss: () => void;
   initialSnap?: 'max' | 'mid' | 'min';
-  maxHeight?: number;
-  midHeight?: number;
-  minHeight?: number;
 };
+
+const maxHeight = SCREEN_HEIGHT * 0.95;
+const midHeight = SCREEN_HEIGHT * 0.5;
+const minHeight = SCREEN_HEIGHT * 0.3;
 
 const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(({ 
   children, 
-  name, 
   onDismiss,
   initialSnap = 'mid',
-  maxHeight = SCREEN_HEIGHT * 0.95,
-  midHeight = SCREEN_HEIGHT * 0.5,
-  minHeight = SCREEN_HEIGHT * 0.3,
 }, ref) => {
   const sheetRef = useRef<BottomSheetModal>(null);
   
@@ -69,12 +65,14 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
   return (
     <BottomSheetModal
 			ref={sheetRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose={true}
+      onDismiss={onDismiss}
 		>
 			<BottomSheetScrollView 
 				contentContainerStyle={styles.contentContainer}
 				showsVerticalScrollIndicator={false}
 			>
-				<Text style={styles.title}>Add New Friend</Text>
 				<View style={styles.content}>
 					{children}
 				</View>
@@ -96,6 +94,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
+    paddingTop: 5,
     padding: 20,
     paddingBottom: 40, // Extra padding at the bottom for better scrolling
   },

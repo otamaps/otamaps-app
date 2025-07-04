@@ -18,23 +18,23 @@ export default function TabLayout() {
           default: {},
         }),
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="find"
-        options={{
-          title: 'Find',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="search" size={size} color={color} />
-          ),
-        }}
+        <Tabs.Screen
+          name="find"
+          options={{
+            title: 'Löydä Tila',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="search" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="map"
+          options={{
+            title: 'Kartta',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="map" size={size} color={color} />
+            ),
+          }}
         />
         <Tabs.Screen
           name="debug"

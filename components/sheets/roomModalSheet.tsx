@@ -16,7 +16,7 @@ interface Room {
   room_number: string;
   building: string;
   equipment: string[];
-  images: string[];
+  image_url: string;
   is_accessible: boolean;
 }
 
@@ -34,7 +34,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
   const [roomId, setRoomId] = useState<string | null>(null);
 
   const { rooms, fetchRooms } = useRoomStore();
@@ -167,11 +167,11 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Room Images */}
+          {/* Room Image */}
           <View style={styles.imageContainer}>
-            {room.images?.[0] ? (
+            {room.image_url ? (
               <Image 
-                source={{ uri: room.images[0] }} 
+                source={{ uri: room.image_url }} 
                 style={styles.roomImage}
                 resizeMode="cover"
               />
@@ -181,23 +181,12 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
               </View>
             )}
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              colors={['transparent', 'rgba(0,0,0,0.4)']}
               style={styles.imageGradient}
             />
             <Pressable style={styles.closeButton} onPress={close}>
               <MaterialIcons name="close" size={24} color="white" />
             </Pressable>
-            <View style={styles.imagePagination}>
-              {room.images?.map((_, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.paginationDot,
-                    index === activeImageIndex && styles.activeDot
-                  ]} 
-                />
-              ))}
-            </View>
           </View>
 
           {/* Action Buttons */}
@@ -333,25 +322,6 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  imagePagination: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: 'white',
-    width: 16,
   },
   detailsContainer: {
     padding: 24,
