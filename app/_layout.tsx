@@ -1,13 +1,20 @@
+import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { InstantSearch } from 'react-instantsearch-core';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+const searchClient = algoliasearch(
+  'MNY63FWK0H',
+  'ffb5602ea099a9093f94ecd815ebb42f',
+);
 
 // Load the Figtree font
 function useLoadedAssets() {
@@ -39,6 +46,7 @@ function RootLayoutNav() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(app)/me" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
@@ -48,8 +56,13 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <View style={{ flex: 1 }}>
-          <RootLayoutNav />
-          <StatusBar style="auto" />
+      <InstantSearch
+        searchClient={searchClient}
+        indexName="rooms_rows"
+      >
+        <RootLayoutNav />
+      </InstantSearch>
+      <StatusBar style="auto" />
     </View>
   );
 }

@@ -12,7 +12,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, forwardRef } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 
@@ -250,7 +250,7 @@ export default function HomeScreen() {
         />
       </MapView>
 
-      <GlobalSearch/>
+      <GlobalSearch roomModalRef={roomModalRef} />
 
       <RoomModalSheet
         ref={roomModalRef}
