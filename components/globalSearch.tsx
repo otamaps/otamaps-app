@@ -1,10 +1,21 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import React, { useEffect, useRef, useState } from 'react';
+import { useHits, useSearchBox } from 'react-instantsearch-core';
 import { ActivityIndicator, Animated, FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const GlobalSearch = () => {
+interface RoomModalRef {
+  open: (roomId: string) => void;
+  close: () => void;
+}
+
+interface GlobalSearchProps {
+  roomModalRef: React.RefObject<RoomModalRef>;
+}
+
+const GlobalSearch = (props: GlobalSearchProps) => {
+  const { roomModalRef } = props;
   const { top } = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
     'Figtree-Regular': require('../assets/fonts/Figtree-Regular.ttf'), 
@@ -16,46 +27,67 @@ const GlobalSearch = () => {
     return <ActivityIndicator />;
   }
 
+  const { query, refine } = useSearchBox({});
+  const { hits } = useHits();
   const [selectedFloor, setSelectedFloor] = useState(1);
   const [isFocused, setIsFocused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState(query);
+  const searchResultsHeight = useRef(new Animated.Value(0)).current;
   const controlsWidth = useRef(new Animated.Value(52)).current;
   const searchMarginRight = useRef(new Animated.Value(12)).current;
-  const searchResultsHeight = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef(null);
+  
+  // Animate search results container when hits or query changes
+  useEffect(() => {
+    console.log('Hits updated:', {
+      hitsCount: hits.length,
+      hits: hits,
+      firstHit: hits[0] ? {
+        ...hits[0],
+        preview: {
+          room_number: hits[0].room_number,
+          description: hits[0].description,
+          type: hits[0].type
+        }
+      } : null
+    });
 
-  const handleFloorPress = (floor: number) => {
-    setSelectedFloor(floor);
-  };
-
-  // Mock search function - replace with your actual search logic
-  const performSearch = (query: string) => {
-    if (query.length > 0) {
-      // Simulate search results
-      const mockResults = [
-        { id: '1', name: 'Search Result 1' },
-        { id: '2', name: 'Search Result 2' },
-        { id: '3', name: 'Search Result 3' },
-      ];
-      setSearchResults(mockResults);
+    // Animate the results container height based on whether we have hits or not
+    if ((hits.length > 0 || searchQuery.length > 0) && isFocused) {
       Animated.timing(searchResultsHeight, {
-        toValue: 150, // Adjust height based on number of results
+        toValue: 1,
         duration: 200,
         useNativeDriver: false,
       }).start();
     } else {
-      setSearchResults([]);
       Animated.timing(searchResultsHeight, {
         toValue: 0,
         duration: 200,
         useNativeDriver: false,
       }).start();
     }
+  }, [hits, searchQuery, isFocused]);
+
+  // Debug: Log initial props and state
+  useEffect(() => {
+    console.log('Search component mounted with:', {
+      props,
+      initialQuery: query,
+      initialHits: hits
+    });
+  }, []);
+
+
+  const handleFloorPress = (floor: number) => {
+    setSelectedFloor(floor);
   };
 
   const handleSearchChange = (text: string) => {
+    console.log('Search text changed:', text);
     setSearchQuery(text);
-    performSearch(text);
+    console.log('Calling refine with:', text);
+    refine(text);
+    console.log('Refine called, current hits:', hits);
   };
 
   const handleFocus = () => {
@@ -95,7 +127,6 @@ const GlobalSearch = () => {
       ]).start(({ finished }) => {
         if (finished) {
           setIsFocused(false);
-          setSearchResults([]);
         }
       });
     }
@@ -104,17 +135,63 @@ const GlobalSearch = () => {
   const dismissKeyboard = () => {
     Keyboard.dismiss();
   };
-  const renderSearchResult = ({ item }: { item: any }) => (
-    <Pressable 
-      style={styles.resultItem}
-      onPress={() => {
-        setSearchQuery(item.name);
-        Keyboard.dismiss();
-      }}
-    >
-      <Text style={styles.resultText}>{item.name}</Text>
-    </Pressable>
-  );
+  const handleResultPress = (item: any) => {
+    console.log('Selected room:', item);
+    // Close the search
+    setSearchQuery('');
+    handleBlur();
+    dismissKeyboard();
+    
+    // Open the room modal using the ref from props
+    if (props.roomModalRef?.current) {
+      props.roomModalRef.current.open(item.id);
+    } else {
+      console.warn('Room modal ref not found');
+    }
+  };
+
+  const renderSearchResult = ({ item }: { item: any }) => {
+    console.log('Rendering search result item:', item);
+    
+    // Extract the display values, falling back to empty strings if not found
+    const roomNumber = item.room_number?.value || '';
+    const description = item.description?.value || '';
+    const type = item.type || 'room'; // Default to 'room' if type not specified
+
+    // all actual data is in _highlightResult
+    const roomNumberHighlight = item._highlightResult.room_number?.value || '';
+    const descriptionHighlight = item._highlightResult.description?.value || '';
+    const typeHighlight = item._highlightResult.type?.value || '';
+    const titleHighlight = item._highlightResult.title?.value || '';
+    
+    return (
+      <Pressable 
+        style={styles.resultItem}
+        onPress={() => handleResultPress(item)}
+      >
+        <View style={styles.resultIcon}>
+          {type === 'room' ? (
+            <MaterialIcons name="meeting-room" size={20} color="#666" />
+          ) : (
+            <MaterialIcons name="person" size={20} color="#666" />
+          )}
+          <Text style={[styles.resultText, { fontFamily: 'Figtree-SemiBold' }]} numberOfLines={1}>
+            {roomNumberHighlight.replace(/<mark>|<\/mark>/g, '') || 'Unnamed Room'}
+          </Text>
+        </View>
+        <View style={styles.resultContent}>
+          <Text style={styles.resultText} numberOfLines={1}>
+            {titleHighlight.replace(/<mark>|<\/mark>/g, '')}
+          </Text>
+          {descriptionHighlight ? (
+            <Text style={styles.resultSubtext} numberOfLines={1}>
+              {descriptionHighlight.replace(/<mark>|<\/mark>/g, '')}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  };
 
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
@@ -150,6 +227,7 @@ const GlobalSearch = () => {
             onChangeText={handleSearchChange}
             onFocus={handleFocus}
             onBlur={handleBlur}
+            ref={inputRef}
           />
         </Animated.View>
         <Animated.View 
@@ -188,19 +266,25 @@ const GlobalSearch = () => {
             style={[
               styles.resultsContainer,
               { 
-                height: searchResultsHeight,
+                maxHeight: 300,
                 opacity: searchResultsHeight.interpolate({
                   inputRange: [0, 1],
                   outputRange: [0, 1],
                 }),
+                transform: [{
+                  translateY: searchResultsHeight.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-10, 0],
+                  })
+                }]
               }
             ]}
           >
-            {searchResults.length > 0 ? (
+            {hits.length > 0 ? (
               <FlatList
-                data={searchResults}
+                data={hits}
                 renderItem={renderSearchResult}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.objectID}
                 keyboardShouldPersistTaps="handled"
               />
             ) : searchQuery.length > 0 ? (
@@ -209,15 +293,49 @@ const GlobalSearch = () => {
               </View>
             ) : null}
           </Animated.View>
-        )}s
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
 };
 
-export default GlobalSearch;
+export default React.memo(GlobalSearch);
 
 const styles = StyleSheet.create({
+  resultItem: {
+    flexDirection: 'row',
+    padding: 12,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  resultIcon: {
+    marginRight: 12,
+    flexDirection: 'row',
+    
+  },
+  resultContent: {
+    flex: 1,
+  },
+  resultText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Figtree-Regular',
+  },
+  resultSubtext: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+    fontFamily: 'Figtree-Regular',
+  },
+  noResults: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    color: '#666',
+    fontFamily: 'Figtree-Regular',
+  },
   container: {
     position: 'absolute',
     width: '100%',
@@ -246,18 +364,21 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     position: 'absolute',
-    top: 58,
+    top: 60, // Position below the search bar
     left: 10,
     right: 10,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginTop: 5,
+    borderRadius: 8,
+    maxHeight: 300,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
+    zIndex: 1000,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   resultItem: {
     padding: 15,

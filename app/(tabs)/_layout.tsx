@@ -19,11 +19,11 @@ export default function TabLayout() {
         }),
       }}>
         <Tabs.Screen
-          name="find"
+          name="debug"
           options={{
-            title: 'Löydä Tila',
+            title: 'Debug',
             tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="search" size={size} color={color} />
+              <MaterialIcons name="bug-report" size={size} color={color} />
             ),
           }}
         />
@@ -37,11 +37,11 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="debug"
+          name="me"
           options={{
-            title: 'Debug',
+            title: 'Minä',
             tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="bug-report" size={size} color={color} />
+              <MaterialIcons name="person" size={size} color={color} />
             ),
           }}
         />
