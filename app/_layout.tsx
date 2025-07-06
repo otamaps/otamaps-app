@@ -62,7 +62,7 @@ export default function RootLayout() {
       >
         <RootLayoutNav />
       </InstantSearch>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </View>
   );
 }

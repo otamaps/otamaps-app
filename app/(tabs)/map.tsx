@@ -12,7 +12,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef, useState, forwardRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 
@@ -177,6 +177,7 @@ export default function HomeScreen() {
         styleURL={`https://api.maptiler.com/maps/openstreetmap/style.json?key=XSJRg4GXeLgDiZ98hfVp`}
         compassViewMargins={{ x: 10, y: 40 }}
         pitchEnabled={true}
+        scaleBarEnabled={false}
       >
         <Camera
           centerCoordinate={[24.818510511790645, 60.18394233125424]}
@@ -303,16 +304,16 @@ export default function HomeScreen() {
         initialSnap="mid"
       >
         {({ currentSnapIndex }) => (
-        <BottomSheetView style={{ flex: 1, backgroundColor: 'white', height: '100%' }}>
+        <BottomSheetView style={{ flex: 1, backgroundColor: '#fff', height: '100%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#4A89EE' : '#333' }}>People</Text>
+            <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#5995f7', flexDirection: 'row', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#5995f7' : '#333' }}>Kaverit</Text>
               {showFavoritesOnly && selectedTab === 'people' && (
-                <MaterialIcons name="star" size={16} color="#4A89EE" style={{ marginLeft: 8 }}/>
+                <MaterialIcons name="star" size={16} color="#5995f7" style={{ marginLeft: 8 }}/>
               )}
             </Pressable>
-            <Pressable onPress={() => handleTabPress('rooms')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'rooms' ? 2 : 0, borderBottomColor: '#4A89EE', flexDirection: 'row', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'rooms' ? '#4A89EE' : '#333' }}>Rooms</Text>
+            <Pressable onPress={() => handleTabPress('rooms')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'rooms' ? 2 : 0, borderBottomColor: '#5995f7', flexDirection: 'row', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'rooms' ? '#4A89EE' : '#333' }}>Huoneet</Text>
               {showFavoritesOnly && selectedTab === 'rooms' && (
                 <MaterialIcons name="star" size={16} color="#4A89EE" style={{ marginLeft: 8 }} />
               )}
@@ -364,6 +365,42 @@ export default function HomeScreen() {
                   <Text>No {showFavoritesOnly ? 'favorite ' : ''}people found</Text>
                 </View>
               }
+              ListFooterComponent={
+                <Pressable 
+                  onPress={handleAddFriend}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    marginHorizontal: 16,
+                    marginTop: 8,
+                    backgroundColor: pressed ? '#f0f0f0' : '#f8f8f8',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                    borderStyle: 'dashed'
+                  })}
+                >
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#E3EFFF',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12
+                  }}>
+                    <MaterialIcons name="person-add" size={20} color="#4A89EE" />
+                  </View>
+                  <Text style={{
+                    fontFamily: 'Figtree-SemiBold',
+                    fontSize: 16,
+                    color: '#4A89EE'
+                  }}>
+                    Add Friends
+                  </Text>
+                </Pressable>
+              }
             /> 
           )}
           {selectedTab === 'rooms' && !showFavoritesOnly && (
@@ -393,7 +430,6 @@ export default function HomeScreen() {
               }}
               scrollEnabled={currentSnapIndex === 2}
               contentContainerStyle={{ 
-                paddingTop: 8, 
                 paddingBottom: 20,
                 flex: currentSnapIndex === 2 ? 1 : 0,
                 height: currentSnapIndex === 2 ? '100%' : 'auto'
@@ -432,7 +468,6 @@ export default function HomeScreen() {
                   />
                 )}
                 contentContainerStyle={{ 
-                  paddingTop: 8, 
                   paddingBottom: 20,
                   flex: currentSnapIndex === 2 ? 1 : 0,
                   height: currentSnapIndex === 2 ? '100%' : 'auto'

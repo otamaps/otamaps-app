@@ -34,24 +34,20 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
       </View>
       <View style={styles.detailsContainer}>
         <Text style={styles.roomName} numberOfLines={1} ellipsizeMode="tail">
-          {room.room_number} | {room.title}
+          {room.room_number}
         </Text>
         <View style={styles.metaContainer}>
           <View style={styles.metaItem}>
-            <MaterialIcons name="layers" size={14} color="#666" />
+            <MaterialIcons name="room" size={14} color="#666" />
             <Text style={styles.metaText}>
-              {(() => {
-                const match = room.room_number;
-                const result = match ? `Floor ${match[0]}` : '?';
-                return result;
-              })()}
+              {room.title}
             </Text>
           </View>
           {typeof room.seats === 'number' && (
             <View style={styles.metaItem}>
               <MaterialIcons name="people" size={14} color="#666" />
               <Text style={styles.metaText}>
-                {room.seats} {room.seats === 1 ? 'person' : 'people'}
+                {room.seats} {room.seats === 1 ? 'henkilö' : 'henkilöä'}
               </Text>
             </View>
           )}
@@ -86,9 +82,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f6f6f6',
-    padding: 16,
-    borderRadius: 12,
+    padding: 6,
+    borderRadius: 16,
     marginVertical: 6,
     marginHorizontal: 16,
   },
@@ -99,7 +94,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: '#EFF4FF',
     justifyContent: 'center',
     alignItems: 'center',
