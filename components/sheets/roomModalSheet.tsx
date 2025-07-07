@@ -88,7 +88,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
 
   const getFloor = (room: Room) => {
     if (room.floor) return room.floor;
-    const match = room.room_number.match(/\d/);
+    const match = room.room_number?.match(/\d/);
     return match ? match[0] : '?';
   }
 

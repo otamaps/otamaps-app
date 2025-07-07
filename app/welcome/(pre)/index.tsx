@@ -126,7 +126,7 @@ export default function WelcomeScreen() {
               styles.alternativeButton,
               pressed && styles.buttonPressed
             ]} 
-            onPress={() => router.push('/map') /* !! change back !! */}
+            onPress={() => router.push('/welcome/emailLogin') /* !! change back !! */}
             disabled={loading}
           >
             <View style={styles.alternativeButtonContent}>

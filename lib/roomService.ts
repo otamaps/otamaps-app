@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
-type Room = {
+export type Room = {
   id: string;
   room_number: string;
   title: string;
@@ -16,6 +16,10 @@ type Room = {
   created_at: string;
   schedule: Object;
   status: string;
+  geometry?: {
+    type: string;
+    coordinates: any[];
+  };
 };
 
 type RoomState = {

@@ -1,20 +1,58 @@
-import { geojson } from "@/assets/geos/map";
 import { fmstyles } from "@/assets/styles/friendModalStyles";
 import FriendItem, { formatLastSeen } from "@/components/friendItem";
-import { getCachedGeoJSON } from "@/components/functions/geoJson";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import MapBottomSheet, { BottomSheetMethods } from "@/components/mapBottomSheet";
 import FriendModalSheet, { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
 import RoomModalSheet, { RoomModalSheetMethods } from "@/components/sheets/roomModalSheet";
-import { useRoomStore } from '@/lib/roomService';
+import { Room, useRoomStore } from '@/lib/roomService';
 import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
-import { Camera, CustomLocationProvider, FillExtrusionLayer, FillLayer, MapView, RasterLayer, setAccessToken, ShapeSource, UserLocation } from '@rnmapbox/maps';
+import {
+  Camera,
+  CustomLocationProvider,
+  FillLayer,
+  MapView,
+  OnPressEvent,
+  RasterLayer,
+  setAccessToken,
+  ShapeSource,
+  UserLocation
+} from '@rnmapbox/maps';
+import { router } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { MultiPolygon, Polygon } from 'geojson';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
+
+// Define the shape of our room feature properties
+type RoomFeatureProperties = {
+  id: string;
+  roomNumber: string;
+  title: string;
+  isSelected: boolean;
+  color: string;
+  rgba: string;
+};
+
+type RoomFeature = MapboxFeature & {
+  id: string;
+  properties: RoomFeatureProperties;
+};
+
+type myFeature = {
+  id?: string;
+  properties?: {
+    id?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+};
+
+type CustomMapPressEvent = MapPressEvent & {
+  features?: myFeature[];
+};
 
 type RoomItemData = {
   id: string;
@@ -37,35 +75,12 @@ type RoomWithEquipment = {
   };
 };
 
-const geojson3D = geojson;
+const emptyGeoJSON: GeoJSON.FeatureCollection = {
+  type: 'FeatureCollection',
+  features: []
+};
 
-const eraser = {
-  type: 'geojson',
-  data: {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          coordinates: [
-            [
-              [-74.00618, 40.71406],
-              [-74.00703, 40.71307],
-              [-74.00787, 40.71206],
-              [-74.00766, 40.71176],
-              [-74.00624, 40.71204],
-              [-74.00487, 40.71252],
-              [-74.00421, 40.71315],
-              [-74.00618, 40.71406]
-            ]
-          ],
-          type: 'Polygon'
-        }
-      }
-    ]
-  }
-}
+
 
 export default function HomeScreen() {
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string
@@ -81,31 +96,36 @@ export default function HomeScreen() {
       name: 'Faru Yusupov', 
       id: '1', 
       status: 'at school' as const, 
-      lastSeen: new Date().toISOString() // Now (will show as 'Just now' if within 30s)
+      lastSeen: new Date().toISOString(), // Now (will show as 'Just now' if within 30s)
+      location: [24.81851, 60.18394] as [number, number],
     }, 
     { 
       name: 'Toivo Kallio',
       id: '2', 
       status: 'at school' as const, 
-      lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+      lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      location: [24.81856, 60.18399] as [number, number],
     }, 
     { 
       name: 'Wilmer von Harpe', 
       id: '3', 
       status: 'at school' as const, 
-      lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() // 4 hours ago
+      lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+      location: [24.81847, 60.18389] as [number, number],
     }, 
     { 
       name: 'Maximilian Bergström', 
       id: '4', 
       status: 'at school' as const, 
-      lastSeen: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() 
+      lastSeen: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), 
+      location: [24.81844, 60.18384] as [number, number],
     }
   ]);
   const [selectedTab, setSelectedTab] = useState('people'); 
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const [roomData, setRoomData] = useState<Array<RoomItemData & { id: string; isFavorite: boolean }>>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const fetchRoomsRef = useRef(fetchRooms);
   const [friendId, setFriendId] = useState('');
   
@@ -153,9 +173,45 @@ export default function HomeScreen() {
   }, []);
 
   const handleRoomPress = useCallback((roomId: string) => {
-    roomModalRef.current?.open(roomId);
+    setSelectedRoomId(roomId);
     mapBottomSheetRef.current?.snapToMin();
-  }, []);
+    roomModalRef.current?.open(roomId);
+    
+    // Center the map on the selected room
+    const room = rooms.find(r => r.id === roomId);
+    if (room?.geometry) {
+      // Calculate centroid of the polygon
+      const coordinates = room.geometry.coordinates[0];
+      type Coordinate = [number, number];
+      
+      // Safely calculate the centroid of the polygon
+      let sumLng = 0;
+      let sumLat = 0;
+      let validPoints = 0;
+      
+      for (const coord of coordinates) {
+        if (Array.isArray(coord) && coord.length >= 2) {
+          const [lng, lat] = coord;
+          if (typeof lng === 'number' && typeof lat === 'number') {
+            sumLng += lng;
+            sumLat += lat;
+            validPoints++;
+          }
+        }
+      }
+      
+      const centroid: Coordinate = validPoints > 0 
+        ? [sumLng / validPoints, sumLat / validPoints]
+        : [0, 0]; // Fallback to [0,0] if no valid points
+
+      // Animate camera to the centroid
+      mapRef.current?.setCamera({
+        centerCoordinate: [centroid[0], centroid[1]],
+        zoomLevel: 18,
+        animationDuration: 1000,
+      });
+    }
+  }, [rooms]);
 
   const handleFriendOpen = (friendId: string) => {
     setFriendId(friendId);
@@ -163,9 +219,85 @@ export default function HomeScreen() {
     mapBottomSheetRef.current?.snapToMin();
   };
 
-  const handlePress = (e: any) => {
-    console.log('Pressed', e.features);
+  const handlePress = (e: { point: { x: number; y: number } }) => {
+    console.log('Map pressed', e.point);
   };
+
+  // Create a ref for the map
+  const mapRef = useRef<MapView>(null);
+  
+  // Define a type for our room with geometry
+  type RoomWithGeometry = Room & { 
+    geometry: Polygon | MultiPolygon;
+    color?: string; // Add color property to room type
+  };
+
+  // Room properties type for GeoJSON features
+  type RoomProperties = {
+    id: string;
+    roomNumber: string;
+    title: string;
+    isSelected: boolean;
+    color: string;
+    rgba: string;
+  };
+
+  // Helper function to ensure valid hex color
+  const getValidColor = (color?: string): string => {
+    if (!color) return '#4A89EE';
+    // Check if it's a valid hex color
+    if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
+      return color;
+    }
+    return '#4A89EE'; // Default color if invalid
+  };
+
+  // Create GeoJSON features from rooms with geometry
+  const roomsWithGeometry = useMemo(() => 
+    rooms.filter((room): room is RoomWithGeometry => Boolean(room?.geometry)),
+    [rooms]
+  );
+
+  const roomsGeoJSON = useMemo(() => {
+    const features = roomsWithGeometry.map(room => {
+      const roomColor = getValidColor(room.color);
+      const [r, g, b] = [
+        parseInt(roomColor.slice(1, 3), 16),
+        parseInt(roomColor.slice(3, 5), 16),
+        parseInt(roomColor.slice(5, 7), 16)
+      ];
+      
+      return {
+        type: 'Feature',
+        geometry: room.geometry,
+        properties: {
+          id: room.id,
+          roomNumber: room.room_number,
+          title: room.title || 'Untitled Room',
+          isSelected: selectedRoomId === room.id,
+          color: roomColor,
+          // Pre-calculate RGBA values for unselected state
+          rgba: `rgba(${r}, ${g}, ${b}, 0.5)`
+        }
+      };
+    });
+
+    return {
+      type: 'FeatureCollection',
+      features
+    } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
+  }, [roomsWithGeometry, selectedRoomId]);
+
+  // Handle room press on the map
+  const handleRoomFeaturePress = useCallback((e: OnPressEvent) => {
+    const feature = e.features?.[0];
+    if (feature) {
+      const roomId = (feature.properties as RoomFeatureProperties)?.id;
+      if (roomId) {
+        handleRoomPress(roomId);
+      }
+    }
+  }, [handleRoomPress]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -173,6 +305,7 @@ export default function HomeScreen() {
     <View style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <MapView
+        ref={mapRef}
         style={styles.map}
         styleURL={`https://api.maptiler.com/maps/openstreetmap/style.json?key=XSJRg4GXeLgDiZ98hfVp`}
         compassViewMargins={{ x: 10, y: 40 }}
@@ -190,51 +323,28 @@ export default function HomeScreen() {
           }}
           minZoomLevel={9}
         />
-        <ShapeSource id="buildingSource" shape={geojson3D} onPress={handlePress}>
-          <FillExtrusionLayer
-            id="3d-buildings"
-            sourceLayerID="building"
-            minZoomLevel={14}
-            maxZoomLevel={24}
-            style={{
-              fillExtrusionHeight: 5,
-              fillExtrusionBase: 0,
-              fillExtrusionColor: '#ccc',
-              fillExtrusionOpacity: 0.8,
-            }}
-          />
-          <FillExtrusionLayer
-            id="3d-doors"
-            sourceLayerID="door"
-            minZoomLevel={14}
-            maxZoomLevel={24}
-            style={{
-              fillExtrusionHeight: 1,
-              fillExtrusionBase: 4,
-              fillExtrusionColor: '#ccc',
-              fillExtrusionOpacity: 0.8,
-            }}
-          />
-          <FillExtrusionLayer
-            id="3d-furniture"
-            sourceLayerID="furniture"
-            minZoomLevel={14}
-            maxZoomLevel={24}
-            style={{
-              fillExtrusionHeight: 2,
-              fillExtrusionBase: 0.5,
-              fillExtrusionColor: '#ccc',
-              fillExtrusionOpacity: 0.8,
-            }}
-          />
-          <FillLayer
-            id="fill"
-            style={{
-              fillColor: '#444444',
-              fillOpacity: 0.5,
-            }}
-          />
-        </ShapeSource>
+        {/* Room Geometries */}
+        {roomsGeoJSON.features.length > 0 && (
+          <ShapeSource 
+            id="roomsSource" 
+            shape={roomsGeoJSON}
+            onPress={handleRoomFeaturePress}
+          >
+            <FillLayer
+              id="room-fill"
+              style={{
+                fillColor: [
+                  'case',
+                  ['==', ['get', 'isSelected'], true],
+                  ['get', 'color'], 
+                  ['get', 'rgba']   
+                ],
+                fillOpacity: 0.8,
+                fillOutlineColor: '#fff',
+              }}
+            />
+          </ShapeSource>
+        )}
 
         <CustomLocationProvider
           coordinate={[24.18510511790645, 60.18394233125424]}
@@ -249,6 +359,39 @@ export default function HomeScreen() {
             rasterOpacity: 0,
           }}
         />
+
+        {/*<ShapeSource
+          id="friendsSource"
+          shape={{
+            type: 'FeatureCollection',
+            features: friends.map(friend => ({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: friend.location,
+              },
+              properties: {
+                id: String(friend.id),
+              },
+            })),
+          }}
+        >
+          {friends.map(friend => (
+            <PointAnnotation
+              key={String(friend.id)}
+              id={String(friend.id)}
+              coordinate={friend.location}
+              onSelected={() => handleFriendOpen(friend.id)}
+            >
+              <FriendBlob
+                friendId={String(friend.id)}
+                name={friend.name}
+                onClick={handleFriendOpen}
+              />
+            </PointAnnotation>
+          ))}
+        </ShapeSource>*/}
+
       </MapView>
 
       <GlobalSearch roomModalRef={roomModalRef} />
@@ -256,14 +399,14 @@ export default function HomeScreen() {
       <RoomModalSheet
         ref={roomModalRef}
         onDismiss={() => {
-          // Any cleanup when modal is dismissed
+          setSelectedRoomId(null);
         }}
       />
 
       <FriendModalSheet
         ref={friendModalRef}
-        onDismiss={() => {
-          // Any cleanup when modal is dismisseds
+        onDismiss={() => { 
+          // Any cleanup when modal is dismissed
         }}
         initialSnap="mid"
       >
@@ -304,21 +447,7 @@ export default function HomeScreen() {
         initialSnap="mid"
       >
         {({ currentSnapIndex }) => (
-        <BottomSheetView style={{ flex: 1, backgroundColor: '#fff', height: '100%' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Pressable onPress={() => handleTabPress('people')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'people' ? 2 : 0, borderBottomColor: '#5995f7', flexDirection: 'row', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'people' ? '#5995f7' : '#333' }}>Kaverit</Text>
-              {showFavoritesOnly && selectedTab === 'people' && (
-                <MaterialIcons name="star" size={16} color="#5995f7" style={{ marginLeft: 8 }}/>
-              )}
-            </Pressable>
-            <Pressable onPress={() => handleTabPress('rooms')} style={{ padding: 8, width: '50%', alignItems: 'center', borderBottomWidth: selectedTab === 'rooms' ? 2 : 0, borderBottomColor: '#5995f7', flexDirection: 'row', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16, color: selectedTab === 'rooms' ? '#4A89EE' : '#333' }}>Huoneet</Text>
-              {showFavoritesOnly && selectedTab === 'rooms' && (
-                <MaterialIcons name="star" size={16} color="#4A89EE" style={{ marginLeft: 8 }} />
-              )}
-            </Pressable>
-          </View>
+        <BottomSheetView style={{ flex: 1, backgroundColor: 'white', height: '100%' }}>
           {selectedTab === 'people' && (
             <BottomSheetFlatList 
               data={[
@@ -367,38 +496,18 @@ export default function HomeScreen() {
               }
               ListFooterComponent={
                 <Pressable 
-                  onPress={handleAddFriend}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    padding: 16,
-                    marginHorizontal: 16,
-                    marginTop: 8,
-                    backgroundColor: pressed ? '#f0f0f0' : '#f8f8f8',
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: '#e0e0e0',
-                    borderStyle: 'dashed'
-                  })}
+                  style={({ pressed }) => [
+                    styles.addFriendButton,
+                    pressed && styles.addFriendButtonPressed
+                  ]}
+                  onPress={() => {
+                    // Handle add friend action
+                    console.log('Add friend pressed');
+                    router.push('/friends/add');
+                  }}
                 >
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: '#E3EFFF',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: 12
-                  }}>
-                    <MaterialIcons name="person-add" size={20} color="#4A89EE" />
-                  </View>
-                  <Text style={{
-                    fontFamily: 'Figtree-SemiBold',
-                    fontSize: 16,
-                    color: '#4A89EE'
-                  }}>
-                    Add Friends
-                  </Text>
+                  <MaterialIcons name="person-add" size={20} color="#4A89EE" />
+                  <Text style={styles.addFriendText}>Add Friend</Text>
                 </Pressable>
               }
             /> 
@@ -430,6 +539,7 @@ export default function HomeScreen() {
               }}
               scrollEnabled={currentSnapIndex === 2}
               contentContainerStyle={{ 
+                paddingTop: 8, 
                 paddingBottom: 20,
                 flex: currentSnapIndex === 2 ? 1 : 0,
                 height: currentSnapIndex === 2 ? '100%' : 'auto'
@@ -468,6 +578,7 @@ export default function HomeScreen() {
                   />
                 )}
                 contentContainerStyle={{ 
+                  paddingTop: 8, 
                   paddingBottom: 20,
                   flex: currentSnapIndex === 2 ? 1 : 0,
                   height: currentSnapIndex === 2 ? '100%' : 'auto'
@@ -490,6 +601,29 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  addFriendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F5FF',
+    borderRadius: 8,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#D6E3FF',
+    borderStyle: 'dashed',
+  },
+  addFriendButtonPressed: {
+    opacity: 0.7,
+  },
+  addFriendText: {
+    color: '#4A89EE',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
   },

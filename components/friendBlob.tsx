@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface FriendBlobProps {
   onClick: (friendId: string) => void;
@@ -9,9 +9,17 @@ interface FriendBlobProps {
 
 const FriendBlob: React.FC<FriendBlobProps> = ({ onClick, friendId, name }) => {
   return (
-    <TouchableOpacity style={styles.container} onPress={() => onClick(friendId)}>
+    <TouchableOpacity 
+      style={styles.container} 
+      onPress={() => onClick(friendId)}
+      activeOpacity={0.7}
+    >
       <View style={styles.circle}>
-        <Text style={styles.name}>{name}</Text>
+        <Image
+          source={{ uri: `https://api.dicebear.com/9.x/initials/webp?seed=${encodeURIComponent(name)}&scale=80` }}
+          style={styles.profilePicture}
+          resizeMode="cover"
+        />
       </View>
     </TouchableOpacity>
   );
@@ -19,19 +27,28 @@ const FriendBlob: React.FC<FriendBlobProps> = ({ onClick, friendId, name }) => {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 8,
-  },
-  circle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    overflow: 'visible',
   },
-  name: {
-    fontSize: 12,
-    textAlign: 'center',
+  circle: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  profilePicture: {
+    width: '100%',
+    height: '100%',
   },
 });
 

@@ -1,15 +1,15 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 const About = () => {
   return (
-    <View>
+    <View style={styles.container}>
       <Image
         source={require('@/assets/images/otamaps-logo.png')}
-        style={{ resizeMode: 'contain', width: 200, height: 200 }}
+        style={{ resizeMode: 'contain', width: 200, height: 100 }}
       />
 
-      <Text>Version 1.0.0</Text>
+      <Text>Versio 0.0.1</Text>
       <Text>Copyright © 2025 Otamaps</Text>
       <Text>Mahdollistanut</Text>
       <Image
@@ -23,3 +23,12 @@ const About = () => {
 }
 
 export default About
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+})
