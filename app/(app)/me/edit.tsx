@@ -59,13 +59,24 @@ const Edit = () => {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('Please enter your name');
+      alert('Anna nimesi');
+      return;
+    }
+
+    if (userClass && userClass.length === 3 && !/^\d{2}[A-Za-z]$/.test(userClass)) {
+      alert('Tarkista luokan muoto (esim. 24A)');
       return;
     }
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.updateUser({
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('Käyttäjää ei löytynyt');
+
+      // Update user metadata in auth
+      const { error: updateError } = await supabase.auth.updateUser({
         data: {
           full_name: name.trim(),
           class: userClass.trim(),
@@ -73,17 +84,27 @@ const Edit = () => {
         }
       });
 
-      if (error) throw error;
-      
-      // Update the display name in the auth user
-      await supabase.auth.updateUser({
-        data: { full_name: name.trim() }
-      });
+      if (updateError) throw updateError;
+
+      // Update users table
+      const { error: dbError } = await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          name: name.trim(),
+          class: userClass.trim(),
+          color: selectedColor,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (dbError) throw dbError;
       
       router.back();
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error updating profile. Please try again.');
+      alert('Profiilin päivitys epäonnistui. Yritä uudelleen.');
     } finally {
       setIsLoading(false);
     }

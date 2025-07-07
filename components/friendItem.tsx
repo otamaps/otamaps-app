@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface FriendItemProps {
   friend: {
@@ -64,10 +64,9 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
       onPress={onPress}
     >
       <View style={styles.iconContainer}>
-        <MaterialIcons 
-          name="person" 
-          size={24} 
-          color={getStatusColor(friend.status, friend.lastSeen)} 
+        <Image
+          source={{ uri: `https://api.dicebear.com/9.x/initials/webp?seed=${encodeURIComponent(friend.name)}&scale=90` }}
+          style={[styles.profilePicture]}
         />
       </View>
       <View style={styles.detailsContainer}>
@@ -75,7 +74,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
           {friend.name}
         </Text>
         <View style={styles.metaContainer}>
-          {friend.status && friend.status !== 'online' && (
+          {friend.status && (
             <View style={styles.metaItem}>
               <View 
                 style={[
@@ -88,7 +87,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
               </Text>
             </View>
           )}
-          {friend.lastSeen && friend.status !== 'online' && (
+          {friend.lastSeen && (
             <View style={styles.metaItem}>
               <MaterialIcons name="schedule" size={14} color="#666" />
               <Text style={styles.metaText}>
@@ -197,10 +196,15 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: 'Figtree-Regular',
   },
+  profilePicture: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+  },
   statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 6,
     marginRight: 4,
   },
 });

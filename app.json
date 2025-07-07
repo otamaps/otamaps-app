@@ -42,6 +42,12 @@
           "RNMapboxMapsDownloadToken": "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC5868EU0LR_Cq1XkEWtQ"
         }
       ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.587558103382-esnjsvgl9is8co4ottb5i1p8rdj9drn7"
+        }
+      ],
       "expo-font"
     ],
     "experiments": {
