@@ -1,4 +1,5 @@
 import { fmstyles } from "@/assets/styles/friendModalStyles";
+import { CustomUserLocation } from "@/components/customUserLocation";
 import FriendItem, { formatLastSeen } from "@/components/friendItem";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
@@ -16,8 +17,7 @@ import {
   OnPressEvent,
   RasterLayer,
   setAccessToken,
-  ShapeSource,
-  UserLocation
+  ShapeSource
 } from '@rnmapbox/maps';
 import { router } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
@@ -91,6 +91,7 @@ export default function HomeScreen() {
   const friendModalRef = useRef<FriendModalSheetRef>(null);
   const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
   const roomModalRef = useRef<RoomModalSheetMethods>(null); 
+  const customUserLocationRef = useRef<CustomUserLocation>(null);
   const [friends, setFriends] = useState([
     { 
       name: 'Faru Yusupov', 
@@ -299,6 +300,8 @@ export default function HomeScreen() {
     }
   }, [handleRoomPress]);
 
+  customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
+
   return (
     <GestureHandlerRootView style={styles.container}>
     <BottomSheetModalProvider>
@@ -346,11 +349,14 @@ export default function HomeScreen() {
           </ShapeSource>
         )}
 
-        <CustomLocationProvider
-          coordinate={[24.18510511790645, 60.18394233125424]}
+        <CustomLocationProvider 
+          coordinate={[24.81851, 60.18394]}
           heading={0}
         />
-        <UserLocation/>
+
+        <CustomUserLocation 
+          ref={customUserLocationRef}
+        />
       
         <RasterLayer
           id="buildingImageLayer"

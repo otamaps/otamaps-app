@@ -1,5 +1,6 @@
+import { isFeatureEnabled } from '@/lib/featureFlagService';
 import { Entypo, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Room = {
@@ -29,6 +30,15 @@ interface FindRoomViewProps {
 }
 
 const FindRoomView = ({ room = {}, onBook }: FindRoomViewProps) => {
+  const [isBookingEnabled, setIsBookingEnabled] = useState(false);
+
+  useEffect(() => {
+    const checkBookingFeature = async () => {
+      const enabled = await isFeatureEnabled('booking');
+      setIsBookingEnabled(enabled);
+    };
+    checkBookingFeature();
+  }, []);
   return (
     <Pressable style={({pressed}) => [
       { opacity: pressed ? 0.7 : 1 },
@@ -56,20 +66,32 @@ const FindRoomView = ({ room = {}, onBook }: FindRoomViewProps) => {
         { room.image_url ? (
           <Image
             source={{ uri: room.image_url }}
-            style={{ width: '100%', height: '75%', borderTopRightRadius: 10, backgroundColor: '#ccc' }}
+            style={[
+              { width: '100%', backgroundColor: '#ccc' },
+              isBookingEnabled 
+                ? { height: '75%', borderTopRightRadius: 10 }
+                : { height: '100%', borderTopRightRadius: 10, borderBottomRightRadius: 10 }
+            ]}
             resizeMode="cover"
           />
-        ) : <View style={styles.imagePlaceholder} /> }
-        <Pressable 
-          style={({pressed}) => [
-            { opacity: pressed ? 0.7 : 1 },
-            styles.bookButton
-          ]} 
-          hitSlop={10}
-          onPress={onBook} // Call onBook when pressed
-        >
-          <Text style={styles.bookText}>Book</Text>
-        </Pressable>
+        ) : (
+          <View style={[
+            styles.imagePlaceholder,
+            !isBookingEnabled && { height: '100%', borderBottomRightRadius: 10 }
+          ]} />
+        )}
+        {isBookingEnabled && (
+          <Pressable 
+            style={({pressed}) => [
+              { opacity: pressed ? 0.7 : 1 },
+              styles.bookButton
+            ]} 
+            hitSlop={10}
+            onPress={onBook} // Call onBook when pressed
+          >
+            <Text style={styles.bookText}>Book</Text>
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );

@@ -1,8 +1,9 @@
 import { useRoomStore } from '@/lib/roomService';
+import { isFeatureEnabled } from '@/lib/featureFlagService';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface Room {
@@ -34,10 +35,19 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isBookingEnabled, setIsBookingEnabled] = useState(false);
 
   const [roomId, setRoomId] = useState<string | null>(null);
 
   const { rooms, fetchRooms } = useRoomStore();
+
+  useEffect(() => {
+    const checkBookingFeature = async () => {
+      const enabled = await isFeatureEnabled('booking');
+      setIsBookingEnabled(enabled);
+    };
+    checkBookingFeature();
+  }, []);
 
   const fetchRoomDetails = async (id: string) => {
     try {
@@ -195,9 +205,11 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(({
               <MaterialIcons name="directions" size={20} color="#4A89EE" />
               <Text style={[styles.actionButtonText, {color: '#4A89EE'}]}>Directions</Text>
             </Pressable>
-            <Pressable style={[styles.actionButton, styles.bookButton]}>
-              <Text style={styles.actionButtonText}>Check Availability</Text>
-            </Pressable>
+            {isBookingEnabled && (
+              <Pressable style={[styles.actionButton, styles.bookButton]}>
+                <Text style={styles.actionButtonText}>Check Availability</Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Room Details */}
@@ -449,5 +461,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 });
+
+RoomModalSheet.displayName = 'RoomModalSheet';
 
 export default RoomModalSheet;
