@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import React, { useEffect, useRef, useState } from 'react';
+import { isFeatureEnabled } from '@/lib/featureFlagService';
 import { useHits, useSearchBox } from 'react-instantsearch-core';
 import { ActivityIndicator, Animated, FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +33,16 @@ const GlobalSearch = (props: GlobalSearchProps) => {
   const [selectedFloor, setSelectedFloor] = useState(1);
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState(query);
+  const [floorsEnabled, setFloorsEnabled] = useState(false);
+
+  // Check if floors feature is enabled
+  useEffect(() => {
+    const checkFloorsEnabled = async () => {
+      const enabled = await isFeatureEnabled('floors_enabled');
+      setFloorsEnabled(enabled);
+    };
+    checkFloorsEnabled();
+  }, []);
   const searchResultsHeight = useRef(new Animated.Value(0)).current;
   const controlsWidth = useRef(new Animated.Value(52)).current;
   const searchMarginRight = useRef(new Animated.Value(12)).current;
@@ -243,22 +254,26 @@ const GlobalSearch = (props: GlobalSearchProps) => {
           <Pressable style={styles.button}>
             <MaterialIcons name="my-location" size={26} color="#000" />
           </Pressable>
-          <View style={styles.spacer}/>
-          <Pressable style={selectedFloor === 4 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(4)}>
-            <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>4</Text>
-          </Pressable>
-          <View style={styles.spacer}/>
-          <Pressable style={selectedFloor === 3 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(3)}>
-            <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>3</Text>
-          </Pressable>
-          <View style={styles.spacer}/>
-          <Pressable style={selectedFloor === 2 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(2)}>
-            <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>2</Text>
-          </Pressable>
-          <View style={styles.spacer}/>
-          <Pressable style={selectedFloor === 1 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(1)}>
-            <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>1</Text>
-          </Pressable>
+          {floorsEnabled && (
+            <>
+              <View style={styles.spacer}/>
+              <Pressable style={selectedFloor === 4 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(4)}>
+                <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>4</Text>
+              </Pressable>
+              <View style={styles.spacer}/>
+              <Pressable style={selectedFloor === 3 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(3)}>
+                <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>3</Text>
+              </Pressable>
+              <View style={styles.spacer}/>
+              <Pressable style={selectedFloor === 2 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(2)}>
+                <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>2</Text>
+              </Pressable>
+              <View style={styles.spacer}/>
+              <Pressable style={selectedFloor === 1 ? styles.buttonSelected : styles.button} onPress={() => handleFloorPress(1)}>
+                <Text style={{ fontFamily: 'Figtree-SemiBold', fontSize: 16 }}>1</Text>
+              </Pressable>
+            </>
+          )}
         </Animated.View>
         
         {(isFocused || searchQuery.length > 0) && (

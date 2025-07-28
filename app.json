@@ -2,7 +2,7 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
@@ -18,7 +18,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "fi.otamaps.app"
+      "package": "fi.otamaps.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -48,7 +53,16 @@
           "iosUrlScheme": "com.googleusercontent.apps.587558103382-esnjsvgl9is8co4ottb5i1p8rdj9drn7"
         }
       ],
-      "expo-font"
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": ["peripheral", "central"],
+          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
+        }
+      ],
+      "expo-font",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

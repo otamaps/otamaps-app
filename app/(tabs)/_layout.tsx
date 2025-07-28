@@ -1,3 +1,4 @@
+import useBLEScanner from '@/components/functions/bleScanner';
 import { AuthProvider } from '@/context/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
@@ -5,6 +6,8 @@ import React from 'react';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
+  useBLEScanner();
+  
   return (
     <AuthProvider>
       <Tabs
