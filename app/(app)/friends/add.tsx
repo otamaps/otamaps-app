@@ -1,49 +1,147 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { supabase } from "@/lib/supabase";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+type FriendUser = {
+  id: string;
+  name?: string;
+  email?: string;
+  code: string;
+  class?: string;
+  color?: string;
+};
 
 const AddFriendScreen = () => {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [friend, setFriend] = useState<FriendUser | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [requestSent, setRequestSent] = useState(false);
+
   const router = useRouter();
 
-  const handleSearch = () => {
-    if (code.length === 6) {
-      setIsSearching(true);
-      // Always show not found after a short delay
-      setTimeout(() => {
-        setIsSearching(false);
-      }, 500);
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+    fetchUser();
+  }, []);
+
+  const handleSearch = async (code: string) => {
+    if (code.length !== 6 || isSearching) return;
+
+    setIsSearching(true);
+
+    const searchPromise = supabase
+      .from("users_public")
+      .select("*")
+      .eq("code", code)
+      .single();
+
+    const delay = new Promise((resolve) => setTimeout(resolve, 500));
+
+    try {
+      const [{ data, error }] = await Promise.all([searchPromise, delay]);
+
+      setIsSearching(false);
+
+      if (error) {
+        console.log("Error fetching user:", error);
+        setFriend(null);
+        setRequestSent(false);
+      } else {
+        setFriend(data);
+        console.log("User found:", data);
+        const { data: relations, error: relationsError } = await supabase
+          .from("relations")
+          .select("*")
+          .or(
+            `and(subject.eq.${user?.id},object.eq.${data.id}),and(subject.eq.${data.id},object.eq.${user?.id})`
+          );
+
+        if (relationsError) {
+          console.log("Error fetching relations:", relationsError);
+          setRequestSent(false);
+        }
+
+        console.log("Relations:", relations, user?.id, data.id);
+
+        if (relations && relations.length > 0) {
+          setRequestSent(true);
+        }
+      }
+    } catch (err) {
+      console.log("Unexpected error:", err);
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddFriend = async (userId: string) => {
+    if (userId === user?.id) {
+      console.log("You cannot add yourself as a friend");
+      return;
+    }
+
+    const { error } = await supabase.from("relations").insert({
+      subject: user?.id,
+      object: userId,
+      status: "request",
+    });
+
+    if (error) {
+      console.log("Error adding friend:", error);
+    } else {
+      console.log("Friend added successfully");
+      setRequestSent(true);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
-      <Stack.Screen 
-        options={{ 
-          title: 'Add Friend',
+      <Stack.Screen
+        options={{
+          title: "Add Friend",
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
               <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
             </Pressable>
-          )
-        }} 
+          ),
+        }}
       />
-      
+
       <View style={styles.content}>
         <Text style={styles.title}>Enter Friend's Code</Text>
-        <Text style={styles.subtitle}>Ask your friend for their 6-digit code</Text>
-        
+        <Text style={styles.subtitle}>
+          Ask your friend for their 6-digit code
+        </Text>
+
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
             value={code}
-            onChangeText={setCode}
+            onChangeText={(value) => {
+              setCode(value);
+              setFriend(null);
+              setRequestSent(false);
+              if (value.length === 6 && !isSearching) {
+                handleSearch(value);
+              }
+            }}
             placeholder="123456"
             placeholderTextColor="#999"
             keyboardType="number-pad"
@@ -51,26 +149,67 @@ const AddFriendScreen = () => {
             autoFocus
             selectionColor="#4A89EE"
           />
-          <Pressable 
-            style={[styles.searchButton, code.length !== 6 && styles.searchButtonDisabled]}
-            onPress={handleSearch}
-            disabled={code.length !== 6 || isSearching}
-          >
-            {isSearching ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <MaterialIcons name="search" size={24} color="white" />
-            )}
-          </Pressable>
         </View>
-        
-        {code.length === 6 && !isSearching && (
+
+        {code.length === 6 && !isSearching && friend === null && (
           <View style={styles.resultContainer}>
             <MaterialIcons name="person-off" size={48} color="#999" />
             <Text style={styles.resultText}>No friend found</Text>
-            <Text style={styles.hintText}>Please check the code and try again</Text>
+            <Text style={styles.hintText}>
+              Please check the code and try again
+            </Text>
           </View>
         )}
+
+        {code.length === 6 &&
+          !isSearching &&
+          friend !== null &&
+          friend.id !== user?.id && (
+            <View style={styles.resultContainer}>
+              <MaterialIcons name="person" size={48} color="#4A89EE" />
+              <Text style={styles.resultText}>{friend.name}</Text>
+              {friend.class && (
+                <Text style={styles.hintText}>{friend.class}</Text>
+              )}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.addFriendButton,
+                  requestSent && styles.addFriendButtonSent,
+                  pressed && styles.addFriendButtonPressed,
+                ]}
+                onPress={() => {
+                  handleAddFriend(friend.id);
+                }}
+                disabled={requestSent}
+              >
+                <Text
+                  style={[
+                    styles.addFriendText,
+                    requestSent && styles.addFriendTextSent,
+                  ]}
+                >
+                  {requestSent ? "Requested" : "Add friend"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+        {code.length === 6 &&
+          !isSearching &&
+          friend !== null &&
+          friend.id === user?.id && (
+            <View style={styles.resultContainer}>
+              <MaterialIcons name="favorite" size={48} color="#ec003f" />
+              <Text
+                style={[
+                  styles.resultText,
+                  { fontSize: 24, fontFamily: "Figtree-SemiBold" },
+                ]}
+              >
+                It's You!
+              </Text>
+            </View>
+          )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -79,74 +218,84 @@ const AddFriendScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   content: {
     flex: 1,
     padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 24,
-    fontFamily: 'Figtree-SemiBold',
-    color: '#1a1a1a',
+    fontFamily: "Figtree-SemiBold",
+    color: "#1a1a1a",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 32,
-    textAlign: 'center',
+    textAlign: "center",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
+    flexDirection: "row",
+    alignItems: "center",
+    width: "50%",
     marginBottom: 32,
   },
   input: {
     flex: 1,
     height: 56,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: "#e0e0e0",
     borderRadius: 12,
     paddingHorizontal: 16,
-    fontSize: 18,
-    fontFamily: 'Figtree-Medium',
-    backgroundColor: '#f8f9fa',
-    marginRight: 12,
-    textAlign: 'center',
-    letterSpacing: 2,
-  },
-  searchButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#4A89EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchButtonDisabled: {
-    opacity: 0.5,
+    fontSize: 24,
+    fontFamily: "Figtree-Medium",
+    backgroundColor: "#f8f9fa",
+    textAlign: "center",
+    letterSpacing: 3,
   },
   resultContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 24,
   },
   resultText: {
     fontSize: 18,
-    fontFamily: 'Figtree-SemiBold',
-    color: '#333',
+    fontFamily: "Figtree-SemiBold",
+    color: "#333",
     marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   hintText: {
     fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+    color: "#999",
+    textAlign: "center",
+  },
+  addFriendButton: {
+    backgroundColor: "#4A89EE",
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 24,
+    alignItems: "center",
+    width: 180,
+  },
+  addFriendButtonPressed: {
+    opacity: 0.8,
+  },
+  addFriendButtonSent: {
+    backgroundColor: "#e5e5e5",
+  },
+  addFriendText: {
+    fontSize: 16,
+    fontFamily: "Figtree-SemiBold",
+    color: "#fff",
+    textAlign: "center",
+  },
+  addFriendTextSent: {
+    color: "#525252",
   },
 });
 

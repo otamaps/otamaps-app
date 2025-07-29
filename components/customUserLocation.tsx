@@ -1,6 +1,6 @@
-import { UserLocation } from '@rnmapbox/maps';
-import * as Location from 'expo-location';
-import { EventSubscription } from 'expo-modules-core';
+import { UserLocation } from "@rnmapbox/maps";
+import * as Location from "expo-location";
+import { EventSubscription } from "expo-modules-core";
 
 export class CustomUserLocation extends UserLocation {
   private customCoords: [number, number] = [0, 0];
@@ -24,7 +24,6 @@ export class CustomUserLocation extends UserLocation {
     await super.componentWillUnmount?.();
     this.headingSub?.remove();
   }
-
 
   // Override location updates to force custom coords
   _onLocationUpdate(location: any) {
