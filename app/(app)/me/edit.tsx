@@ -1,29 +1,31 @@
 import { generateCode } from "@/components/functions/codeGen";
 import { supabase } from "@/lib/supabase";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router, Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 
 const COLORS = [
-  "#ff595e",
-  "#ff924c",
-  "#ffca3a",
-  "#c5ca30",
-  "#8ac926",
-  "#52a675",
-  "#1982c4",
-  "#4267ac",
-  "#6a4c93",
-  "#b5a6c9",
+  "#fb2c36",
+  "#ff6900",
+  "#f0b100",
+  "#7ccf00",
+  "#00c950",
+  "#00bba7",
+  "#2b7fff",
+  "#615fff",
+  "#ad46ff",
+  "#f6339a",
 ];
 
 const Edit = () => {
@@ -32,6 +34,8 @@ const Edit = () => {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
+
+  const isDark = useColorScheme() === "dark";
 
   const validateClass = (text: string) => {
     // Only allow numbers and letters, max 3 characters
@@ -142,12 +146,44 @@ const Edit = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.section}>
-          <Text style={styles.label}>Nimi</Text>
+    <SafeAreaView
+      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+    >
+      <Stack.Screen
+        options={{
+          title: "Edit Profile",
+          headerStyle: {
+            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+          },
+          headerTitleStyle: {
+            color: isDark ? "#fff" : "#000",
+          },
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
+            </Pressable>
+          ),
+        }}
+      />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContainer,
+          isDark && { backgroundColor: "#1e1e1e" },
+        ]}
+      >
+        <View
+          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+        >
+          <Text style={[styles.label, isDark && { color: "#fff" }]}>Nimi</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              isDark && {
+                color: "#fff",
+                backgroundColor: "#262626",
+                borderColor: "#404040",
+              },
+            ]}
             value={name}
             onChangeText={setName}
             placeholder="Kirjoita nimesi"
@@ -155,10 +191,22 @@ const Edit = () => {
           />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Luokka</Text>
+        <View
+          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+        >
+          <Text style={[styles.label, isDark && { color: "#fff" }]}>
+            Luokka
+          </Text>
           <TextInput
-            style={[styles.input, classError && styles.inputError]}
+            style={[
+              styles.input,
+              classError && styles.inputError,
+              isDark && {
+                color: "#fff",
+                backgroundColor: "#262626",
+                borderColor: "#404040",
+              },
+            ]}
             value={userClass}
             onChangeText={validateClass}
             placeholder="Esimerkiksi 24Q"
@@ -171,8 +219,12 @@ const Edit = () => {
           ) : null}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Profiilin väri</Text>
+        <View
+          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+        >
+          <Text style={[styles.label, isDark && { color: "#fff" }]}>
+            Profiilin väri
+          </Text>
           <View style={styles.colorsContainer}>
             {COLORS.map((color) => (
               <TouchableOpacity
@@ -192,8 +244,15 @@ const Edit = () => {
           </View>
         </View>
 
-        <View style={styles.previewSection}>
-          <Text style={styles.label}>Esikatselu</Text>
+        <View
+          style={[
+            styles.previewSection,
+            isDark && { backgroundColor: "#1e1e1e", borderTopColor: "#404040" },
+          ]}
+        >
+          <Text style={[styles.label, isDark && { color: "#fff" }]}>
+            Esikatselu
+          </Text>
           <View style={styles.previewContainer}>
             <View
               style={[styles.previewAvatar, { backgroundColor: selectedColor }]}
@@ -203,14 +262,25 @@ const Edit = () => {
               </Text>
             </View>
             <View style={styles.previewTextContainer}>
-              <Text style={styles.previewName}>{name || "Nimi"}</Text>
-              <Text style={styles.previewClass}>{userClass || "Luokka"}</Text>
+              <Text style={[styles.previewName, isDark && { color: "#fff" }]}>
+                {name || "Nimi"}
+              </Text>
+              <Text
+                style={[styles.previewClass, isDark && { color: "#ffffff90" }]}
+              >
+                {userClass || "Luokka"}
+              </Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          isDark && { backgroundColor: "#1e1e1e", borderTopColor: "#404040" },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.button, isLoading && styles.buttonDisabled]}
           onPress={handleSave}
@@ -318,7 +388,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: "absolute",
-    bottom: 10,
+    bottom: 24,
     left: 0,
     right: 0,
     padding: 16,
@@ -338,7 +408,7 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-SemiBold",
   },
   buttonDisabled: {
-    backgroundColor: "#A0C3FF",
+    backgroundColor: "#007AFF80",
   },
   inputError: {
     borderColor: "#FF6B6B",

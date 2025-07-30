@@ -620,6 +620,7 @@ export default function HomeScreen() {
                             paddingVertical: 10,
                             fontSize: 16,
                             flex: 1,
+                            color: isDark ? "white" : "black",
                           }}
                         />
                         {/* <Pressable
