@@ -1,19 +1,14 @@
 import { fmstyles } from "@/assets/styles/friendModalStyles";
 import { CustomUserLocation } from "@/components/customUserLocation";
 import FriendItem, { formatLastSeen } from "@/components/friendItem";
+import useBLEScanner from '@/components/functions/bleScanner';
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
-import MapBottomSheet, {
-  BottomSheetMethods,
-} from "@/components/mapBottomSheet";
-import FriendModalSheet, {
-  FriendModalSheetRef,
-} from "@/components/sheets/friendModalSheet";
-import RoomModalSheet, {
-  RoomModalSheetMethods,
-} from "@/components/sheets/roomModalSheet";
+import MapBottomSheet, { BottomSheetMethods } from "@/components/mapBottomSheet";
+import FriendModalSheet, { FriendModalSheetRef } from '@/components/sheets/friendModalSheet';
+import RoomModalSheet, { RoomModalSheetMethods } from "@/components/sheets/roomModalSheet";
 import { Friend, getFriends, getRequests } from "@/lib/friendsHandler";
-import { Room, useRoomStore } from "@/lib/roomService";
+import { Room, useRoomStore } from '@/lib/roomService';
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   BottomSheetFlatList,
@@ -118,6 +113,16 @@ export default function HomeScreen() {
   const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
   const roomModalRef = useRef<RoomModalSheetMethods>(null);
   const customUserLocationRef = useRef<CustomUserLocation>(null);
+
+  // BLE Scanner for location tracking
+  const { currentRoom, getScannedBeacons } = useBLEScanner();
+  const scannedBeacons = getScannedBeacons();
+  
+  // Helper function to check if user is in any room
+  const isInAnyRoom = () => {
+    return currentRoom !== null && currentRoom !== undefined;
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   // const [friends, setFriends] = useState([
   //   {
@@ -160,7 +165,7 @@ export default function HomeScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const [roomData, setRoomData] = useState<
-    Array<RoomItemData & { id: string; isFavorite: boolean }>
+    (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const fetchRoomsRef = useRef(fetchRooms);
@@ -543,7 +548,23 @@ export default function HomeScreen() {
                   height: "100%",
                 }}
               >
-                {selectedTab === "people" && (
+                
+          {/* BLE Location Status */}
+          <View style={styles.bleStatusContainer}>
+            <View style={styles.bleStatusRow}>
+              <View style={[styles.bleIndicator, isInAnyRoom() ? styles.bleActive : styles.bleInactive]} />
+              <Text style={styles.bleStatusText}>
+                {currentRoom ? `Room: ${currentRoom}` : 'Location: Not detected'}
+              </Text>
+              {scannedBeacons.length > 0 && (
+                <Text style={styles.bleBeaconCount}>
+                  {scannedBeacons.length} beacon{scannedBeacons.length !== 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {selectedTab === "people" && (
                   <BottomSheetFlatList
                     ListHeaderComponent={
                       <View
@@ -905,5 +926,75 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  // BLE Status styles
+  bleStatusContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    backgroundColor: '#F8F9FA',
+  },
+  bleStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bleIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bleActive: {
+    backgroundColor: '#4CAF50',
+  },
+  bleInactive: {
+    backgroundColor: '#9E9E9E',
+  },
+  bleStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  bleBeaconCount: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '400',
+  },
+  // BLE Status styles
+  bleStatusContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    backgroundColor: '#F8F9FA',
+  },
+  bleStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bleIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bleActive: {
+    backgroundColor: '#4CAF50',
+  },
+  bleInactive: {
+    backgroundColor: '#9E9E9E',
+  },
+  bleStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  bleBeaconCount: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '400',
   },
 });
