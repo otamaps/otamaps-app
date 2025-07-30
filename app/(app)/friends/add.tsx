@@ -27,6 +27,7 @@ const AddFriendScreen = () => {
   const [friend, setFriend] = useState<FriendUser | null>(null);
   const [user, setUser] = useState<any>(null);
   const [requestSent, setRequestSent] = useState(false);
+  const [buttonLabel, setButtonLabel] = useState("Add friend");
 
   const router = useRouter();
 
@@ -60,6 +61,7 @@ const AddFriendScreen = () => {
         console.log("Error fetching user:", error);
         setFriend(null);
         setRequestSent(false);
+        setButtonLabel("Add friend");
       } else {
         setFriend(data);
         console.log("User found:", data);
@@ -73,12 +75,19 @@ const AddFriendScreen = () => {
         if (relationsError) {
           console.log("Error fetching relations:", relationsError);
           setRequestSent(false);
+          setButtonLabel("Add friend");
         }
 
         console.log("Relations:", relations, user?.id, data.id);
 
         if (relations && relations.length > 0) {
-          setRequestSent(true);
+          const relation = relations[0];
+          if (relation.status === "request") {
+            setRequestSent(true);
+            setButtonLabel("Requested");
+          } else if (relation.status === "friends") {
+            setButtonLabel(`Friends `);
+          }
         }
       }
     } catch (err) {
@@ -90,6 +99,23 @@ const AddFriendScreen = () => {
   const handleAddFriend = async (userId: string) => {
     if (userId === user?.id) {
       console.log("You cannot add yourself as a friend");
+      return;
+    }
+
+    const { data: relations, error: relationsError } = await supabase
+      .from("relations")
+      .select("*")
+      .or(
+        `and(subject.eq.${user?.id},object.eq.${userId}),and(subject.eq.${userId},object.eq.${user?.id})`
+      );
+
+    if (relationsError) {
+      console.log("Error fetching relations:", relationsError);
+      return;
+    }
+
+    if (relations && relations.length > 0) {
+      console.log("Relation already exists");
       return;
     }
 
@@ -138,6 +164,7 @@ const AddFriendScreen = () => {
               setCode(value);
               setFriend(null);
               setRequestSent(false);
+              setButtonLabel("Add friend");
               if (value.length === 6 && !isSearching) {
                 handleSearch(value);
               }
@@ -153,10 +180,10 @@ const AddFriendScreen = () => {
 
         {code.length === 6 && !isSearching && friend === null && (
           <View style={styles.resultContainer}>
-            <MaterialIcons name="person-off" size={48} color="#999" />
+            <MaterialIcons name="travel-explore" size={48} color="#999" />
             <Text style={styles.resultText}>No friend found</Text>
-            <Text style={styles.hintText}>
-              Please check the code and try again
+            <Text style={[styles.hintText, { marginTop: 6 }]}>
+              Looks like nobody has this code
             </Text>
           </View>
         )}
@@ -175,12 +202,15 @@ const AddFriendScreen = () => {
                 style={({ pressed }) => [
                   styles.addFriendButton,
                   requestSent && styles.addFriendButtonSent,
+                  buttonLabel === "Friends" && {
+                    backgroundColor: "#e5e5e5",
+                  },
                   pressed && styles.addFriendButtonPressed,
                 ]}
                 onPress={() => {
                   handleAddFriend(friend.id);
                 }}
-                disabled={requestSent}
+                disabled={requestSent || buttonLabel === "Friends"}
               >
                 <Text
                   style={[
@@ -188,7 +218,7 @@ const AddFriendScreen = () => {
                     requestSent && styles.addFriendTextSent,
                   ]}
                 >
-                  {requestSent ? "Requested" : "Add friend"}
+                  {buttonLabel}
                 </Text>
               </Pressable>
             </View>
