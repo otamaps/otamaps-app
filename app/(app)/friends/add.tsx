@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -28,6 +29,7 @@ const AddFriendScreen = () => {
   const [user, setUser] = useState<any>(null);
   const [requestSent, setRequestSent] = useState(false);
   const [buttonLabel, setButtonLabel] = useState("Add friend");
+  const isDark = useColorScheme() === "dark";
 
   const router = useRouter();
 
@@ -135,13 +137,19 @@ const AddFriendScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
       <Stack.Screen
         options={{
           title: "Add Friend",
+          headerStyle: {
+            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+          },
+          headerTitleStyle: {
+            color: isDark ? "#fff" : "#000",
+          },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
               <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
@@ -151,14 +159,23 @@ const AddFriendScreen = () => {
       />
 
       <View style={styles.content}>
-        <Text style={styles.title}>Enter Friend's Code</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isDark && { color: "#fff" }]}>
+          Enter Friend's Code
+        </Text>
+        <Text style={[styles.subtitle, isDark && { color: "#a1a1a1" }]}>
           Ask your friend for their 6-digit code
         </Text>
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              isDark && {
+                color: "#fff",
+                backgroundColor: "#262626",
+                borderColor: "#404040",
+              },
+            ]}
             value={code}
             onChangeText={(value) => {
               setCode(value);
@@ -181,8 +198,16 @@ const AddFriendScreen = () => {
         {code.length === 6 && !isSearching && friend === null && (
           <View style={styles.resultContainer}>
             <MaterialIcons name="travel-explore" size={48} color="#999" />
-            <Text style={styles.resultText}>No friend found</Text>
-            <Text style={[styles.hintText, { marginTop: 6 }]}>
+            <Text style={[styles.resultText, isDark && { color: "#e5e5e5" }]}>
+              No friend found
+            </Text>
+            <Text
+              style={[
+                styles.hintText,
+                { marginTop: 6 },
+                isDark && { color: "#a1a1a1" },
+              ]}
+            >
               Looks like nobody has this code
             </Text>
           </View>
@@ -193,10 +218,18 @@ const AddFriendScreen = () => {
           friend !== null &&
           friend.id !== user?.id && (
             <View style={styles.resultContainer}>
-              <MaterialIcons name="person" size={48} color="#4A89EE" />
-              <Text style={styles.resultText}>{friend.name}</Text>
+              <MaterialIcons
+                name="person"
+                size={48}
+                color={isDark ? "#fff" : "#4A89EE"}
+              />
+              <Text style={[styles.resultText, isDark && { color: "#fff" }]}>
+                {friend.name}
+              </Text>
               {friend.class && (
-                <Text style={styles.hintText}>{friend.class}</Text>
+                <Text style={[styles.hintText, isDark && { color: "#a1a1a1" }]}>
+                  {friend.class}
+                </Text>
               )}
               <Pressable
                 style={({ pressed }) => [
@@ -229,11 +262,16 @@ const AddFriendScreen = () => {
           friend !== null &&
           friend.id === user?.id && (
             <View style={styles.resultContainer}>
-              <MaterialIcons name="favorite" size={48} color="#ec003f" />
+              <MaterialIcons
+                name="favorite"
+                size={48}
+                color={isDark ? "#ff2056" : "#ec003f"}
+              />
               <Text
                 style={[
                   styles.resultText,
                   { fontSize: 24, fontFamily: "Figtree-SemiBold" },
+                  isDark && { color: "#fff" },
                 ]}
               >
                 It's You!

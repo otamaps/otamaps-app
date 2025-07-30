@@ -723,7 +723,7 @@ export default function HomeScreen() {
                     }}
                     ListEmptyComponent={
                       <View style={{ padding: 20, alignItems: "center" }}>
-                        <Text>
+                        <Text style={isDark && { color: "#e5e5e5" }}>
                           No {showFavoritesOnly ? "favorite " : ""}people found
                         </Text>
                       </View>
