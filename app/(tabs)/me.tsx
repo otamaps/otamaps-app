@@ -10,8 +10,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type UserProfile = {
   name: string;
@@ -23,6 +25,7 @@ type UserProfile = {
 const Me = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -104,186 +107,264 @@ const Me = () => {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#4A89EE" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: isDark ? "#1e1e1e" : "transparent",
+        }}
+      >
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#4A89EE"} />
       </View>
     );
   }
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 40,
-      }}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "transparent" }}
     >
-      <StatusBar style="dark" />
-      <View style={{ flex: 1, width: "100%", alignItems: "center" }}>
-        <View style={styles.userContainer}>
-          <View style={styles.userRow}>
-            <View
-              style={[
-                styles.avatarContainer,
-                { backgroundColor: profile?.color || "#4A89EE" },
-              ]}
-            >
-              <Text style={styles.avatarText}>
-                {profile?.name ? profile.name.charAt(0).toUpperCase() : "?"}
-              </Text>
-            </View>
-            <View style={styles.userInfo}>
-              <Text style={[styles.nameText, { fontSize: 24 }]}>
-                {profile?.name || "Käyttäjä"}
-              </Text>
-              {profile?.class && (
-                <Text
-                  style={[styles.nameText, { fontSize: 16, color: "#666" }]}
-                >
-                  {profile.class}
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "space-between",
+          // marginTop: 40,
+          backgroundColor: isDark ? "#1e1e1e" : "transparent",
+        }}
+      >
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <View
+          style={{
+            flex: 1,
+            width: "100%",
+            alignItems: "center",
+            backgroundColor: isDark ? "#1e1e1e" : "transparent",
+          }}
+        >
+          <View
+            style={[
+              styles.userContainer,
+              isDark && { backgroundColor: "#404040" },
+            ]}
+          >
+            <View style={styles.userRow}>
+              <View
+                style={[
+                  styles.avatarContainer,
+                  { backgroundColor: profile?.color || "#4A89EE" },
+                ]}
+              >
+                <Text style={styles.avatarText}>
+                  {profile?.name ? profile.name.charAt(0).toUpperCase() : "?"}
                 </Text>
-              )}
+              </View>
+              <View style={styles.userInfo}>
+                <Text
+                  style={[
+                    styles.nameText,
+                    { fontSize: 24 },
+                    isDark && { color: "#fff" },
+                  ]}
+                >
+                  {profile?.name || "Käyttäjä"}
+                </Text>
+                {profile?.class && (
+                  <Text
+                    style={[
+                      styles.nameText,
+                      { fontSize: 16, color: "#666" },
+                      isDark && { color: "#ffffff70" },
+                    ]}
+                  >
+                    {profile.class}
+                  </Text>
+                )}
+              </View>
             </View>
+          </View>
+
+          <View
+            style={[
+              styles.optionsContainer,
+              isDark && { backgroundColor: "#404040" },
+            ]}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && {
+                  backgroundColor: "#404040",
+                },
+
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => router.push("/me/edit")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Muokkaa tietojani
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#525252" : "#ddd",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#404040" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => router.push("/me/wilma")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Yhdistä Wilma-tili
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#525252" : "#ddd",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#404040" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => router.push("/me/settings")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Asetukset
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#525252" : "#ddd",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#404040" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => router.push("/me/guide")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Ohje
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#525252" : "#ddd",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#404040" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => router.push("/me/about")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Tietoja
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#525252" : "#ddd",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#404040" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+              ]}
+              onPress={() => {
+                supabase.auth.signOut();
+                router.push("/");
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#ff637e" : "#ec003f",
+                }}
+              >
+                Kirjaudu ulos
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <View style={styles.optionsContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => router.push("/me/edit")}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#444",
-              }}
-            >
-              Muokkaa tietojani
-            </Text>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: "#ddd" }} />
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => router.push("/me/wilma")}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#444",
-              }}
-            >
-              Yhdistä Wilma-tili
-            </Text>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: "#ddd" }} />
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => router.push("/me/settings")}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#444",
-              }}
-            >
-              Asetukset
-            </Text>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: "#ddd" }} />
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => router.push("/me/guide")}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#444",
-              }}
-            >
-              Ohje
-            </Text>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: "#ddd" }} />
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => router.push("/me/about")}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#444",
-              }}
-            >
-              Tietoja
-            </Text>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: "#ddd" }} />
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => {
-              supabase.auth.signOut();
-              router.push("/");
+        <TouchableOpacity
+          style={{ alignItems: "center", marginBottom: 100, opacity: 0.55 }}
+          onPress={() => Linking.openURL("https://streetsmarts.fi/")}
+        >
+          <Text
+            style={{
+              fontSize: 16,
+              fontFamily: "Figtree-Medium",
+              color: isDark ? "#a1a1a1" : "#999",
             }}
           >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: "#ff3f3f",
-              }}
-            >
-              Kirjaudu ulos
-            </Text>
-          </Pressable>
-        </View>
+            mahdollistanut
+          </Text>
+          <Image
+            source={require("@/assets/images/streetsmarts.png")}
+            resizeMode="contain"
+            style={{ width: 90, height: 70, marginVertical: 8 }}
+            tintColor="#999"
+          />
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={{ alignItems: "center" }}
-        onPress={() => Linking.openURL("https://streetsmarts.fi/")}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            fontFamily: "Figtree-SemiBold",
-            color: "#999",
-          }}
-        >
-          mahdollistanut
-        </Text>
-        <Image
-          source={require("@/assets/images/streetsmarts.png")}
-          resizeMode="contain"
-          style={{ width: 120, height: 80, marginVertical: 8 }}
-          tintColor="#999"
-        />
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
