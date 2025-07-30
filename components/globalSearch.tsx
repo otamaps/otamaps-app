@@ -403,6 +403,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
           <Animated.View
             style={[
               styles.resultsContainer,
+              isDark && { backgroundColor: "#1e1e1e", borderColor: "#303030" },
               {
                 maxHeight: 300,
                 opacity: searchResultsHeight.interpolate({

@@ -1,5 +1,11 @@
-import { BLELocationService, type UserLocationData } from "@/lib/bleLocationService";
-import { getLocationFromBeaconID, getRoomFromBeaconID } from "@/lib/idTranslation";
+import {
+  BLELocationService,
+  type UserLocationData,
+} from "@/lib/bleLocationService";
+import {
+  getLocationFromBeaconID,
+  getRoomFromBeaconID,
+} from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
@@ -34,7 +40,7 @@ class BLEScannerService {
 
   private async startContinuousScanning() {
     await this.requestPermissions();
-    
+
     // Scan specifically for OtaMaps service UUID
     manager.startDeviceScan(
       [OTAMAPS_SERVICE_UUID], // Only scan for OtaMaps beacons
@@ -66,23 +72,30 @@ class BLEScannerService {
   private isOtaMapsBeacon(device: Device): boolean {
     // Check if device name matches OtaMaps beacon pattern
     const isCorrectName = device.name === "Room" || device.localName === "Room";
-    
+
     // Check if device advertises the OtaMaps service UUID
-    const hasOtaMapsService = device.serviceUUIDs?.some(
-      uuid => uuid.toLowerCase() === OTAMAPS_SERVICE_UUID.toLowerCase()
-    ) || false;
-    
+    const hasOtaMapsService =
+      device.serviceUUIDs?.some(
+        (uuid) => uuid.toLowerCase() === OTAMAPS_SERVICE_UUID.toLowerCase()
+      ) || false;
+
     // Check if device has service data for OtaMaps UUID
-    const hasOtaMapsServiceData = device.serviceData && 
+    const hasOtaMapsServiceData =
+      device.serviceData &&
       Object.keys(device.serviceData).some(
-        uuid => uuid.toLowerCase() === OTAMAPS_SERVICE_UUID.toLowerCase()
+        (uuid) => uuid.toLowerCase() === OTAMAPS_SERVICE_UUID.toLowerCase()
       );
-    
+
     // Check RSSI threshold
-    const hasValidSignal = device.rssi !== null && device.rssi >= this.RSSI_THRESHOLD;
-    
+    const hasValidSignal =
+      device.rssi !== null && device.rssi >= this.RSSI_THRESHOLD;
+
     // Must have either the service UUID or service data, good signal strength, and preferably correct name
-    return (hasOtaMapsService || !!hasOtaMapsServiceData) && hasValidSignal && isCorrectName;
+    return (
+      (hasOtaMapsService || !!hasOtaMapsServiceData) &&
+      hasValidSignal &&
+      isCorrectName
+    );
   }
 
   private processBeacon(device: Device) {
@@ -91,17 +104,21 @@ class BLEScannerService {
     // Extract beacon ID from device (this should be the room ID from ESP32)
     const beaconId = this.extractBeaconId(device);
     if (!beaconId) {
-      console.warn(`Failed to extract room ID from OtaMaps beacon: ${device.id}`);
+      console.warn(
+        `Failed to extract room ID from OtaMaps beacon: ${device.id}`
+      );
       return;
     }
 
-    console.log(`Processing OtaMaps beacon - Room ID: ${beaconId}, RSSI: ${device.rssi} dBm`);
+    console.log(
+      `Processing OtaMaps beacon - Room ID: ${beaconId}, RSSI: ${device.rssi} dBm`
+    );
 
     const beaconData: BeaconData = {
       id: beaconId,
       rssi: device.rssi,
       timestamp: Date.now(),
-      roomId: getRoomFromBeaconID(beaconId)
+      roomId: getRoomFromBeaconID(beaconId),
     };
 
     this.scannedBeacons.set(beaconId, beaconData);
@@ -113,13 +130,16 @@ class BLEScannerService {
     if (device.serviceData) {
       try {
         // Look for our specific service UUID
-        const otaMapsServiceData = device.serviceData[OTAMAPS_SERVICE_UUID] || 
-                                   device.serviceData[OTAMAPS_SERVICE_UUID.toLowerCase()] ||
-                                   device.serviceData[OTAMAPS_SERVICE_UUID.toUpperCase()];
-        
+        const otaMapsServiceData =
+          device.serviceData[OTAMAPS_SERVICE_UUID] ||
+          device.serviceData[OTAMAPS_SERVICE_UUID.toLowerCase()] ||
+          device.serviceData[OTAMAPS_SERVICE_UUID.toUpperCase()];
+
         if (otaMapsServiceData) {
           // The service data contains the ROOM_ID as a string
-          const roomId = Buffer.from(otaMapsServiceData, 'base64').toString('utf8');
+          const roomId = Buffer.from(otaMapsServiceData, "base64").toString(
+            "utf8"
+          );
           if (roomId && roomId !== "none" && roomId.length > 0) {
             console.log(`Extracted room ID from service data: ${roomId}`);
             return roomId;
@@ -134,7 +154,9 @@ class BLEScannerService {
     if (device.manufacturerData) {
       try {
         // The manufacturer data also contains the ROOM_ID
-        const roomId = Buffer.from(device.manufacturerData, 'base64').toString('utf8');
+        const roomId = Buffer.from(device.manufacturerData, "base64").toString(
+          "utf8"
+        );
         if (roomId && roomId !== "none" && roomId.length > 0) {
           console.log(`Extracted room ID from manufacturer data: ${roomId}`);
           return roomId;
@@ -161,7 +183,10 @@ class BLEScannerService {
     // Find the strongest beacon signal that has a room mapping
     let strongestBeacon: BeaconData | null = null;
     for (const beacon of this.scannedBeacons.values()) {
-      if (beacon.roomId && (!strongestBeacon || beacon.rssi > strongestBeacon.rssi)) {
+      if (
+        beacon.roomId &&
+        (!strongestBeacon || beacon.rssi > strongestBeacon.rssi)
+      ) {
         strongestBeacon = beacon;
       }
     }
@@ -181,11 +206,15 @@ class BLEScannerService {
 
   private async uploadLocationToSupabase() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const strongestBeacon = this.getStrongestBeacon();
-      const coordinates = strongestBeacon ? getLocationFromBeaconID(strongestBeacon.id) : null;
+      const coordinates = strongestBeacon
+        ? getLocationFromBeaconID(strongestBeacon.id)
+        : null;
 
       const locationData: UserLocationData = {
         user_id: user.id,
@@ -193,15 +222,15 @@ class BLEScannerService {
         beacon_id: strongestBeacon?.id || null,
         rssi: strongestBeacon?.rssi || null,
         timestamp: new Date().toISOString(),
-        coordinates: coordinates || null
+        coordinates: coordinates || null,
       };
 
       const success = await BLELocationService.uploadLocation(locationData);
       if (!success) {
-        console.error('Failed to upload location data');
+        console.error("Failed to upload location data");
       }
     } catch (error) {
-      console.error('Error in uploadLocationToSupabase:', error);
+      console.error("Error in uploadLocationToSupabase:", error);
     }
   }
 
@@ -291,6 +320,6 @@ export default function useBLEScanner() {
     getCurrentRoom,
     isInAnyRoom,
     getScannedBeacons,
-    forceUploadLocation
+    forceUploadLocation,
   };
 }
