@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -17,6 +18,7 @@ const RequestsScreen = () => {
   const [requests, setRequests] = useState<any>([]);
   const [requesters, setRequesters] = useState<any>([]);
 
+  const isDark = useColorScheme() === "dark";
   const router = useRouter();
 
   useEffect(() => {
@@ -102,16 +104,26 @@ const RequestsScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
       <Stack.Screen
         options={{
           title: "Friend Requests",
+          headerTitleStyle: {
+            color: isDark ? "#fff" : "#333",
+          },
+          headerStyle: {
+            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+          },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
+              <MaterialIcons
+                name="arrow-back"
+                size={24}
+                color={isDark ? "#4A89EE" : "#4A89EE"}
+              />
             </Pressable>
           ),
         }}
@@ -120,8 +132,14 @@ const RequestsScreen = () => {
       <View style={styles.content}>
         {requesters.length === 0 ? (
           <View style={styles.noRequestsContainer}>
-            <Text style={styles.noRequestsText}>No requests</Text>
-            <Text style={styles.noRequestsHint}>
+            <Text
+              style={[styles.noRequestsText, isDark && { color: "#e5e5e5" }]}
+            >
+              No requests
+            </Text>
+            <Text
+              style={[styles.noRequestsHint, isDark && { color: "#a1a1a1" }]}
+            >
               Try sharing your code with your friends
             </Text>
           </View>
@@ -131,8 +149,17 @@ const RequestsScreen = () => {
             renderItem={({ item }) => (
               <View style={styles.requestItem}>
                 <View style={styles.requestInfo}>
-                  <Text style={styles.requestName}>{item.name}</Text>
-                  <Text style={styles.requestClass}>
+                  <Text
+                    style={[styles.requestName, isDark && { color: "#fff" }]}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.requestClass,
+                      isDark && { color: "#ffffff80" },
+                    ]}
+                  >
                     {item.class || "Class isn't specified"}
                   </Text>
                 </View>
@@ -151,7 +178,11 @@ const RequestsScreen = () => {
                       );
                     }}
                   >
-                    <MaterialIcons name="check" size={24} color="#fff" />
+                    <MaterialIcons
+                      name="check"
+                      size={24}
+                      color={isDark ? "#fff" : "#fff"}
+                    />
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [
@@ -167,7 +198,11 @@ const RequestsScreen = () => {
                       );
                     }}
                   >
-                    <MaterialIcons name="clear" size={24} color="#fff" />
+                    <MaterialIcons
+                      name="clear"
+                      size={24}
+                      color={isDark ? "#fff" : "#fff"}
+                    />
                   </Pressable>
                 </View>
               </View>
