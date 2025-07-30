@@ -1,7 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -72,15 +71,29 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
       ]}
       onPress={onPress}
     >
-      <View style={styles.iconContainer}>
-        <Image
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: friend.color || "#2b7fff" },
+        ]}
+      >
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 20,
+            fontFamily: "Figtree-SemiBold",
+          }}
+        >
+          {friend.name.charAt(0).toUpperCase()}
+        </Text>
+        {/* <Image
           source={{
             uri: `https://api.dicebear.com/9.x/initials/webp?seed=${encodeURIComponent(
               friend.name
             )}&scale=90`,
           }}
           style={[styles.profilePicture]}
-        />
+        /> */}
       </View>
       <View style={styles.detailsContainer}>
         <Text
@@ -190,7 +203,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: "#EFF4FF",
     justifyContent: "center",
     alignItems: "center",

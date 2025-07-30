@@ -145,7 +145,7 @@ const Me = () => {
           <View
             style={[
               styles.userContainer,
-              isDark && { backgroundColor: "#404040" },
+              isDark && { backgroundColor: "#303030" },
             ]}
           >
             <View style={styles.userRow}>
@@ -173,7 +173,11 @@ const Me = () => {
                   <Text
                     style={[
                       styles.nameText,
-                      { fontSize: 16, color: "#666" },
+                      {
+                        fontSize: 16,
+                        color: "#666",
+                        fontFamily: "Figtree-Medium",
+                      },
                       isDark && { color: "#ffffff70" },
                     ]}
                   >
@@ -187,14 +191,14 @@ const Me = () => {
           <View
             style={[
               styles.optionsContainer,
-              isDark && { backgroundColor: "#404040" },
+              isDark && { backgroundColor: "#303030" },
             ]}
           >
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
                 isDark && {
-                  backgroundColor: "#404040",
+                  backgroundColor: "#303030",
                 },
 
                 pressed && styles.optionContainerPressed,
@@ -215,13 +219,13 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#525252" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#ddd",
               }}
             />
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#404040" },
+                isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -240,13 +244,13 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#525252" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#ddd",
               }}
             />
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#404040" },
+                isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -265,13 +269,13 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#525252" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#ddd",
               }}
             />
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#404040" },
+                isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -290,13 +294,13 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#525252" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#ddd",
               }}
             />
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#404040" },
+                isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -312,35 +316,30 @@ const Me = () => {
                 Tietoja
               </Text>
             </Pressable>
-            <View
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.optionContainer,
+              isDark && { backgroundColor: "#303030" },
+              pressed && styles.optionContainerPressed,
+              isDark && pressed && { backgroundColor: "#525252" },
+              { width: "90%" },
+            ]}
+            onPress={() => {
+              supabase.auth.signOut();
+              router.push("/");
+            }}
+          >
+            <Text
               style={{
-                height: 1,
-                backgroundColor: isDark ? "#525252" : "#ddd",
-              }}
-            />
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#404040" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-              ]}
-              onPress={() => {
-                supabase.auth.signOut();
-                router.push("/");
+                fontSize: 16,
+                fontFamily: "Figtree-SemiBold",
+                color: isDark ? "#ff637e" : "#ec003f",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#ff637e" : "#ec003f",
-                }}
-              >
-                Kirjaudu ulos
-              </Text>
-            </Pressable>
-          </View>
+              Kirjaudu ulos
+            </Text>
+          </Pressable>
         </View>
 
         <TouchableOpacity
