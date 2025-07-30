@@ -3,9 +3,10 @@ import { AuthProvider } from "@/context/AuthContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 
 export default function TabLayout() {
+  const isDark = useColorScheme() === "dark";
   useBLEScanner();
 
   return (
@@ -17,9 +18,15 @@ export default function TabLayout() {
             ios: {
               // Use a transparent background on iOS to show the blur effect
               position: "absolute",
+              backgroundColor: isDark ? "#171717" : "white",
+              borderTopColor: isDark ? "transparent" : "",
             },
-            default: {},
+            default: {
+              backgroundColor: isDark ? "#171717" : "white",
+            },
           }),
+          tabBarActiveTintColor: isDark ? "#51a2ff" : "#2b7fff",
+          tabBarInactiveTintColor: isDark ? "gray" : "gray",
         }}
       >
         <Tabs.Screen

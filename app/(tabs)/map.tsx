@@ -46,6 +46,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -105,6 +106,7 @@ const emptyGeoJSON: GeoJSON.FeatureCollection = {
 };
 
 export default function HomeScreen() {
+  const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
 
   setAccessToken(
@@ -365,11 +367,15 @@ export default function HomeScreen() {
     <GestureHandlerRootView style={styles.container}>
       <BottomSheetModalProvider>
         <View style={{ flex: 1 }}>
-          <StatusBar style="dark" />
+          <StatusBar style={isDark ? "light" : "dark"} />
           <MapView
             ref={mapRef}
             style={styles.map}
-            styleURL={`https://api.maptiler.com/maps/openstreetmap/style.json?key=XSJRg4GXeLgDiZ98hfVp`}
+            styleURL={
+              isDark
+                ? "https://api.maptiler.com/maps/basic-v2-dark/style.json?key=K3AliW1jaTRyXigzRrBU"
+                : "https://api.maptiler.com/maps/01985d1f-e0d1-76c5-a7f0-a6cc81ebeb06/style.json?key=K3AliW1jaTRyXigzRrBU"
+            }
             compassViewMargins={{ x: 10, y: 40 }}
             pitchEnabled={true}
             scaleBarEnabled={false}
@@ -531,7 +537,11 @@ export default function HomeScreen() {
           <MapBottomSheet ref={mapBottomSheetRef} initialSnap="mid">
             {({ currentSnapIndex }) => (
               <BottomSheetView
-                style={{ flex: 1, backgroundColor: "white", height: "100%" }}
+                style={{
+                  flex: 1,
+                  backgroundColor: isDark ? "#1e1e1e" : "white",
+                  height: "100%",
+                }}
               >
                 {selectedTab === "people" && (
                   <BottomSheetFlatList
@@ -543,18 +553,20 @@ export default function HomeScreen() {
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "space-between",
+                          marginBottom: 12,
                         }}
                       >
                         <TextInput
                           placeholder="Search friends..."
                           value={searchQuery}
                           onChangeText={setSearchQuery}
+                          placeholderTextColor={isDark ? "#B5B5B5" : "#a1a1a1"}
                           onFocus={() => {
                             // open the sheet
                             mapBottomSheetRef.current?.snapToMax();
                           }}
                           style={{
-                            backgroundColor: "#f5f5f5",
+                            backgroundColor: isDark ? "#404040" : "#f5f5f5",
                             borderRadius: 8,
                             paddingHorizontal: 12,
                             paddingVertical: 10,
@@ -566,7 +578,7 @@ export default function HomeScreen() {
                           onPress={() => router.push("/friends/add")}
                           style={{
                             marginLeft: 12,
-                            backgroundColor: "#f5f5f5",
+                            backgroundColor: isDark ? "#1e1e1e" : "#f5f5f5",
                             padding: 8,
                             borderRadius: 8,
                           }}
@@ -581,7 +593,7 @@ export default function HomeScreen() {
                           onPress={() => router.push("/friends/requests")}
                           style={{
                             marginLeft: 6,
-                            backgroundColor: "#f5f5f5",
+                            backgroundColor: isDark ? "#404040" : "#f5f5f5",
                             padding: 8,
                             borderRadius: 8,
                           }}
@@ -610,7 +622,7 @@ export default function HomeScreen() {
                           <MaterialIcons
                             name="notifications"
                             size={22}
-                            color="#737373"
+                            color={isDark ? "#e5e5e5" : "#737373"}
                           />
                         </Pressable>
                       </View>
@@ -673,6 +685,10 @@ export default function HomeScreen() {
                         style={({ pressed }) => [
                           styles.addFriendButton,
                           pressed && styles.addFriendButtonPressed,
+                          isDark && {
+                            backgroundColor: "#2b7fff50",
+                            borderColor: "#8ec5ff50",
+                          },
                         ]}
                         onPress={() => {
                           // Handle add friend action
@@ -683,9 +699,16 @@ export default function HomeScreen() {
                         <MaterialIcons
                           name="person-add"
                           size={20}
-                          color="#4A89EE"
+                          color={isDark ? "#8ec5ff" : "#4A89EE"}
                         />
-                        <Text style={styles.addFriendText}>Add Friend</Text>
+                        <Text
+                          style={[
+                            styles.addFriendText,
+                            isDark && { color: "#8ec5ff" },
+                          ]}
+                        >
+                          Add Friend
+                        </Text>
                       </Pressable>
                     }
                   />

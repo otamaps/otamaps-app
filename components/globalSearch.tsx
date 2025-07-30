@@ -19,6 +19,7 @@ import {
   Text,
   TextInput,
   TouchableWithoutFeedback,
+  useColorScheme,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,6 +43,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   props: GlobalSearchProps,
   ref: React.Ref<GlobalSearchMethods>
 ) {
+  const isDark = useColorScheme() === "dark";
   const { roomModalRef } = props;
   const { top } = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
@@ -217,17 +219,35 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 
     return (
       <Pressable
-        style={styles.resultItem}
+        style={[
+          styles.resultItem,
+          isDark && {
+            backgroundColor: "#1e1e1e",
+            borderBottomColor: "#303030",
+          },
+        ]}
         onPress={() => handleResultPress(item)}
       >
         <View style={styles.resultIcon}>
           {type === "room" ? (
-            <MaterialIcons name="meeting-room" size={20} color="#666" />
+            <MaterialIcons
+              name="meeting-room"
+              size={20}
+              color={isDark ? "#e5e5e5" : "#666"}
+            />
           ) : (
-            <MaterialIcons name="person" size={20} color="#666" />
+            <MaterialIcons
+              name="person"
+              size={20}
+              color={isDark ? "#e5e5e5" : "#666"}
+            />
           )}
           <Text
-            style={[styles.resultText, { fontFamily: "Figtree-SemiBold" }]}
+            style={[
+              styles.resultText,
+              { fontFamily: "Figtree-SemiBold", marginLeft: 8 },
+              isDark && { color: "#fff" },
+            ]}
             numberOfLines={1}
           >
             {roomNumberHighlight.replace(/<mark>|<\/mark>/g, "") ||
@@ -235,11 +255,25 @@ const GlobalSearch = forwardRef(function GlobalSearch(
           </Text>
         </View>
         <View style={styles.resultContent}>
-          <Text style={styles.resultText} numberOfLines={1}>
+          <Text
+            style={[
+              styles.resultText,
+              { fontFamily: "Figtree-Regular", marginTop: 4 },
+              isDark && { color: "#d4d4d4" },
+            ]}
+            numberOfLines={1}
+          >
             {titleHighlight.replace(/<mark>|<\/mark>/g, "")}
           </Text>
           {descriptionHighlight ? (
-            <Text style={styles.resultSubtext} numberOfLines={1}>
+            <Text
+              style={[
+                styles.resultSubtext,
+                { fontFamily: "Figtree-Regular", marginTop: 4 },
+                isDark && { color: "#d4d4d4" },
+              ]}
+              numberOfLines={1}
+            >
               {descriptionHighlight.replace(/<mark>|<\/mark>/g, "")}
             </Text>
           ) : null}
@@ -274,11 +308,20 @@ const GlobalSearch = forwardRef(function GlobalSearch(
             {
               marginRight: searchMarginRight,
             },
+            isDark && { backgroundColor: "#1e1e1e" },
           ]}
         >
-          <MaterialCommunityIcons name="magnify" size={28} color="#666" />
+          <MaterialCommunityIcons
+            name="magnify"
+            size={28}
+            color={isDark ? "#737373" : "#666"}
+          />
           <TextInput
-            style={[styles.textInput, { fontFamily: "Figtree-Medium" }]}
+            style={[
+              styles.textInput,
+              { fontFamily: "Figtree-Medium" },
+              isDark && { color: "#fff" },
+            ]}
             placeholder="Search for Anything"
             placeholderTextColor="#B5B5B5"
             value={searchQuery}
@@ -295,11 +338,16 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               width: controlsWidth,
               opacity: isFocused ? 0 : 1,
             },
+            isDark && { backgroundColor: "#1e1e1e" },
           ]}
           pointerEvents={isFocused ? "none" : "auto"}
         >
           <Pressable style={styles.button}>
-            <MaterialIcons name="my-location" size={26} color="#000" />
+            <MaterialIcons
+              name="my-location"
+              size={24}
+              color={isDark ? "#f5f5f5" : "#000"}
+            />
           </Pressable>
           {floorsEnabled && (
             <>

@@ -37,7 +37,7 @@ const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
       ...user,
       lastSeen: location?.updated_at || null,
       location: location ? [location.x, location.y] : null,
-      status: "online",
+      status: "at school",
     };
   });
 

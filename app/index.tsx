@@ -1,24 +1,27 @@
-import { supabase } from '@/lib/supabase';
-import { Session } from '@supabase/supabase-js';
-import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import SplashScreen from './welcome/splash';
+import { supabase } from "@/lib/supabase";
+import { Session } from "@supabase/supabase-js";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, useColorScheme, View } from "react-native";
+import SplashScreen from "./welcome/splash";
 
 export default function Index() {
   const router = useRouter();
   const [showSplash, setShowSplash] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     // Check for existing session
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         setSession(session);
       } catch (error) {
-        console.error('Error checking session:', error); 
+        console.error("Error checking session:", error);
       } finally {
         setIsLoading(false);
       }
@@ -27,7 +30,9 @@ export default function Index() {
     checkSession();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -50,10 +55,10 @@ export default function Index() {
     if (!isLoading && !showSplash) {
       if (session) {
         // User is signed in, redirect to map
-        router.replace('/map');
+        router.replace("/map");
       } else {
         // No user is signed in, redirect to welcome
-        router.replace('/welcome');
+        router.replace("/welcome");
       }
     }
   }, [session, isLoading, showSplash]);
@@ -65,9 +70,16 @@ export default function Index() {
 
   // Show loading indicator while checking auth state
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: isDark ? "#1e1e1e" : "transparent",
+      }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
-      <ActivityIndicator size="large" />
+      <ActivityIndicator size="large" color={isDark ? "#fff" : "#4A89EE"} />
     </View>
   );
 }
