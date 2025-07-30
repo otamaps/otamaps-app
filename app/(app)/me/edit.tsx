@@ -1,110 +1,141 @@
-import { supabase } from '@/lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { generateCode } from "@/components/functions/codeGen";
+import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const COLORS = [
-  '#ff595e', '#ff924c', '#ffca3a', '#c5ca30', '#8ac926',
-  '#52a675', '#1982c4', '#4267ac', '#6a4c93', '#b5a6c9'
+  "#ff595e",
+  "#ff924c",
+  "#ffca3a",
+  "#c5ca30",
+  "#8ac926",
+  "#52a675",
+  "#1982c4",
+  "#4267ac",
+  "#6a4c93",
+  "#b5a6c9",
 ];
 
 const Edit = () => {
-  const [name, setName] = useState('');
-  const [userClass, setUserClass] = useState('');
+  const [name, setName] = useState("");
+  const [userClass, setUserClass] = useState("");
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [isLoading, setIsLoading] = useState(false);
-  const [classError, setClassError] = useState('');
+  const [classError, setClassError] = useState("");
 
   const validateClass = (text: string) => {
     // Only allow numbers and letters, max 3 characters
-    const cleaned = text.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
-    
+    const cleaned = text.replace(/[^0-9a-zA-Z]/g, "").toUpperCase();
+
     // If more than 3 characters, don't update
     if (cleaned.length > 3) return;
-    
+
     // Update the input value
     setUserClass(cleaned);
-    
+
     // Validate the format only when we have exactly 3 characters
     if (cleaned.length === 3) {
       if (/^\d{2}[A-Za-z]$/.test(cleaned)) {
-        setClassError('');
+        setClassError("");
       } else {
-        setClassError('Syötä luokka muodossa 24A');
+        setClassError("Syötä luokka muodossa 24A");
       }
     } else if (cleaned.length > 0) {
       // Show error if we have some input but not enough
-      setClassError('Syötä 2 numeroa ja 1 kirjain');
+      setClassError("Syötä 2 numeroa ja 1 kirjain");
     } else {
-      setClassError('');
+      setClassError("");
     }
   };
 
   useEffect(() => {
     // Load current user data
     const loadUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         // In a real app, you would fetch the user's current data here
         // For now, we'll use placeholder data
-        setName(user.user_metadata?.full_name || '');
-        setUserClass(user.user_metadata?.class || '');
+        setName(user.user_metadata?.full_name || "");
+        setUserClass(user.user_metadata?.class || "");
         setSelectedColor(user.user_metadata?.color || COLORS[0]);
       }
     };
-    
+
     loadUserData();
   }, []);
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('Anna nimesi');
+      alert("Anna nimesi");
       return;
     }
 
-    if (userClass && userClass.length === 3 && !/^\d{2}[A-Za-z]$/.test(userClass)) {
-      alert('Tarkista luokan muoto (esim. 24A)');
+    if (
+      userClass &&
+      userClass.length === 3 &&
+      !/^\d{2}[A-Za-z]$/.test(userClass)
+    ) {
+      alert("Tarkista luokan muoto (esim. 24A)");
       return;
     }
 
     setIsLoading(true);
     try {
       // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError) throw userError;
-      if (!user) throw new Error('Käyttäjää ei löytynyt');
+      if (!user) throw new Error("Käyttäjää ei löytynyt");
 
       // Update user metadata in auth
       const { error: updateError } = await supabase.auth.updateUser({
         data: {
           full_name: name.trim(),
           class: userClass.trim(),
-          color: selectedColor
-        }
+          color: selectedColor,
+          code: generateCode(user.email as string),
+        },
       });
 
       if (updateError) throw updateError;
 
       // Update users table
+
+      // Get user's email
+      const email = user.email;
+      const code = generateCode(email as string);
+
       const { error: dbError } = await supabase
-        .from('users')
-        .upsert({
+        .from("users")
+        .update({
           id: user.id,
           name: name.trim(),
           class: userClass.trim(),
           color: selectedColor,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'id'
-        });
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
 
       if (dbError) throw dbError;
-      
+
       router.back();
     } catch (error) {
-      console.error('Error updating profile:', error);
-      alert('Profiilin päivitys epäonnistui. Yritä uudelleen.');
+      console.error("Error updating profile:", error);
+      alert("Profiilin päivitys epäonnistui. Yritä uudelleen.");
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +166,9 @@ const Edit = () => {
             maxLength={3}
             autoCapitalize="characters"
           />
-          {classError ? <Text style={styles.errorText}>{classError}</Text> : null}
+          {classError ? (
+            <Text style={styles.errorText}>{classError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -147,7 +180,7 @@ const Edit = () => {
                 style={[
                   styles.colorOption,
                   { backgroundColor: color },
-                  selectedColor === color && styles.selectedColor
+                  selectedColor === color && styles.selectedColor,
                 ]}
                 onPress={() => setSelectedColor(color)}
               >
@@ -162,29 +195,29 @@ const Edit = () => {
         <View style={styles.previewSection}>
           <Text style={styles.label}>Esikatselu</Text>
           <View style={styles.previewContainer}>
-            <View 
+            <View
               style={[styles.previewAvatar, { backgroundColor: selectedColor }]}
             >
               <Text style={styles.avatarText}>
-                {name ? name.charAt(0).toUpperCase() : '?'}
+                {name ? name.charAt(0).toUpperCase() : "?"}
               </Text>
             </View>
             <View style={styles.previewTextContainer}>
-              <Text style={styles.previewName}>{name || 'Nimi'}</Text>
-              <Text style={styles.previewClass}>{userClass || 'Luokka'}</Text>
+              <Text style={styles.previewName}>{name || "Nimi"}</Text>
+              <Text style={styles.previewClass}>{userClass || "Luokka"}</Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.button, isLoading && styles.buttonDisabled]}
           onPress={handleSave}
           disabled={isLoading}
         >
           <Text style={styles.buttonText}>
-            {isLoading ? 'Tallennetaan...' : 'Tallenna muutokset'}
+            {isLoading ? "Tallennetaan..." : "Tallenna muutokset"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -195,7 +228,7 @@ const Edit = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   scrollContainer: {
     padding: 16,
@@ -206,115 +239,115 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontFamily: 'Figtree-SemiBold',
+    fontFamily: "Figtree-SemiBold",
     marginBottom: 8,
-    color: '#333',
+    color: "#333",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    fontFamily: 'Figtree-Regular',
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    fontFamily: "Figtree-Regular",
+    backgroundColor: "#f9f9f9",
+    color: "#000",
   },
   colorsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     marginTop: 8,
-    width: '100%',
+    width: "100%",
     marginHorizontal: -5,
     height: 120,
   },
   colorOption: {
-    width: '18%',
+    width: "18%",
     aspectRatio: 1,
     height: 50,
     maxWidth: 60,
     minWidth: 50,
     borderRadius: 30,
     margin: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   selectedColor: {
-    borderColor: '#333',
+    borderColor: "#333",
     transform: [{ scale: 1.1 }],
   },
   previewSection: {
     marginTop: 24,
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: "#eee",
   },
   previewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 12,
   },
   previewAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   avatarText: {
-    color: 'white',
+    color: "white",
     fontSize: 24,
-    fontFamily: 'Figtree-Bold',
+    fontFamily: "Figtree-Bold",
   },
   previewTextContainer: {
     flex: 1,
   },
   previewName: {
     fontSize: 18,
-    fontFamily: 'Figtree-SemiBold',
+    fontFamily: "Figtree-SemiBold",
     marginBottom: 4,
   },
   previewClass: {
     fontSize: 16,
-    color: '#666',
-    fontFamily: 'Figtree-Regular',
+    color: "#666",
+    fontFamily: "Figtree-Regular",
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 10,
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: "#eee",
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     borderRadius: 10,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontFamily: 'Figtree-SemiBold',
+    fontFamily: "Figtree-SemiBold",
   },
   buttonDisabled: {
-    backgroundColor: '#A0C3FF',
+    backgroundColor: "#A0C3FF",
   },
   inputError: {
-    borderColor: '#FF6B6B',
+    borderColor: "#FF6B6B",
   },
   errorText: {
-    color: '#FF6B6B',
+    color: "#FF6B6B",
     fontSize: 12,
     marginTop: 4,
-    fontFamily: 'Figtree-Regular',
+    fontFamily: "Figtree-Regular",
   },
 });
 

@@ -1,7 +1,13 @@
 import { isFeatureEnabled } from "@/lib/featureFlagService";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { useHits, useSearchBox } from "react-instantsearch-core";
 import {
   ActivityIndicator,
@@ -24,9 +30,18 @@ interface RoomModalRef {
 
 interface GlobalSearchProps {
   roomModalRef: React.RefObject<RoomModalRef>;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
-const GlobalSearch = (props: GlobalSearchProps) => {
+export interface GlobalSearchMethods {
+  focus: () => void;
+}
+
+const GlobalSearch = forwardRef(function GlobalSearch(
+  props: GlobalSearchProps,
+  ref: React.Ref<GlobalSearchMethods>
+) {
   const { roomModalRef } = props;
   const { top } = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
@@ -58,6 +73,12 @@ const GlobalSearch = (props: GlobalSearchProps) => {
   const controlsWidth = useRef(new Animated.Value(52)).current;
   const searchMarginRight = useRef(new Animated.Value(12)).current;
   const inputRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current?.focus();
+    },
+  }));
 
   // Animate search results container when hits or query changes
   useEffect(() => {
@@ -127,6 +148,10 @@ const GlobalSearch = (props: GlobalSearchProps) => {
         useNativeDriver: false,
       }),
     ]).start();
+
+    if (props.onFocus) {
+      props.onFocus();
+    }
   };
 
   const handleBlur = () => {
@@ -150,8 +175,11 @@ const GlobalSearch = (props: GlobalSearchProps) => {
       ]).start(({ finished }) => {
         if (finished) {
           setIsFocused(false);
+          props.onBlur?.();
         }
       });
+    } else {
+      props.onBlur?.();
     }
   };
 
@@ -361,7 +389,7 @@ const GlobalSearch = (props: GlobalSearchProps) => {
       </View>
     </TouchableWithoutFeedback>
   );
-};
+});
 
 export default React.memo(GlobalSearch);
 
