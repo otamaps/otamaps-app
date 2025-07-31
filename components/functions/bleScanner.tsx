@@ -43,7 +43,7 @@ class BLEScannerService {
 
     // Scan specifically for OtaMaps service UUID
     manager.startDeviceScan(
-      [OTAMAPS_SERVICE_UUID], // Only scan for OtaMaps beacons
+      [OTAMAPS_SERVICE_UUID],
       { allowDuplicates: true },
       (error, device) => {
         if (error) {
@@ -52,7 +52,10 @@ class BLEScannerService {
         }
 
         if (device && this.isOtaMapsBeacon(device)) {
-          this.processBeacon(device);
+          // Wrap async call since BLE callback doesn't support async directly
+          this.processBeacon(device).catch((err) =>
+            console.error("Error in processBeacon:", err)
+          );
         }
       }
     );
@@ -98,27 +101,27 @@ class BLEScannerService {
     );
   }
 
-  private processBeacon(device: Device) {
+  private async processBeacon(device: Device) {
     if (!device.rssi || device.rssi < this.RSSI_THRESHOLD) return;
 
-    // Extract beacon ID from device (this should be the room ID from ESP32)
     const beaconId = this.extractBeaconId(device);
     if (!beaconId) {
-      console.warn(
-        `Failed to extract room ID from OtaMaps beacon: ${device.id}`
-      );
+      console.warn(`Failed to extract beacon ID from device: ${device.id}`);
       return;
     }
 
     console.log(
-      `Processing OtaMaps beacon - Room ID: ${beaconId}, RSSI: ${device.rssi} dBm`
+      `Processing OtaMaps beacon - ID: ${beaconId}, RSSI: ${device.rssi} dBm`
     );
+
+    // ✅ Await the room ID here
+    const roomId = await getRoomFromBeaconID(beaconId);
 
     const beaconData: BeaconData = {
       id: beaconId,
       rssi: device.rssi,
       timestamp: Date.now(),
-      roomId: getRoomFromBeaconID(beaconId),
+      roomId, // now properly resolved
     };
 
     this.scannedBeacons.set(beaconId, beaconData);

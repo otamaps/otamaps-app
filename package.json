@@ -28,6 +28,7 @@
     "@supabase/supabase-js": "^2.50.1",
     "@types/lodash": "^4.17.19",
     "algoliasearch": "^5.29.0",
+    "buffer": "^6.0.3",
     "eas-cli": "^16.13.0",
     "expo": "~53.0.12",
     "expo-background-fetch": "~13.1.6",

@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 interface BeaconLocation {
   roomId: string;
   coordinates: [number, number];
@@ -5,18 +7,13 @@ interface BeaconLocation {
 }
 
 type BeaconID = string;
-type RoomID = string;
 type Coordinates = [number, number];
 
-/**
- * Map of beacon IDs to their location information
- */
-const beaconRegistry: Record<BeaconID, BeaconLocation> = {
-  '001': {
-    roomId: 'be0080cf-8bf3-4d01-91a0-d07beadd7295',
-    coordinates: [60.18394, 24.81851],
-    radius: 10
-  }
+// Fetch beacons from Supabase
+const fetchBeacons = async () => {
+  const { data, error } = await supabase.from("beacons").select("*");
+  if (error) throw error;
+  return data;
 };
 
 /**
@@ -24,8 +21,36 @@ const beaconRegistry: Record<BeaconID, BeaconLocation> = {
  * @param beaconId - The ID of the beacon
  * @returns The room ID if found, otherwise undefined
  */
-const getRoomFromBeaconID = (beaconId: BeaconID): RoomID | undefined => {
-  return beaconRegistry[beaconId]?.roomId;
+const getRoomIdFromBleId = async (
+  bleId: string
+): Promise<string | undefined> => {
+  const { data, error } = await supabase
+    .from("beacons")
+    .select("room_id")
+    .eq("ble_id", bleId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching room_id from ble_id:", error.message);
+    return undefined;
+  }
+
+  if (data) {
+    const { data: roomData, error: roomError } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("id", data.room_id)
+      .maybeSingle();
+
+    if (roomError) {
+      console.error("Error fetching room_id from room_id:", roomError.message);
+      return undefined;
+    }
+
+    return roomData?.room_number;
+  }
+
+  return undefined;
 };
 
 /**
@@ -33,10 +58,13 @@ const getRoomFromBeaconID = (beaconId: BeaconID): RoomID | undefined => {
  * @param beaconId - The ID of the beacon
  * @returns The coordinates as [latitude, longitude] if found, otherwise undefined
  */
-const getLocationFromBeaconID = (beaconId: BeaconID): Coordinates | undefined => {
-  return beaconRegistry[beaconId]?.coordinates;
+const getLocationFromBeaconID = async (
+  beaconId: BeaconID
+): Promise<Coordinates | undefined> => {
+  const beacons = await fetchBeacons();
+  const beacon = beacons.find((b) => b.id === beaconId);
+  return [beacon?.x, beacon?.y];
 };
 
-export { getLocationFromBeaconID, getRoomFromBeaconID };
-export type { BeaconID, Coordinates, RoomID };
-
+export { getLocationFromBeaconID, getRoomIdFromBleId };
+export type { BeaconID, Coordinates };
