@@ -1,9 +1,14 @@
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
+import { Buffer } from "buffer";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, useColorScheme, View } from "react-native";
 import SplashScreen from "./welcome/splash";
+
+if (typeof global.Buffer === "undefined") {
+  global.Buffer = Buffer;
+}
 
 export default function Index() {
   const router = useRouter();
