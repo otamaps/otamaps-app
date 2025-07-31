@@ -1,9 +1,7 @@
 import {
   BLELocationService,
-  type UserLocationData,
 } from "@/lib/bleLocationService";
 import {
-  getLocationFromBeaconID,
   getRoomIdFromBleId,
 } from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
@@ -214,23 +212,12 @@ class BLEScannerService {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const strongestBeacon = this.getStrongestBeacon();
-      const coordinates = strongestBeacon
-        ? getLocationFromBeaconID(strongestBeacon.id)
-        : null;
-
-      const locationData: UserLocationData = {
-        user_id: user.id,
-        room_id: this.currentRoom,
-        beacon_id: strongestBeacon?.id || null,
-        rssi: strongestBeacon?.rssi || null,
-        timestamp: new Date().toISOString(),
-        coordinates: coordinates || null,
-      };
-
-      const success = await BLELocationService.uploadLocation(locationData);
+      // Use the new location updating system
+      const success = await BLELocationService.updateLocation(this.scannedBeacons);
       if (!success) {
-        console.error("Failed to upload location data");
+        console.error("Failed to update location data");
+      } else {
+        console.log("Location successfully updated in new locations table");
       }
     } catch (error) {
       console.error("Error in uploadLocationToSupabase:", error);
