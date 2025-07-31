@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 export interface UserLocationData {
   user_id: string;
@@ -48,10 +48,10 @@ export interface BeaconInfo {
  */
 function calculateDistanceFromRSSI(rssi: number): number {
   if (rssi === 0) return -1.0;
-  
+
   const measuredPower = -59; // dBm at 1 meter
   const pathLossExponent = 2.5; // typical value for indoor environments
-  
+
   if (rssi < measuredPower) {
     const ratio = (measuredPower - rssi) / (10 * pathLossExponent);
     return Math.pow(10, ratio);
@@ -67,10 +67,10 @@ function calculateDistanceFromRSSI(rssi: number): number {
  */
 function calculateLocationRadius(beacons: BeaconInfo[]): number {
   if (beacons.length === 0) return 50; // default radius in meters
-  
-  const distances = beacons.map(beacon => beacon.distance || 50);
+
+  const distances = beacons.map((beacon) => beacon.distance || 50);
   const minDistance = Math.min(...distances);
-  
+
   // Add uncertainty based on number of beacons and signal strength
   const uncertainty = beacons.length > 1 ? 5 : 15; // meters
   return Math.max(5, minDistance + uncertainty); // minimum 5m radius
@@ -83,12 +83,14 @@ export class BLELocationService {
   /**
    * Get beacon coordinates from database
    */
-  static async getBeaconCoordinates(beaconId: string): Promise<[number, number] | null> {
+  static async getBeaconCoordinates(
+    beaconId: string
+  ): Promise<[number, number] | null> {
     try {
       const { data, error } = await supabase
-        .from('beacons')
-        .select('x, y')
-        .eq('ble_id', beaconId)
+        .from("beacons")
+        .select("x, y")
+        .eq("ble_id", beaconId)
         .single();
 
       if (error || !data) {
@@ -98,7 +100,7 @@ export class BLELocationService {
 
       return [data.x, data.y];
     } catch (error) {
-      console.error('Error fetching beacon coordinates:', error);
+      console.error("Error fetching beacon coordinates:", error);
       return null;
     }
   }
@@ -108,29 +110,33 @@ export class BLELocationService {
    */
   static async getFriendIds(): Promise<string[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
 
       // Get accepted friends from the relations table
       const { data, error } = await supabase
-        .from('relations')
-        .select('subject, object')
-        .eq('status', 'accepted')
+        .from("relations")
+        .select("subject, object")
+        .eq("status", "accepted")
         .or(`subject.eq.${user.id},object.eq.${user.id}`);
 
       if (error) {
-        console.error('Error fetching friends:', error);
+        console.error("Error fetching friends:", error);
         return [];
       }
 
       // Extract friend IDs (the other person in each relation)
-      const friendIds = data.map(relation => 
-        relation.subject === user.id ? relation.object : relation.subject
-      ).filter(id => id !== user.id); // Just to be safe
+      const friendIds = data
+        .map((relation) =>
+          relation.subject === user.id ? relation.object : relation.subject
+        )
+        .filter((id) => id !== user.id); // Just to be safe
 
       return friendIds;
     } catch (error) {
-      console.error('Error in getFriendIds:', error);
+      console.error("Error in getFriendIds:", error);
       return [];
     }
   }
@@ -138,13 +144,17 @@ export class BLELocationService {
   /**
    * Update user location based on detected beacons
    */
-  static async updateLocation(detectedBeacons: Map<string, any>): Promise<boolean> {
+  static async updateLocation(
+    detectedBeacons: Map<string, any>
+  ): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return false;
 
       if (detectedBeacons.size === 0) {
-        console.log('No beacons detected, skipping location update');
+        console.log("No beacons detected, skipping location update");
         return false;
       }
 
@@ -156,13 +166,13 @@ export class BLELocationService {
       for (const [beaconId, beaconData] of detectedBeacons) {
         const coordinates = await this.getBeaconCoordinates(beaconId);
         const distance = calculateDistanceFromRSSI(beaconData.rssi);
-        
+
         const beaconInfo: BeaconInfo = {
           id: beaconId,
           rssi: beaconData.rssi,
           timestamp: beaconData.timestamp,
           coordinates: coordinates || undefined,
-          distance
+          distance,
         };
 
         beaconInfos.push(beaconInfo);
@@ -175,7 +185,7 @@ export class BLELocationService {
       }
 
       if (!closestBeacon || !closestBeacon.coordinates) {
-        console.warn('No valid beacon coordinates found');
+        console.warn("No valid beacon coordinates found");
         return false;
       }
 
@@ -196,25 +206,28 @@ export class BLELocationService {
         y, // longitude of closest beacon
         radius,
         beacons: beaconInfos,
-        shared_to: sharedTo
+        shared_to: sharedTo,
+        updated_at: new Date().toISOString(),
       };
 
       // Upsert location data
-      const { error } = await supabase
-        .from('locations')
-        .upsert(locationData, {
-          onConflict: 'user_id'
-        });
+      const { error } = await supabase.from("locations").upsert(locationData, {
+        onConflict: "user_id",
+      });
 
       if (error) {
-        console.error('Error updating location:', error);
+        console.error("Error updating location:", error);
         return false;
       }
-
-      console.log(`Location updated - Position: (${x.toFixed(6)}, ${y.toFixed(6)}), Radius: ${radius.toFixed(1)}m, Beacons: ${beaconInfos.length}`);
+      console.log(
+        `Location updated - Position: (${x.toFixed(6)}, ${y.toFixed(
+          6
+        )}), Radius: ${radius.toFixed(1)}m, Beacons: ${beaconInfos.length}`,
+        locationData
+      );
       return true;
     } catch (error) {
-      console.error('Error in updateLocation:', error);
+      console.error("Error in updateLocation:", error);
       return false;
     }
   }
@@ -225,9 +238,9 @@ export class BLELocationService {
   static async getFloorFromBeacon(beaconId: string): Promise<string | null> {
     try {
       const { data, error } = await supabase
-        .from('beacons')
-        .select('floor')
-        .eq('ble_id', beaconId)
+        .from("beacons")
+        .select("floor")
+        .eq("ble_id", beaconId)
         .single();
 
       if (error || !data) {
@@ -236,7 +249,7 @@ export class BLELocationService {
 
       return data.floor;
     } catch (error) {
-      console.error('Error fetching floor from beacon:', error);
+      console.error("Error fetching floor from beacon:", error);
       return null;
     }
   }
@@ -246,23 +259,25 @@ export class BLELocationService {
    */
   static async getCurrentLocation(): Promise<LocationData | null> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
 
       const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("locations")
+        .select("*")
+        .eq("user_id", user.id)
         .single();
 
       if (error) {
-        console.error('Error fetching current location:', error);
+        console.error("Error fetching current location:", error);
         return null;
       }
 
       return data as LocationData;
     } catch (error) {
-      console.error('Error in getCurrentLocation:', error);
+      console.error("Error in getCurrentLocation:", error);
       return null;
     }
   }
@@ -272,7 +287,9 @@ export class BLELocationService {
    */
   static async getFriendsLocations(): Promise<LocationData[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
 
       // Get friend IDs
@@ -281,18 +298,18 @@ export class BLELocationService {
 
       // Get locations for friends
       const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .in('user_id', friendIds);
+        .from("locations")
+        .select("*")
+        .in("user_id", friendIds);
 
       if (error) {
-        console.error('Error fetching friends locations:', error);
+        console.error("Error fetching friends locations:", error);
         return [];
       }
 
       return data as LocationData[];
     } catch (error) {
-      console.error('Error in getFriendsLocations:', error);
+      console.error("Error in getFriendsLocations:", error);
       return [];
     }
   }
@@ -302,13 +319,13 @@ export class BLELocationService {
    */
   static subscribeToLocationUpdates(callback: (payload: any) => void) {
     return supabase
-      .channel('location_updates')
+      .channel("location_updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'locations'
+          event: "*",
+          schema: "public",
+          table: "locations",
         },
         callback
       )
@@ -316,27 +333,29 @@ export class BLELocationService {
   }
 
   // ============ LEGACY METHODS FOR BACKWARD COMPATIBILITY ============
-  
+
   /**
    * @deprecated Use updateLocation instead
    * Upload user location data to Supabase (legacy method)
    */
-  static async uploadLocation(locationData: UserLocationData): Promise<boolean> {
-    console.warn('uploadLocation is deprecated, use updateLocation instead');
+  static async uploadLocation(
+    locationData: UserLocationData
+  ): Promise<boolean> {
+    console.warn("uploadLocation is deprecated, use updateLocation instead");
     try {
       const { error } = await supabase
-        .from('user_locations')
+        .from("user_locations")
         .insert(locationData);
 
       if (error) {
-        console.error('Error uploading location:', error);
+        console.error("Error uploading location:", error);
         return false;
       }
 
-      console.log('Location uploaded successfully');
+      console.log("Location uploaded successfully");
       return true;
     } catch (error) {
-      console.error('Error in uploadLocation:', error);
+      console.error("Error in uploadLocation:", error);
       return false;
     }
   }
@@ -348,27 +367,29 @@ export class BLELocationService {
     hours: number = 24
   ): Promise<LocationHistoryItem[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
 
       const since = new Date();
       since.setHours(since.getHours() - hours);
 
       const { data, error } = await supabase
-        .from('user_locations')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('timestamp', since.toISOString())
-        .order('timestamp', { ascending: false });
+        .from("user_locations")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("timestamp", since.toISOString())
+        .order("timestamp", { ascending: false });
 
       if (error) {
-        console.error('Error fetching location history:', error);
+        console.error("Error fetching location history:", error);
         return [];
       }
 
       return data as LocationHistoryItem[];
     } catch (error) {
-      console.error('Error in getLocationHistory:', error);
+      console.error("Error in getLocationHistory:", error);
       return [];
     }
   }
@@ -379,19 +400,19 @@ export class BLELocationService {
   static async getUsersInRoom(roomId: string): Promise<LocationHistoryItem[]> {
     try {
       const { data, error } = await supabase
-        .from('latest_user_locations')
-        .select('*')
-        .eq('room_id', roomId)
-        .not('user_id', 'is', null);
+        .from("latest_user_locations")
+        .select("*")
+        .eq("room_id", roomId)
+        .not("user_id", "is", null);
 
       if (error) {
-        console.error('Error fetching users in room:', error);
+        console.error("Error fetching users in room:", error);
         return [];
       }
 
       return data as LocationHistoryItem[];
     } catch (error) {
-      console.error('Error in getUsersInRoom:', error);
+      console.error("Error in getUsersInRoom:", error);
       return [];
     }
   }
@@ -401,27 +422,29 @@ export class BLELocationService {
    */
   static async cleanupOldLocations(daysBefore: number = 7): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return false;
 
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysBefore);
 
       const { error } = await supabase
-        .from('user_locations')
+        .from("user_locations")
         .delete()
-        .eq('user_id', user.id)
-        .lt('timestamp', cutoffDate.toISOString());
+        .eq("user_id", user.id)
+        .lt("timestamp", cutoffDate.toISOString());
 
       if (error) {
-        console.error('Error cleaning up old locations:', error);
+        console.error("Error cleaning up old locations:", error);
         return false;
       }
 
       console.log(`Cleaned up location data older than ${daysBefore} days`);
       return true;
     } catch (error) {
-      console.error('Error in cleanupOldLocations:', error);
+      console.error("Error in cleanupOldLocations:", error);
       return false;
     }
   }
