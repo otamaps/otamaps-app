@@ -123,6 +123,7 @@ export default function HomeScreen() {
   // BLE Scanner for location tracking
   const { currentRoom, getScannedBeacons } = useBLEScanner();
   const scannedBeacons = getScannedBeacons();
+  console.log("Scanned beacons:", scannedBeacons);
 
   // Helper function to check if user is in any room
   const isInAnyRoom = () => {
@@ -955,14 +956,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  // BLE Status styles
-  bleStatusContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-    backgroundColor: "#F8F9FA",
-  },
   bleStatusRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -994,35 +987,8 @@ const styles = StyleSheet.create({
   bleStatusContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-    backgroundColor: "#F8F9FA",
-  },
-  bleStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  bleIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  bleActive: {
-    backgroundColor: "#4CAF50",
-  },
-  bleInactive: {
-    backgroundColor: "#9E9E9E",
-  },
-  bleStatusText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
-    flex: 1,
-  },
-  bleBeaconCount: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "400",
+    // borderBottomWidth: 1,
+    // borderBottomColor: "#E5E5E5",
+    // backgroundColor: "#F8F9FA",
   },
 });
