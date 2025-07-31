@@ -12,7 +12,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "fi.otamaps.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to detect which room you are in using Bluetooth beacons.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location in the background to continue scanning for nearby beacons.",
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to detect nearby beacons in rooms.",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to communicate with nearby devices."
       }
     },
     "android": {
@@ -64,10 +68,7 @@
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": [
-            "peripheral",
-            "central"
-          ],
+          "modes": ["peripheral", "central"],
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
         }
       ],
