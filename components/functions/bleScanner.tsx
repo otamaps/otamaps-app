@@ -4,7 +4,7 @@ import {
 } from "@/lib/bleLocationService";
 import {
   getLocationFromBeaconID,
-  getRoomFromBeaconID,
+  getRoomIdFromBleId,
 } from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -115,7 +115,7 @@ class BLEScannerService {
     );
 
     // ✅ Await the room ID here
-    const roomId = await getRoomFromBeaconID(beaconId);
+    const roomId = await getRoomIdFromBleId(beaconId);
 
     const beaconData: BeaconData = {
       id: beaconId,
