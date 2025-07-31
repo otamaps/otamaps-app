@@ -2289,10 +2289,10 @@
   dependencies:
     nanoid "^3.3.11"
 
-"@rnmapbox/maps@^10.1.39":
-  version "10.1.39"
-  resolved "https://registry.yarnpkg.com/@rnmapbox/maps/-/maps-10.1.39.tgz#20673c90eadc976e7fb3877ee4ad137845610ff5"
-  integrity sha512-h96h/wPwmuJ6Je/qDL8KTh3QSVvlX41SNVAZpEUtPpIos/n/3eDzERvBxNd/8FGZYZVR/3FcZnv4razaNCFksg==
+"@rnmapbox/maps@10.1.40":
+  version "10.1.40"
+  resolved "https://registry.yarnpkg.com/@rnmapbox/maps/-/maps-10.1.40.tgz#fdbd69f8b9a850a4593b33773014759f3267ccd9"
+  integrity sha512-SFoX8mI9BV365rUaYZYr60iPJa8gSWhhPQQrSMdtlZNoNE3vKvv4kcstniE4z/XqZlzqZle/1r1cjONpvIDyqA==
   dependencies:
     "@turf/along" "6.5.0"
     "@turf/distance" "6.5.0"
