@@ -1,4 +1,3 @@
-import { isFeatureEnabled } from "@/lib/featureFlagService";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import React, {
@@ -33,6 +32,8 @@ interface GlobalSearchProps {
   roomModalRef: React.RefObject<RoomModalRef>;
   onFocus?: () => void;
   onBlur?: () => void;
+  selectedFloor?: number;
+  onFloorChange?: (floor: number) => void;
 }
 
 export interface GlobalSearchMethods {
@@ -44,7 +45,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   ref: React.Ref<GlobalSearchMethods>
 ) {
   const isDark = useColorScheme() === "dark";
-  const { roomModalRef } = props;
+  const { roomModalRef, selectedFloor: propSelectedFloor, onFloorChange } = props;
   const { top } = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
     "Figtree-Regular": require("../assets/fonts/Figtree-Regular.ttf"),
@@ -52,35 +53,35 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     "Figtree-Bold": require("../assets/fonts/Figtree-Bold.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return <ActivityIndicator />;
-  }
-
   const { query, refine } = useSearchBox({});
   const { hits } = useHits();
-  const [selectedFloor, setSelectedFloor] = useState(1);
+  const [selectedFloor, setSelectedFloor] = useState(propSelectedFloor || 1);
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState(query);
-  const [floorsEnabled, setFloorsEnabled] = useState(false);
 
-  // Check if floors feature is enabled
-  useEffect(() => {
-    const checkFloorsEnabled = async () => {
-      const enabled = await isFeatureEnabled("floors_enabled");
-      setFloorsEnabled(enabled);
-    };
-    checkFloorsEnabled();
-  }, []);
+  // Feature flag for floors - now always enabled
+  const isFloorsEnabled = true;
   const searchResultsHeight = useRef(new Animated.Value(0)).current;
   const controlsWidth = useRef(new Animated.Value(52)).current;
   const searchMarginRight = useRef(new Animated.Value(12)).current;
-  const inputRef = useRef(null);
+  const inputRef = useRef<TextInput>(null);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
       inputRef.current?.focus();
     },
   }));
+
+  // Update local floor state when prop changes
+  useEffect(() => {
+    if (propSelectedFloor !== undefined) {
+      setSelectedFloor(propSelectedFloor);
+    }
+  }, [propSelectedFloor]);
+
+  if (!fontsLoaded) {
+    return <ActivityIndicator />;
+  }
 
   // Animate search results container when hits or query changes
   useEffect(() => {
@@ -126,6 +127,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 
   const handleFloorPress = (floor: number) => {
     setSelectedFloor(floor);
+    onFloorChange?.(floor);
   };
 
   const handleSearchChange = (text: string) => {
@@ -331,16 +333,13 @@ const GlobalSearch = forwardRef(function GlobalSearch(
             ref={inputRef}
           />
         </Animated.View>
-        <Animated.View
+        
+        {/* Floor switcher and location button - always visible on right side */}
+        <View
           style={[
             styles.centerContainer,
-            {
-              width: controlsWidth,
-              opacity: isFocused ? 0 : 1,
-            },
             isDark && { backgroundColor: "#1e1e1e" },
           ]}
-          pointerEvents={isFocused ? "none" : "auto"}
         >
           <Pressable style={styles.button}>
             <MaterialIcons
@@ -349,7 +348,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               color={isDark ? "#f5f5f5" : "#000"}
             />
           </Pressable>
-          {floorsEnabled && (
+          {isFloorsEnabled && (
             <>
               <View style={styles.spacer} />
               <Pressable
@@ -358,7 +357,10 @@ const GlobalSearch = forwardRef(function GlobalSearch(
                 }
                 onPress={() => handleFloorPress(4)}
               >
-                <Text style={{ fontFamily: "Figtree-SemiBold", fontSize: 16 }}>
+                <Text style={[
+                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
+                  selectedFloor === 4 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
+                ]}>
                   4
                 </Text>
               </Pressable>
@@ -369,7 +371,10 @@ const GlobalSearch = forwardRef(function GlobalSearch(
                 }
                 onPress={() => handleFloorPress(3)}
               >
-                <Text style={{ fontFamily: "Figtree-SemiBold", fontSize: 16 }}>
+                <Text style={[
+                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
+                  selectedFloor === 3 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
+                ]}>
                   3
                 </Text>
               </Pressable>
@@ -380,7 +385,10 @@ const GlobalSearch = forwardRef(function GlobalSearch(
                 }
                 onPress={() => handleFloorPress(2)}
               >
-                <Text style={{ fontFamily: "Figtree-SemiBold", fontSize: 16 }}>
+                <Text style={[
+                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
+                  selectedFloor === 2 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
+                ]}>
                   2
                 </Text>
               </Pressable>
@@ -391,13 +399,16 @@ const GlobalSearch = forwardRef(function GlobalSearch(
                 }
                 onPress={() => handleFloorPress(1)}
               >
-                <Text style={{ fontFamily: "Figtree-SemiBold", fontSize: 16 }}>
+                <Text style={[
+                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
+                  selectedFloor === 1 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
+                ]}>
                   1
                 </Text>
               </Pressable>
             </>
           )}
-        </Animated.View>
+        </View>
 
         {(isFocused || searchQuery.length > 0) && (
           <Animated.View
@@ -483,7 +494,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed from "center" to "flex-start" to align at top
   },
   searchContainer: {
     flex: 1,
@@ -522,26 +533,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f0f0f0",
   },
-  resultItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  resultText: {
-    fontSize: 16,
-    fontFamily: "Figtree-Regular",
-    color: "#333",
-  },
-  noResults: {
-    padding: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noResultsText: {
-    fontFamily: "Figtree-Regular",
-    color: "#666",
-    fontSize: 14,
-  },
   centerContainer: {
     justifyContent: "center",
     alignItems: "center",
@@ -565,7 +556,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ddd",
+    backgroundColor: "#007AFF", // Changed to blue for better visibility
     width: 52,
   },
   spacer: {

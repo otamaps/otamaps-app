@@ -170,10 +170,22 @@ export default function HomeScreen() {
   }, [friends, searchQuery]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<number>(1);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const [roomData, setRoomData] = useState<
     (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
+  
+  // Filter rooms by selected floor
+  const filteredRoomData = useMemo(() => {
+    return roomData.filter((room) => {
+      // For now, we'll extract floor from room number if floorId isn't available
+      // Assuming room numbers like "D101" where first digit after letter is floor
+      const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
+      const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
+      return roomFloor === selectedFloor;
+    });
+  }, [roomData, selectedFloor]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const fetchRoomsRef = useRef(fetchRooms);
   const [friendId, setFriendId] = useState("");
@@ -197,7 +209,23 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (rooms.length > 0) {
-      setRoomData(rooms);
+      // Transform Room[] to RoomItemData[]
+      const transformedRooms = rooms.map((room) => {
+        // Extract floor from room_number (e.g., "D101" -> floor 1)
+        const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
+        const floor = floorMatch ? floorMatch[1] : "1";
+        
+        return {
+          id: room.id,
+          name: room.title || room.room_number,
+          floor: floor,
+          capacity: room.seats || 0,
+          isAvailable: room.status !== "occupied",
+          isFavorite: false, // Default to false, this will be managed by local state
+          room_number: room.room_number,
+        };
+      });
+      setRoomData(transformedRooms);
     } else {
       setRoomData([]);
     }
@@ -478,6 +506,8 @@ export default function HomeScreen() {
             roomModalRef={roomModalRef}
             onFocus={() => mapBottomSheetRef.current?.snapToMin()}
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
+            selectedFloor={selectedFloor}
+            onFloorChange={setSelectedFloor}
           />
 
           <RoomModalSheet
@@ -765,11 +795,13 @@ export default function HomeScreen() {
                 )}
                 {selectedTab === "rooms" && !showFavoritesOnly && (
                   <FlatList
-                    data={roomData}
+                    data={filteredRoomData}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
                       const roomWithFavorite = {
                         ...item,
+                        title: item.name, // Map name to title for RoomItem component
+                        seats: item.capacity, // Map capacity to seats for RoomItem component
                         isFavorite: item.isFavorite || false,
                         onFavoritePress: () => {
                           setRoomData((prev) =>
@@ -797,7 +829,7 @@ export default function HomeScreen() {
                     }}
                     ListEmptyComponent={
                       <View style={{ padding: 20, alignItems: "center" }}>
-                        <Text>No rooms available</Text>
+                        <Text>No rooms available on floor {selectedFloor}</Text>
                       </View>
                     }
                   />
@@ -839,15 +871,22 @@ export default function HomeScreen() {
                     </View>
                   ) : (
                     <FlatList
-                      data={roomData.filter((room) => room.isFavorite)}
+                      data={filteredRoomData.filter((room) => room.isFavorite)}
                       scrollEnabled={currentSnapIndex === 2}
                       keyExtractor={(item) => item.id}
-                      renderItem={({ item }) => (
-                        <RoomItem
-                          room={item}
-                          onPress={() => console.log("Selected room:", item.id)}
-                        />
-                      )}
+                      renderItem={({ item }) => {
+                        const roomWithTitle = {
+                          ...item,
+                          title: item.name, // Map name to title for RoomItem component
+                          seats: item.capacity, // Map capacity to seats for RoomItem component
+                        };
+                        return (
+                          <RoomItem
+                            room={roomWithTitle}
+                            onPress={() => console.log("Selected room:", item.id)}
+                          />
+                        );
+                      }}
                       contentContainerStyle={{
                         paddingTop: 8,
                         paddingBottom: 20,
@@ -856,7 +895,7 @@ export default function HomeScreen() {
                       }}
                       ListEmptyComponent={
                         <View style={{ padding: 20, alignItems: "center" }}>
-                          <Text>No rooms available</Text>
+                          <Text>No favorite rooms on floor {selectedFloor}</Text>
                         </View>
                       }
                     />
