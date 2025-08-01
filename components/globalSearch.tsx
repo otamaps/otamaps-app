@@ -45,7 +45,11 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   ref: React.Ref<GlobalSearchMethods>
 ) {
   const isDark = useColorScheme() === "dark";
-  const { roomModalRef, selectedFloor: propSelectedFloor, onFloorChange } = props;
+  const {
+    roomModalRef,
+    selectedFloor: propSelectedFloor,
+    onFloorChange,
+  } = props;
   const { top } = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
     "Figtree-Regular": require("../assets/fonts/Figtree-Regular.ttf"),
@@ -333,7 +337,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
             ref={inputRef}
           />
         </Animated.View>
-        
+
         {/* Floor switcher and location button - always visible on right side */}
         <View
           style={[
@@ -350,59 +354,96 @@ const GlobalSearch = forwardRef(function GlobalSearch(
           </Pressable>
           {isFloorsEnabled && (
             <>
-              <View style={styles.spacer} />
+              <View
+                style={[
+                  styles.spacer,
+                  isDark && { backgroundColor: "#262626" },
+                ]}
+              />
               <Pressable
                 style={
                   selectedFloor === 4 ? styles.buttonSelected : styles.button
                 }
                 onPress={() => handleFloorPress(4)}
               >
-                <Text style={[
-                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
-                  selectedFloor === 4 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
-                ]}>
+                <Text
+                  style={[
+                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+                    selectedFloor === 4
+                      ? { color: "#fff" }
+                      : { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
                   4
                 </Text>
               </Pressable>
-              <View style={styles.spacer} />
+              <View
+                style={[
+                  styles.spacer,
+                  isDark && { backgroundColor: "#262626" },
+                ]}
+              />
               <Pressable
                 style={
                   selectedFloor === 3 ? styles.buttonSelected : styles.button
                 }
                 onPress={() => handleFloorPress(3)}
               >
-                <Text style={[
-                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
-                  selectedFloor === 3 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
-                ]}>
+                <Text
+                  style={[
+                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+                    selectedFloor === 3
+                      ? { color: "#fff" }
+                      : { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
                   3
                 </Text>
               </Pressable>
-              <View style={styles.spacer} />
+              <View
+                style={[
+                  styles.spacer,
+                  isDark && { backgroundColor: "#262626" },
+                ]}
+              />
               <Pressable
                 style={
                   selectedFloor === 2 ? styles.buttonSelected : styles.button
                 }
                 onPress={() => handleFloorPress(2)}
               >
-                <Text style={[
-                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
-                  selectedFloor === 2 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
-                ]}>
+                <Text
+                  style={[
+                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+                    selectedFloor === 2
+                      ? { color: "#fff" }
+                      : { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
                   2
                 </Text>
               </Pressable>
-              <View style={styles.spacer} />
+              <View
+                style={[
+                  styles.spacer,
+                  isDark && { backgroundColor: "#262626" },
+                ]}
+              />
               <Pressable
-                style={
-                  selectedFloor === 1 ? styles.buttonSelected : styles.button
-                }
+                style={[
+                  selectedFloor === 1 ? styles.buttonSelected : styles.button,
+                  { borderBottomEndRadius: 10, borderBottomStartRadius: 10 },
+                ]}
                 onPress={() => handleFloorPress(1)}
               >
-                <Text style={[
-                  { fontFamily: "Figtree-SemiBold", fontSize: 16 }, 
-                  selectedFloor === 1 ? { color: "#fff" } : { color: isDark ? "#fff" : "#000" }
-                ]}>
+                <Text
+                  style={[
+                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+                    selectedFloor === 1
+                      ? { color: "#fff" }
+                      : { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
                   1
                 </Text>
               </Pressable>
@@ -551,17 +592,17 @@ const styles = StyleSheet.create({
   },
   buttonSelected: {
     padding: 8,
-    borderRadius: 10,
+    // borderRadius: 10,
     height: 48,
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#007AFF", // Changed to blue for better visibility
+    backgroundColor: "#2b7fff", // Changed to blue for better visibility
     width: 52,
   },
   spacer: {
     height: 1,
-    width: "80%",
-    backgroundColor: "#ccc",
+    width: "100%",
+    backgroundColor: "#E7E7E7",
   },
 });

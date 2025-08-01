@@ -189,34 +189,40 @@ export default function HomeScreen() {
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<number>(1);
-  const [friendsWithLocations, setFriendsWithLocations] = useState<FriendWithLocation[]>([]);
+  const [friendsWithLocations, setFriendsWithLocations] = useState<
+    FriendWithLocation[]
+  >([]);
 
   // Fetch friend locations from Supabase
   const fetchFriendLocations = useCallback(async () => {
     try {
       const { data: locations, error } = await supabase
-        .from('locations')
-        .select('*');
-      
+        .from("locations")
+        .select("*");
+
       if (error) {
-        console.error('Error fetching friend locations:', error);
+        console.error("Error fetching friend locations:", error);
         return;
       }
 
       // Combine friends with their locations
-      const friendsWithLocs: FriendWithLocation[] = friends.map(friend => {
-        const friendLocation = locations?.find(loc => loc.user_id === friend.id);
-        
+      const friendsWithLocs: FriendWithLocation[] = friends.map((friend) => {
+        const friendLocation = locations?.find(
+          (loc) => loc.user_id === friend.id
+        );
+
         return {
           ...friend,
-          location: friendLocation ? [friendLocation.x, friendLocation.y] : null,
-          locationData: friendLocation
+          location: friendLocation
+            ? [friendLocation.x, friendLocation.y]
+            : null,
+          locationData: friendLocation,
         };
       });
 
       setFriendsWithLocations(friendsWithLocs);
     } catch (error) {
-      console.error('Error in fetchFriendLocations:', error);
+      console.error("Error in fetchFriendLocations:", error);
     }
   }, [friends]);
 
@@ -230,7 +236,7 @@ export default function HomeScreen() {
   const [roomData, setRoomData] = useState<
     (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
-  
+
   // Filter rooms by selected floor
   const filteredRoomData = useMemo(() => {
     const filtered = roomData.filter((room) => {
@@ -270,7 +276,7 @@ export default function HomeScreen() {
         // Extract floor from room_number (e.g., "D101" -> floor 1)
         const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
         const floor = floorMatch ? floorMatch[1] : "1";
-        
+
         return {
           id: room.id,
           name: room.title || room.room_number,
@@ -492,10 +498,10 @@ export default function HomeScreen() {
               animationDuration={1000}
               pitch={5}
               maxBounds={{
-                ne: [24.620221246474574, 59.98446920858392],
-                sw: [25.016749575387433, 60.28339638856884],
+                ne: [24.797450838759808, 60.1724484493661],
+                sw: [24.837734917168515, 60.193210548540286],
               }}
-              minZoomLevel={9}
+              minZoomLevel={15}
             />
             {/* Room Geometries */}
             {roomsGeoJSON.features.length > 0 && (
@@ -539,22 +545,26 @@ export default function HomeScreen() {
           </ShapeSource>
 
           {/* Friend Location Markers */}
-          {friendsWithLocations
-            .filter(friend => friend.location && friend.locationData?.floor === selectedFloor.toString())
-            .map(friend => (
-              <PointAnnotation
-                key={String(friend.id)}
-                id={String(friend.id)}
-                coordinate={friend.location!}
-                onSelected={() => handleFriendOpen(friend.id)}
-              >
-                <FriendBlob
-                  friendId={String(friend.id)}
-                  name={friend.name}
-                  onClick={handleFriendOpen}
-                />
-              </PointAnnotation>
-            ))}
+            {friendsWithLocations
+              .filter(
+                (friend) =>
+                  friend.location &&
+                  friend.locationData?.floor === selectedFloor.toString()
+              )
+              .map((friend) => (
+                <PointAnnotation
+                  key={String(friend.id)}
+                  id={String(friend.id)}
+                  coordinate={friend.location!}
+                  onSelected={() => handleFriendOpen(friend.id)}
+                >
+                  <FriendBlob
+                    friendId={String(friend.id)}
+                    name={friend.name}
+                    onClick={handleFriendOpen}
+                  />
+                </PointAnnotation>
+              ))}
           </MapView>
 
           <GlobalSearch
@@ -579,7 +589,12 @@ export default function HomeScreen() {
             }}
             initialSnap="mid"
           >
-            <View style={fmstyles.headerContainer}>
+            <View
+              style={[
+                fmstyles.headerContainer,
+                isDark && { backgroundColor: "#1e1e1e" },
+              ]}
+            >
               <View style={fmstyles.headerLeft}>
                 <Text style={fmstyles.name}>
                   {friends.find((f) => f.id === friendId)?.name}
@@ -938,7 +953,9 @@ export default function HomeScreen() {
                         return (
                           <RoomItem
                             room={roomWithTitle}
-                            onPress={() => console.log("Selected room:", item.id)}
+                            onPress={() =>
+                              console.log("Selected room:", item.id)
+                            }
                           />
                         );
                       }}
@@ -950,7 +967,9 @@ export default function HomeScreen() {
                       }}
                       ListEmptyComponent={
                         <View style={{ padding: 20, alignItems: "center" }}>
-                          <Text>No favorite rooms on floor {selectedFloor}</Text>
+                          <Text>
+                            No favorite rooms on floor {selectedFloor}
+                          </Text>
                         </View>
                       }
                     />
