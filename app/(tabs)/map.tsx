@@ -240,7 +240,6 @@ export default function HomeScreen() {
       const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
       return roomFloor === selectedFloor;
     });
-    console.log(`🏢 Floor ${selectedFloor}: Showing ${filtered.length} rooms out of ${roomData.length} total`);
     return filtered;
   }, [roomData, selectedFloor]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
