@@ -35,19 +35,19 @@ export const formatLastSeen = (lastSeen?: string | number): string => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffInSeconds < 30) return "Just now";
+  if (diffInSeconds < 30) return "Nyt";
   if (diffInSeconds < 3600) {
     const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+    return `${minutes} ${minutes === 1 ? "minuutti" : "minuuttia"} sitten`;
   }
   if (diffInSeconds < 86400) {
     const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+    return `${hours} ${hours === 1 ? "tunti" : "tuntia"} sitten`;
   }
 
   const days = Math.floor(diffInSeconds / 86400);
   if (days < 7) {
-    return `${days} ${days === 1 ? "day" : "days"} ago`;
+    return `${days} ${days === 1 ? "päivä" : "päivää"} sitten`;
   }
 
   // For older dates, show the actual date
@@ -147,7 +147,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
 
 const getStatusColor = (status?: string, lastSeen?: string | number) => {
   // For non-'at school' statuses, return their respective colors
-  if (status !== "at school") {
+  if (status !== "koulussa") {
     switch (status) {
       case "busy":
         return "#F44336";

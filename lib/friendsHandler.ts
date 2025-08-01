@@ -47,7 +47,7 @@ const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
         ...user,
         lastSeen: location?.updated_at || null,
         location: location ? [location.x, location.y] : null,
-        status: "at school",
+        status: "koulussa",
         user_friendly_location: await getRoomIdFromBleId(beaconId),
       };
     })

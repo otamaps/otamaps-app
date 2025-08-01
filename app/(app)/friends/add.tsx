@@ -86,9 +86,9 @@ const AddFriendScreen = () => {
           const relation = relations[0];
           if (relation.status === "request") {
             setRequestSent(true);
-            setButtonLabel("Requested");
+            setButtonLabel("Pyydetty");
           } else if (relation.status === "friends") {
-            setButtonLabel(`Friends `);
+            setButtonLabel(`Kaverisi`);
           }
         }
       }
@@ -143,7 +143,7 @@ const AddFriendScreen = () => {
     >
       <Stack.Screen
         options={{
-          title: "Add Friend",
+          title: "Lisää kaveri",
           headerStyle: {
             backgroundColor: isDark ? "#1e1e1e" : "#fff",
           },
@@ -160,10 +160,10 @@ const AddFriendScreen = () => {
 
       <View style={styles.content}>
         <Text style={[styles.title, isDark && { color: "#fff" }]}>
-          Enter Friend's Code
+          Anna kaverisi koodi
         </Text>
         <Text style={[styles.subtitle, isDark && { color: "#a1a1a1" }]}>
-          Ask your friend for their 6-digit code
+          Kysy ystävältäsi heidän 6-numeroinen koodi
         </Text>
 
         <View style={styles.inputContainer}>
@@ -199,7 +199,7 @@ const AddFriendScreen = () => {
           <View style={styles.resultContainer}>
             <MaterialIcons name="travel-explore" size={48} color="#999" />
             <Text style={[styles.resultText, isDark && { color: "#e5e5e5" }]}>
-              No friend found
+              Kaveria ei löytynyt
             </Text>
             <Text
               style={[
@@ -208,7 +208,7 @@ const AddFriendScreen = () => {
                 isDark && { color: "#a1a1a1" },
               ]}
             >
-              Looks like nobody has this code
+              <Text>Tarkista koodi ja kokeile uudelleen</Text>
             </Text>
           </View>
         )}
@@ -235,7 +235,10 @@ const AddFriendScreen = () => {
                 style={({ pressed }) => [
                   styles.addFriendButton,
                   requestSent && styles.addFriendButtonSent,
-                  buttonLabel === "Friends" && {
+                  buttonLabel === "Kaverisi" && {
+                    backgroundColor: "#2b7fff",
+                  },
+                  buttonLabel === "Pyydetty" && {
                     backgroundColor: "#e5e5e5",
                   },
                   pressed && styles.addFriendButtonPressed,
@@ -243,7 +246,7 @@ const AddFriendScreen = () => {
                 onPress={() => {
                   handleAddFriend(friend.id);
                 }}
-                disabled={requestSent || buttonLabel === "Friends"}
+                disabled={requestSent || buttonLabel === "Kaverisi"}
               >
                 <Text
                   style={[
@@ -274,7 +277,8 @@ const AddFriendScreen = () => {
                   isDark && { color: "#fff" },
                 ]}
               >
-                It's You!
+                {/* It's You! */}
+                Tämä on sinun koodisi!
               </Text>
             </View>
           )}
