@@ -109,11 +109,19 @@ class BLEScannerService {
     }
 
     console.log(
-      `Processing OtaMaps beacon - ID: ${beaconId}, RSSI: ${device.rssi} dBm`
+      `🔍 Processing OtaMaps beacon - ID: ${beaconId}, RSSI: ${device.rssi} dBm`
     );
 
     // ✅ Await the room ID here
+    const roomLookupStart = Date.now();
     const roomId = await getRoomIdFromBleId(beaconId);
+    const roomLookupTime = Date.now() - roomLookupStart;
+    
+    if (roomId) {
+      console.log(`🏠 Beacon ${beaconId} mapped to room: ${roomId} (lookup took ${roomLookupTime}ms)`);
+    } else {
+      console.warn(`⚠️  Beacon ${beaconId} has no room mapping (lookup took ${roomLookupTime}ms)`);
+    }
 
     const beaconData: BeaconData = {
       id: beaconId,
@@ -121,6 +129,17 @@ class BLEScannerService {
       timestamp: Date.now(),
       roomId, // now properly resolved
     };
+
+    // Check if this is a new beacon or signal strength changed significantly
+    const existingBeacon = this.scannedBeacons.get(beaconId);
+    if (existingBeacon) {
+      const rssiDelta = Math.abs(existingBeacon.rssi - device.rssi);
+      if (rssiDelta > 5) { // Only log if significant change
+        console.log(`📶 Beacon ${beaconId} RSSI changed: ${existingBeacon.rssi} -> ${device.rssi} dBm (Δ${rssiDelta})`);
+      }
+    } else {
+      console.log(`🆕 New beacon detected: ${beaconId} at ${device.rssi} dBm`);
+    }
 
     this.scannedBeacons.set(beaconId, beaconData);
     this.updateCurrentRoom();
@@ -175,15 +194,25 @@ class BLEScannerService {
   private updateCurrentRoom() {
     // Clean up old beacons
     const now = Date.now();
+    const beforeCleanup = this.scannedBeacons.size;
     for (const [beaconId, beacon] of this.scannedBeacons.entries()) {
       if (now - beacon.timestamp > this.BEACON_TIMEOUT) {
+        console.log(`Removing expired beacon: ${beaconId} (age: ${now - beacon.timestamp}ms)`);
         this.scannedBeacons.delete(beaconId);
       }
+    }
+    
+    if (beforeCleanup !== this.scannedBeacons.size) {
+      console.log(`Beacon cleanup: ${beforeCleanup} -> ${this.scannedBeacons.size} beacons`);
     }
 
     // Find the strongest beacon signal that has a room mapping
     let strongestBeacon: BeaconData | null = null;
-    for (const beacon of this.scannedBeacons.values()) {
+    const availableBeacons = Array.from(this.scannedBeacons.values());
+    console.log(`Evaluating ${availableBeacons.length} active beacons for room detection:`);
+    
+    for (const beacon of availableBeacons) {
+      console.log(`  - Beacon ${beacon.id}: RSSI ${beacon.rssi}dBm, Room: ${beacon.roomId || 'unmapped'}`);
       if (
         beacon.roomId &&
         (!strongestBeacon || beacon.rssi > strongestBeacon.rssi)
@@ -194,33 +223,67 @@ class BLEScannerService {
 
     const newRoom = strongestBeacon?.roomId || null;
     if (newRoom !== this.currentRoom) {
-      console.log(`Room changed: ${this.currentRoom} -> ${newRoom}`);
+      console.log(`🚪 Room changed: "${this.currentRoom}" -> "${newRoom}"`);
+      if (strongestBeacon) {
+        console.log(`   └─ Strongest beacon: ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`);
+      }
       this.currentRoom = newRoom;
+    } else if (strongestBeacon) {
+      console.log(`📍 Staying in room "${newRoom}" via beacon ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`);
+    } else {
+      console.log(`❌ No room detected - no valid beacons with room mapping`);
     }
   }
 
   private startPeriodicUpload() {
+    console.log(`⏰ Starting periodic location uploads every ${this.UPLOAD_INTERVAL/1000}s`);
     setInterval(() => {
+      const timeSinceLastUpload = Date.now() - this.lastUploadTime;
+      console.log(`⏰ Periodic upload triggered (${Math.round(timeSinceLastUpload/1000)}s since last upload)`);
       this.uploadLocationToSupabase();
     }, this.UPLOAD_INTERVAL);
   }
 
   private async uploadLocationToSupabase() {
+    console.log(`📤 Starting location upload - ${this.scannedBeacons.size} beacons detected`);
+    
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (!user) {
+        console.warn(`❌ Upload failed: No authenticated user`);
+        return;
+      }
+
+      console.log(`👤 Uploading location for user: ${user.id}`);
+      console.log(`📊 Current room: ${this.currentRoom || 'None'}`);
+      
+      // Log beacon details before upload
+      if (this.scannedBeacons.size > 0) {
+        console.log(`📡 Active beacons:`);
+        for (const [beaconId, beacon] of this.scannedBeacons.entries()) {
+          const age = Date.now() - beacon.timestamp;
+          console.log(`   - ${beaconId}: ${beacon.rssi}dBm, room: ${beacon.roomId || 'unmapped'}, age: ${age}ms`);
+        }
+      } else {
+        console.log(`📡 No active beacons to upload`);
+      }
 
       // Use the new location updating system
+      const startTime = Date.now();
       const success = await BLELocationService.updateLocation(this.scannedBeacons);
+      const uploadTime = Date.now() - startTime;
+      
       if (!success) {
-        console.error("Failed to update location data");
+        console.error(`❌ Failed to update location data (took ${uploadTime}ms)`);
       } else {
-        console.log("Location successfully updated in new locations table");
+        console.log(`✅ Location successfully updated in new locations table (took ${uploadTime}ms)`);
+        this.lastUploadTime = Date.now();
       }
     } catch (error) {
-      console.error("Error in uploadLocationToSupabase:", error);
+      console.error("💥 Error in uploadLocationToSupabase:", error);
     }
   }
 
@@ -248,6 +311,7 @@ class BLEScannerService {
   }
 
   async forceUploadLocation(): Promise<void> {
+    console.log(`🚀 Force upload requested by user`);
     await this.uploadLocationToSupabase();
   }
 

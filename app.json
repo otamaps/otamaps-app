@@ -7,7 +7,7 @@
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "newArchEnabled": false,
       "supportsTablet": true,
