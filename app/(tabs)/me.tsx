@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -26,6 +28,7 @@ const Me = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isDark = useColorScheme() === "dark";
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -104,6 +107,16 @@ const Me = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchDebugMode = async () => {
+        const value = await AsyncStorage.getItem("isDebugMode");
+        setIsDebugMode(value === "true");
+      };
+      fetchDebugMode();
+    }, [])
+  );
 
   if (isLoading) {
     return (
@@ -317,6 +330,30 @@ const Me = () => {
               </Text>
             </Pressable>
           </View>
+          {isDebugMode && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#303030" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
+                { width: "90%", marginBottom: 16 },
+              ]}
+              onPress={() => {
+                router.push("/(app)/debug2/ble");
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Debug
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             style={({ pressed }) => [
               styles.optionContainer,
@@ -343,7 +380,7 @@ const Me = () => {
         </View>
 
         <TouchableOpacity
-          style={{ alignItems: "center", marginBottom: 100, opacity: 0.55 }}
+          style={{ alignItems: "center", marginBottom: 80, opacity: 0.55 }}
           onPress={() => Linking.openURL("https://streetsmarts.fi/")}
         >
           <Text
