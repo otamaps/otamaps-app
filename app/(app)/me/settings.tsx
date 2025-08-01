@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
@@ -357,7 +358,7 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() => router.push("/me/privacy")}
+            onPress={() => Linking.openURL("https://otamaps.fi/privacy-policy")}
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Tietosuoja
@@ -372,7 +373,9 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() => router.push("/me/terms")}
+            onPress={() =>
+              Linking.openURL("https://otamaps.fi/terms-of-service")
+            }
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Käyttöehdot
