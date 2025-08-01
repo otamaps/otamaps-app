@@ -30,15 +30,6 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="debug"
-          options={{
-            title: "Debug",
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="bug-report" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="map"
           options={{
             title: "Kartta",

@@ -1,6 +1,5 @@
 import { fmstyles } from "@/assets/styles/friendModalStyles";
 import { CustomUserLocation } from "@/components/customUserLocation";
-import FriendItem, { formatLastSeen } from "@/components/friendItem";
 import useBLEScanner from "@/components/functions/bleScanner";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
@@ -15,6 +14,7 @@ import RoomModalSheet, {
 } from "@/components/sheets/roomModalSheet";
 import { Friend, getFriends, getRequests } from "@/lib/friendsHandler";
 import { Room, useRoomStore } from "@/lib/roomService";
+import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   BottomSheetFlatList,
@@ -27,6 +27,7 @@ import {
   FillLayer,
   MapView,
   OnPressEvent,
+  PointAnnotation,
   RasterLayer,
   setAccessToken,
   ShapeSource,
@@ -51,6 +52,8 @@ import {
   View,
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
+import FriendBlob from "../../components/friendBlob";
+import FriendItem, { formatLastSeen } from "../../components/friendItem";
 
 // Define the shape of our room feature properties
 type RoomFeatureProperties = {
@@ -88,6 +91,21 @@ type RoomItemData = {
   isAvailable: boolean;
   isFavorite: boolean;
   room_number: string;
+};
+
+type FriendLocation = {
+  id: string;
+  user_id: string;
+  floor: string | null;
+  x: number; // longitude
+  y: number; // latitude
+  radius: number;
+  updated_at?: string;
+};
+
+type FriendWithLocation = Friend & {
+  location: [number, number] | null; // [longitude, latitude]
+  locationData?: FriendLocation;
 };
 
 type RoomWithEquipment = {
@@ -170,10 +188,60 @@ export default function HomeScreen() {
   }, [friends, searchQuery]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<number>(1);
+  const [friendsWithLocations, setFriendsWithLocations] = useState<FriendWithLocation[]>([]);
+
+  // Fetch friend locations from Supabase
+  const fetchFriendLocations = useCallback(async () => {
+    try {
+      const { data: locations, error } = await supabase
+        .from('locations')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching friend locations:', error);
+        return;
+      }
+
+      // Combine friends with their locations
+      const friendsWithLocs: FriendWithLocation[] = friends.map(friend => {
+        const friendLocation = locations?.find(loc => loc.user_id === friend.id);
+        
+        return {
+          ...friend,
+          location: friendLocation ? [friendLocation.x, friendLocation.y] : null,
+          locationData: friendLocation
+        };
+      });
+
+      setFriendsWithLocations(friendsWithLocs);
+    } catch (error) {
+      console.error('Error in fetchFriendLocations:', error);
+    }
+  }, [friends]);
+
+  // Fetch friend locations when friends change or component mounts
+  useEffect(() => {
+    if (friends.length > 0) {
+      fetchFriendLocations();
+    }
+  }, [friends, fetchFriendLocations]);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const [roomData, setRoomData] = useState<
     (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
+  
+  // Filter rooms by selected floor
+  const filteredRoomData = useMemo(() => {
+    const filtered = roomData.filter((room) => {
+      // For now, we'll extract floor from room number if floorId isn't available
+      // Assuming room numbers like "D101" where first digit after letter is floor
+      const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
+      const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
+      return roomFloor === selectedFloor;
+    });
+    return filtered;
+  }, [roomData, selectedFloor]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const fetchRoomsRef = useRef(fetchRooms);
   const [friendId, setFriendId] = useState("");
@@ -197,7 +265,23 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (rooms.length > 0) {
-      setRoomData(rooms);
+      // Transform Room[] to RoomItemData[]
+      const transformedRooms = rooms.map((room) => {
+        // Extract floor from room_number (e.g., "D101" -> floor 1)
+        const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
+        const floor = floorMatch ? floorMatch[1] : "1";
+        
+        return {
+          id: room.id,
+          name: room.title || room.room_number,
+          floor: floor,
+          capacity: room.seats || 0,
+          isAvailable: room.status !== "occupied",
+          isFavorite: false, // Default to false, this will be managed by local state
+          room_number: room.room_number,
+        };
+      });
+      setRoomData(transformedRooms);
     } else {
       setRoomData([]);
     }
@@ -329,8 +413,18 @@ export default function HomeScreen() {
     [rooms]
   );
 
+  // Filter rooms with geometry by selected floor
+  const filteredRoomsWithGeometry = useMemo(() => {
+    return roomsWithGeometry.filter((room) => {
+      // Extract floor from room number (e.g., "D101" -> floor 1)
+      const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
+      const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
+      return roomFloor === selectedFloor;
+    });
+  }, [roomsWithGeometry, selectedFloor]);
+
   const roomsGeoJSON = useMemo(() => {
-    const features = roomsWithGeometry.map((room) => {
+    const features = filteredRoomsWithGeometry.map((room) => {
       const roomColor = getValidColor(room.color);
       const [r, g, b] = [
         parseInt(roomColor.slice(1, 3), 16),
@@ -357,7 +451,7 @@ export default function HomeScreen() {
       type: "FeatureCollection",
       features,
     } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
-  }, [roomsWithGeometry, selectedRoomId]);
+  }, [filteredRoomsWithGeometry, selectedRoomId]);
 
   // Handle room press on the map
   const handleRoomFeaturePress = useCallback(
@@ -441,43 +535,34 @@ export default function HomeScreen() {
               }}
             />
 
-            {/*<ShapeSource
-          id="friendsSource"
-          shape={{
-            type: 'FeatureCollection',
-            features: friends.map(friend => ({
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: friend.location,
-              },
-              properties: {
-                id: String(friend.id),
-              },
-            })),
-          }}
-        >
-          {friends.map(friend => (
-            <PointAnnotation
-              key={String(friend.id)}
-              id={String(friend.id)}
-              coordinate={friend.location}
-              onSelected={() => handleFriendOpen(friend.id)}
-            >
-              <FriendBlob
-                friendId={String(friend.id)}
-                name={friend.name}
-                onClick={handleFriendOpen}
-              />
-            </PointAnnotation>
-          ))}
-        </ShapeSource>*/}
+            {/*            <CustomUserLocation ref={customUserLocationRef} />
+          </ShapeSource>
+
+          {/* Friend Location Markers */}
+          {friendsWithLocations
+            .filter(friend => friend.location && friend.locationData?.floor === selectedFloor.toString())
+            .map(friend => (
+              <PointAnnotation
+                key={String(friend.id)}
+                id={String(friend.id)}
+                coordinate={friend.location!}
+                onSelected={() => handleFriendOpen(friend.id)}
+              >
+                <FriendBlob
+                  friendId={String(friend.id)}
+                  name={friend.name}
+                  onClick={handleFriendOpen}
+                />
+              </PointAnnotation>
+            ))}
           </MapView>
 
           <GlobalSearch
             roomModalRef={roomModalRef}
             onFocus={() => mapBottomSheetRef.current?.snapToMin()}
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
+            selectedFloor={selectedFloor}
+            onFloorChange={setSelectedFloor}
           />
 
           <RoomModalSheet
@@ -765,11 +850,13 @@ export default function HomeScreen() {
                 )}
                 {selectedTab === "rooms" && !showFavoritesOnly && (
                   <FlatList
-                    data={roomData}
+                    data={filteredRoomData}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
                       const roomWithFavorite = {
                         ...item,
+                        title: item.name, // Map name to title for RoomItem component
+                        seats: item.capacity, // Map capacity to seats for RoomItem component
                         isFavorite: item.isFavorite || false,
                         onFavoritePress: () => {
                           setRoomData((prev) =>
@@ -797,7 +884,7 @@ export default function HomeScreen() {
                     }}
                     ListEmptyComponent={
                       <View style={{ padding: 20, alignItems: "center" }}>
-                        <Text>No rooms available</Text>
+                        <Text>No rooms available on floor {selectedFloor}</Text>
                       </View>
                     }
                   />
@@ -839,15 +926,22 @@ export default function HomeScreen() {
                     </View>
                   ) : (
                     <FlatList
-                      data={roomData.filter((room) => room.isFavorite)}
+                      data={filteredRoomData.filter((room) => room.isFavorite)}
                       scrollEnabled={currentSnapIndex === 2}
                       keyExtractor={(item) => item.id}
-                      renderItem={({ item }) => (
-                        <RoomItem
-                          room={item}
-                          onPress={() => console.log("Selected room:", item.id)}
-                        />
-                      )}
+                      renderItem={({ item }) => {
+                        const roomWithTitle = {
+                          ...item,
+                          title: item.name, // Map name to title for RoomItem component
+                          seats: item.capacity, // Map capacity to seats for RoomItem component
+                        };
+                        return (
+                          <RoomItem
+                            room={roomWithTitle}
+                            onPress={() => console.log("Selected room:", item.id)}
+                          />
+                        );
+                      }}
                       contentContainerStyle={{
                         paddingTop: 8,
                         paddingBottom: 20,
@@ -856,7 +950,7 @@ export default function HomeScreen() {
                       }}
                       ListEmptyComponent={
                         <View style={{ padding: 20, alignItems: "center" }}>
-                          <Text>No rooms available</Text>
+                          <Text>No favorite rooms on floor {selectedFloor}</Text>
                         </View>
                       }
                     />
