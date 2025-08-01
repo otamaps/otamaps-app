@@ -127,10 +127,12 @@ const emptyGeoJSON: GeoJSON.FeatureCollection = {
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
+  const accessToken =
+    "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ";
 
-  setAccessToken(
-    "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ"
-  );
+  useEffect(() => {
+    setAccessToken(accessToken);
+  }, []);
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);
@@ -614,7 +616,9 @@ export default function HomeScreen() {
     [handleFriendOpen]
   );
 
-  customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
+  useEffect(() => {
+    customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -863,8 +867,8 @@ export default function HomeScreen() {
                       ]}
                     >
                       {currentRoom
-                        ? `Room: ${currentRoom}`
-                        : "Location: Not detected"}
+                        ? `Sijainti: ${currentRoom}`
+                        : "Sijaintia ei havaittu"}
                     </Text>
                     {scannedBeacons.length > 0 && (
                       <Text style={styles.bleBeaconCount}>
@@ -889,7 +893,7 @@ export default function HomeScreen() {
                         }}
                       >
                         <TextInput
-                          placeholder="Search friends..."
+                          placeholder="Hae kavereita..."
                           value={searchQuery}
                           onChangeText={setSearchQuery}
                           placeholderTextColor={isDark ? "#B5B5B5" : "#a1a1a1"}
@@ -1040,7 +1044,7 @@ export default function HomeScreen() {
                             isDark && { color: "#8ec5ff" },
                           ]}
                         >
-                          Add Friend
+                          Lisää kaveri
                         </Text>
                       </Pressable>
                     }

@@ -110,7 +110,7 @@ const RequestsScreen = () => {
     >
       <Stack.Screen
         options={{
-          title: "Friend Requests",
+          title: "Kaveripyynnöt",
           headerTitleStyle: {
             color: isDark ? "#fff" : "#333",
           },
@@ -135,12 +135,12 @@ const RequestsScreen = () => {
             <Text
               style={[styles.noRequestsText, isDark && { color: "#e5e5e5" }]}
             >
-              No requests
+              Ei kaveripyyntöjä
             </Text>
             <Text
               style={[styles.noRequestsHint, isDark && { color: "#a1a1a1" }]}
             >
-              Try sharing your code with your friends
+              Jaa koodisi ystävillesi
             </Text>
           </View>
         ) : (
