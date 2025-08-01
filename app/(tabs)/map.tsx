@@ -23,11 +23,11 @@ import {
 } from "@gorhom/bottom-sheet";
 import {
   Camera,
+  CircleLayer,
   CustomLocationProvider,
   FillLayer,
   MapView,
   OnPressEvent,
-  PointAnnotation,
   RasterLayer,
   setAccessToken,
   ShapeSource,
@@ -52,7 +52,6 @@ import {
   View,
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
-import FriendBlob from "../../components/friendBlob";
 import FriendItem, { formatLastSeen } from "../../components/friendItem";
 
 // Define the shape of our room feature properties
@@ -96,7 +95,7 @@ type RoomItemData = {
 type FriendLocation = {
   id: string;
   user_id: string;
-  floor: string | null;
+  floor: string | number | null; // Can be string or number
   x: number; // longitude
   y: number; // latitude
   radius: number;
@@ -215,12 +214,20 @@ export default function HomeScreen() {
           ...friend,
           location: friendLocation
             ? [friendLocation.x, friendLocation.y]
-            : null,
+            : null, // Fixed: x=longitude, y=latitude
           locationData: friendLocation,
         };
       });
 
       setFriendsWithLocations(friendsWithLocs);
+      console.log("🧑‍🤝‍🧑 Friend locations updated:", {
+        totalFriends: friends.length,
+        friendsWithLocations: friendsWithLocs.length,
+        friendsWithValidLocations: friendsWithLocs.filter((f) => f.location)
+          .length,
+        locationsData: locations?.length || 0,
+        sampleFriend: friendsWithLocs[0],
+      });
     } catch (error) {
       console.error("Error in fetchFriendLocations:", error);
     }
@@ -373,11 +380,11 @@ export default function HomeScreen() {
     [rooms]
   );
 
-  const handleFriendOpen = (friendId: string) => {
+  const handleFriendOpen = useCallback((friendId: string) => {
     setFriendId(friendId);
     friendModalRef.current?.present();
     mapBottomSheetRef.current?.snapToMin();
-  };
+  }, []);
 
   const handlePress = (e: { point: { x: number; y: number } }) => {
     console.log("Map pressed", e.point);
@@ -459,6 +466,123 @@ export default function HomeScreen() {
     } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
   }, [filteredRoomsWithGeometry, selectedRoomId]);
 
+  // Create GeoJSON for friend locations
+  const friendsGeoJSON = useMemo(() => {
+    console.log("🔍 Friend filtering debug:", {
+      selectedFloor,
+      selectedFloorType: typeof selectedFloor,
+      selectedFloorAsString: selectedFloor.toString(),
+    });
+
+    const friendsToShow = friendsWithLocations.filter((friend) => {
+      const hasLocation = !!friend.location;
+      // Convert both to numbers for comparison since floor might be stored as number or string
+      const friendFloor = Number(friend.locationData?.floor);
+      const selectedFloorNum = Number(selectedFloor);
+      const floorMatch = friendFloor === selectedFloorNum;
+
+      console.log(`🧑 Filtering ${friend.name}:`, {
+        hasLocation,
+        friendFloor: friend.locationData?.floor,
+        friendFloorType: typeof friend.locationData?.floor,
+        friendFloorAsNumber: friendFloor,
+        selectedFloor: selectedFloor,
+        selectedFloorAsNumber: selectedFloorNum,
+        floorMatch,
+        willShow: hasLocation && floorMatch,
+      });
+
+      return hasLocation && floorMatch;
+    });
+
+    console.log("🗺️ Creating friends GeoJSON:", {
+      selectedFloor,
+      totalFriendsWithLocations: friendsWithLocations.length,
+      friendsToShow: friendsToShow.length,
+      friendsToShowSample: friendsToShow[0],
+    });
+
+    // Log all friends with their coordinates
+    console.log("👥 All friends with locations:");
+    friendsWithLocations.forEach((friend, index) => {
+      console.log(`  ${index + 1}. ${friend.name}:`, {
+        id: friend.id,
+        status: friend.status,
+        hasLocation: !!friend.location,
+        coordinates: friend.location,
+        floor: friend.locationData?.floor,
+        selectedFloor: selectedFloor.toString(),
+        matchesFloor: friend.locationData?.floor === selectedFloor.toString(),
+        willBeDisplayed:
+          friend.location &&
+          friend.locationData?.floor === selectedFloor.toString(),
+      });
+    });
+
+    // Log friends that will be displayed on map
+    console.log("🎯 Friends to be displayed on map:");
+    friendsToShow.forEach((friend, index) => {
+      console.log(`  ${index + 1}. ${friend.name}:`, {
+        id: friend.id,
+        coordinates: friend.location,
+        status: friend.status,
+        floor: friend.locationData?.floor,
+      });
+    });
+
+    const features = friendsToShow.map((friend) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: friend.location!,
+      },
+      properties: {
+        id: friend.id,
+        name: friend.name,
+        status: friend.status || "at school",
+      },
+    }));
+
+    console.log("📍 GeoJSON features created:", features.length);
+    console.log("📍 Individual features:");
+    features.forEach((feature, index) => {
+      console.log(`  Feature ${index + 1}:`, {
+        coordinates: feature.geometry.coordinates,
+        properties: feature.properties,
+        geometryType: feature.geometry.type,
+      });
+    });
+
+    const finalGeoJSON = {
+      type: "FeatureCollection",
+      features,
+    };
+
+    console.log("📍 Final GeoJSON object:", finalGeoJSON);
+    console.log("📍 Will render ShapeSource:", features.length > 0);
+
+    // Additional coordinate debugging
+    if (features.length > 0) {
+      const firstFeature = features[0];
+      const [lng, lat] = firstFeature.geometry.coordinates;
+      console.log("🌍 Coordinate analysis:", {
+        originalCoords: firstFeature.geometry.coordinates,
+        longitude: lng,
+        latitude: lat,
+        isInFinland: lat >= 59.8 && lat <= 70.1 && lng >= 19.1 && lng <= 31.6,
+        isNearOtaniemi:
+          Math.abs(lat - 60.184) < 0.01 && Math.abs(lng - 24.818) < 0.01,
+        mapCenter: [24.818510511790645, 60.18394233125424],
+        distanceFromCenter: Math.sqrt(
+          Math.pow(lng - 24.818510511790645, 2) +
+            Math.pow(lat - 60.18394233125424, 2)
+        ),
+      });
+    }
+
+    return finalGeoJSON as any;
+  }, [friendsWithLocations, selectedFloor]);
+
   // Handle room press on the map
   const handleRoomFeaturePress = useCallback(
     (e: OnPressEvent) => {
@@ -471,6 +595,20 @@ export default function HomeScreen() {
       }
     },
     [handleRoomPress]
+  );
+
+  // Handle friend press on the map
+  const handleFriendFeaturePress = useCallback(
+    (e: OnPressEvent) => {
+      const feature = e.features?.[0];
+      if (feature && feature.properties) {
+        const friendId = feature.properties.id;
+        if (friendId) {
+          handleFriendOpen(String(friendId));
+        }
+      }
+    },
+    [handleFriendOpen]
   );
 
   customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
@@ -545,26 +683,41 @@ export default function HomeScreen() {
           </ShapeSource>
 
           {/* Friend Location Markers */}
-            {friendsWithLocations
-              .filter(
-                (friend) =>
-                  friend.location &&
-                  friend.locationData?.floor === selectedFloor.toString()
-              )
-              .map((friend) => (
-                <PointAnnotation
-                  key={String(friend.id)}
-                  id={String(friend.id)}
-                  coordinate={friend.location!}
-                  onSelected={() => handleFriendOpen(friend.id)}
-                >
-                  <FriendBlob
-                    friendId={String(friend.id)}
-                    name={friend.name}
-                    onClick={handleFriendOpen}
-                  />
-                </PointAnnotation>
-              ))}
+            {friendsGeoJSON.features.length > 0 && (
+              <ShapeSource
+                id="friendsSource"
+                shape={friendsGeoJSON}
+                onPress={handleFriendFeaturePress}
+              >
+                <CircleLayer
+                  id="friend-circles"
+                  style={{
+                    circleRadius: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      10,
+                      4,
+                      18,
+                      16,
+                    ],
+                    circleColor: [
+                      "case",
+                      ["==", ["get", "status"], "at school"],
+                      "#4CAF50", // Green for "at school"
+                      ["==", ["get", "status"], "busy"],
+                      "#FF9800", // Orange for "busy"
+                      ["==", ["get", "status"], "away"],
+                      "#9E9E9E", // Gray for "away"
+                      "#2196F3", // Blue for default
+                    ],
+                    circleStrokeColor: "#FFFFFF",
+                    circleStrokeWidth: 2,
+                    circleOpacity: 0.9,
+                  }}
+                />
+              </ShapeSource>
+            )}
           </MapView>
 
           <GlobalSearch
