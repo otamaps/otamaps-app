@@ -1,13 +1,26 @@
 import useBLEScanner from "@/components/functions/bleScanner";
 import { AuthProvider } from "@/context/AuthContext";
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, useColorScheme } from "react-native";
 
 export default function TabLayout() {
   const isDark = useColorScheme() === "dark";
+  const [isDebugMode, setIsDebugMode] = React.useState(false);
   useBLEScanner();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchDebugMode = async () => {
+        const value = await AsyncStorage.getItem("isDebugMode");
+        setIsDebugMode(value === "true");
+      };
+      fetchDebugMode();
+    }, [])
+  );
 
   return (
     <AuthProvider>
@@ -47,6 +60,17 @@ export default function TabLayout() {
             ),
           }}
         />
+        {isDebugMode && (
+          <Tabs.Screen
+            name="../(app)/debug2/ble"
+            options={{
+              title: "BLE",
+              tabBarIcon: ({ color, size }) => (
+                <MaterialIcons name="bluetooth" size={size} color={color} />
+              ),
+            }}
+          />
+        )}
       </Tabs>
     </AuthProvider>
   );

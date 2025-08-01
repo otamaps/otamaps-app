@@ -31,6 +31,7 @@ import {
   RasterLayer,
   setAccessToken,
   ShapeSource,
+  SymbolLayer,
 } from "@rnmapbox/maps";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -540,6 +541,8 @@ export default function HomeScreen() {
         id: friend.id,
         name: friend.name,
         status: friend.status || "at school",
+        color: friend.color,
+        initial: friend.name.charAt(0).toUpperCase(),
       },
     }));
 
@@ -689,6 +692,11 @@ export default function HomeScreen() {
                 shape={friendsGeoJSON}
                 onPress={handleFriendFeaturePress}
               >
+                {/* 
+                  Text will NOT work here. 
+                  Mapbox layers (like ShapeSource, CircleLayer) do not render React Native <Text> elements on the map.
+                  To show text labels on the map, use a SymbolLayer with the 'textField' property.
+                */}
                 <CircleLayer
                   id="friend-circles"
                   style={{
@@ -701,19 +709,37 @@ export default function HomeScreen() {
                       18,
                       16,
                     ],
-                    circleColor: [
-                      "case",
-                      ["==", ["get", "status"], "at school"],
-                      "#4CAF50", // Green for "at school"
-                      ["==", ["get", "status"], "busy"],
-                      "#FF9800", // Orange for "busy"
-                      ["==", ["get", "status"], "away"],
-                      "#9E9E9E", // Gray for "away"
-                      "#2196F3", // Blue for default
-                    ],
-                    circleStrokeColor: "#FFFFFF",
+                    // circleColor: isDark ? "#1e1e1e" : "#fff",
+                    // circleStrokeColor: [
+                    //   "case",
+                    //   ["==", ["get", "status"], "at school"],
+                    //   "#4CAF50",
+                    //   ["==", ["get", "status"], "busy"],
+                    //   "#FF9800",
+                    //   ["==", ["get", "status"], "away"],
+                    //   "#9E9E9E",
+                    //   "#2196F3",
+                    // ],
+                    circleStrokeColor: isDark ? "#171717" : "#fff",
+                    circleColor: ["get", "color"],
                     circleStrokeWidth: 2,
-                    circleOpacity: 0.9,
+                    circleOpacity: 1,
+                  }}
+                />
+
+                <SymbolLayer
+                  id="friend-labels"
+                  style={{
+                    textField: ["get", "initial"], // or use initials logic
+                    textSize: 15,
+                    textColor: "white",
+                    textAnchor: "center",
+                    textOffset: [0, 0],
+                    textHaloColor: ["get", "color"],
+                    textHaloWidth: 1,
+                    textFont: ["Open Sans Bold", "Arial Unicode MS Bold"],
+                    // textWeight: "bold",
+                    // textAllowOverlap: true,
                   }}
                 />
               </ShapeSource>
@@ -749,20 +775,16 @@ export default function HomeScreen() {
               ]}
             >
               <View style={fmstyles.headerLeft}>
-                <Text style={fmstyles.name}>
+                <Text style={[fmstyles.name, isDark && { color: "white" }]}>
                   {friends.find((f) => f.id === friendId)?.name}
                 </Text>
                 <Text style={fmstyles.status}>
-                  {friends
-                    .find((f) => f.id === friendId)
-                    ?.status.charAt(0)
-                    .toUpperCase() +
-                    friends
-                      .find((f) => f.id === friendId)
-                      ?.status.slice(1)}{" "}
+                  {"Luokassa "}
+                  {friends.find((f) => f.id === friendId)
+                    ?.user_friendly_location || "Unknown location"}{" "}
                   •{" "}
                   {formatLastSeen(
-                    friends.find((f) => f.id === friendId)?.lastSeen
+                    friends.find((f) => f.id === friendId)?.lastSeen || ""
                   )}
                 </Text>
               </View>
@@ -776,8 +798,16 @@ export default function HomeScreen() {
             </View>
 
             <Pressable style={fmstyles.button}>
-              <MaterialIcons name="edit" size={20} color="black" />
-              <Text style={fmstyles.buttonText}>Muokkaa nimeä</Text>
+              <MaterialIcons
+                name="edit"
+                size={20}
+                color={isDark ? "#e5e5e5" : "black"}
+              />
+              <Text
+                style={[fmstyles.buttonText, isDark && { color: "#e5e5e5" }]}
+              >
+                Muokkaa nimeä
+              </Text>
             </Pressable>
 
             <View style={{ height: 8 }} />

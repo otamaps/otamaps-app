@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
@@ -28,12 +29,24 @@ const Settings = () => {
   >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     checkPermissions();
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("isDebugMode").then((value) => {
+      if (value !== null) setIsDebugMode(value === "true");
+    });
+  }, []);
+
+  const handleDebugModeChange = async (value: boolean) => {
+    setIsDebugMode(value);
+    await AsyncStorage.setItem("isDebugMode", value.toString());
+  };
 
   const checkPermissions = async () => {
     try {
@@ -315,6 +328,27 @@ const Settings = () => {
               onValueChange={setDarkMode}
               trackColor={{ false: "#767577", true: "#4A89EE" }}
               thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.settingItem,
+              isDark && { borderBottomColor: "#454545" },
+            ]}
+          >
+            <View style={styles.settingTextContainer}>
+              <Text
+                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
+              >
+                Debug tila
+              </Text>
+            </View>
+            <Switch
+              value={isDebugMode}
+              onValueChange={handleDebugModeChange}
+              trackColor={{ false: "#767577", true: "#4A89EE" }}
+              thumbColor={isDebugMode ? "#f4f3f4" : "#f4f3f4"}
             />
           </View>
 

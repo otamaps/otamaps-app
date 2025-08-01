@@ -1,5 +1,6 @@
 // friendsHandler.ts
 
+import { getRoomIdFromBleId } from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -14,6 +15,7 @@ export type Friend = {
   lastSeen: string | null;
   location: [number, number] | null;
   status: string;
+  user_friendly_location?: string;
 };
 
 // fetch and combine from Supabase
@@ -29,17 +31,27 @@ const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
 
   if (locationError) throw locationError;
 
-  //   console.log("Locations:", locations);
-  const combined: Friend[] = users.map((user) => {
-    const location = locations.find((loc) => loc.user_id === user.id);
+  //console.log("Locations:", locations);
+  const combined: Friend[] = await Promise.all(
+    users.map(async (user) => {
+      const location = locations.find((loc) => loc.user_id === user.id);
 
-    return {
-      ...user,
-      lastSeen: location?.updated_at || null,
-      location: location ? [location.x, location.y] : null,
-      status: "at school",
-    };
-  });
+      // Get the beacon with the strongest signal (lowest distance)
+      const strongestBeacon = location?.beacons?.reduce(
+        (prev: any, current: any) =>
+          prev.distance < current.distance ? prev : current
+      );
+      const beaconId = strongestBeacon?.id || "";
+
+      return {
+        ...user,
+        lastSeen: location?.updated_at || null,
+        location: location ? [location.x, location.y] : null,
+        status: "at school",
+        user_friendly_location: await getRoomIdFromBleId(beaconId),
+      };
+    })
+  );
 
   return combined;
 };
