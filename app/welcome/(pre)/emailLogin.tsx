@@ -1,3 +1,4 @@
+import { generateCode } from "@/components/functions/codeGen";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -51,19 +52,37 @@ export default function EmailLogin() {
 
         if (signUpError) throw signUpError;
 
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+        if (sessionError || !sessionData.session) {
+          throw (
+            sessionError || new Error("No active session found after sign-up.")
+          );
+        }
+
+        // Create user profile in the database
+        const user = sessionData.session.user;
+
+        if (!user) {
+          console.error("No user found in session data");
+        } else {
+          console.log("User ID:", user.id, sessionData.session);
+        }
+
         // Create user profile in the database
         if (authData.user) {
-          const { error: profileError } = await supabase.from("users").upsert(
+          const { error: profileError } = await supabase.from("users").insert(
             {
               id: authData.user.id,
               email: email.toLowerCase().trim(),
               name: name.trim(),
               class: "", // Empty class by default
               color: "#4A89EE", // Default color
-            },
-            {
-              onConflict: "id",
+              code: generateCode(email.toLowerCase().trim()),
             }
+            // {
+            //   onConflict: "id",
+            // }
           );
 
           if (profileError) throw profileError;

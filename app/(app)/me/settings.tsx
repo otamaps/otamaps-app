@@ -307,7 +307,7 @@ const Settings = () => {
             Asetukset
           </Text>
 
-          <View
+          {/* <View DISABLED FOR NOW
             style={[
               styles.settingItem,
               isDark && { borderBottomColor: "#454545" },
@@ -334,7 +334,7 @@ const Settings = () => {
               trackColor={{ false: "#767577", true: "#4A89EE" }}
               thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
             />
-          </View>
+          </View> */}
 
           <View
             style={[
