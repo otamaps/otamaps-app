@@ -8,10 +8,10 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   PermissionsAndroid,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Switch,
   Text,
@@ -140,8 +140,12 @@ const Settings = () => {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+    <KeyboardAvoidingView
+      style={[
+        styles.container,
+        isDark && { backgroundColor: "#1e1e1e" },
+        { padding: 0 },
+      ]}
     >
       <Stack.Screen
         options={{
@@ -358,7 +362,7 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() => Linking.openURL("https://otamaps.fi/privacy-policy")}
+            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Tietosuoja
@@ -373,9 +377,7 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() =>
-              Linking.openURL("https://otamaps.fi/terms-of-service")
-            }
+            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Käyttöehdot
@@ -383,7 +385,7 @@ const Settings = () => {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 

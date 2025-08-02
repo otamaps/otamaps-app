@@ -105,41 +105,41 @@ const BLEBeaconScanner = () => {
   const [bleState, setBleState] = useState<BleState | null>(null);
 
   useEffect(() => {
-    log("Initializing BLE Manager...");
+    // log("Initializing BLE Manager...");
 
     const bleManager = new BleManager({
       restoreStateIdentifier: "BleInTheBackground",
       restoreStateFunction: (restoredState) => {
-        log("BLE Manager state restored", {
-          hasRestoredState: !!restoredState,
-        });
+        // log("BLE Manager state restored", {
+        //   hasRestoredState: !!restoredState,
+        // });
       },
     });
 
     // Monitor BLE state changes
     const subscription = bleManager.onStateChange((state) => {
-      log("BLE State changed", { state: BleState[state] });
+      // log("BLE State changed", { state: BleState[state] });
       setBleState(state);
 
       if (state === BleState.PoweredOff) {
-        log("Bluetooth is powered off");
+        // log("Bluetooth is powered off");
       } else if (state === BleState.PoweredOn) {
-        log("Bluetooth is powered on and ready");
+        // log("Bluetooth is powered on and ready");
       } else if (state === BleState.Unauthorized) {
-        log("Bluetooth usage is not authorized");
+        // log("Bluetooth usage is not authorized");
       }
     }, true);
 
     setManager(bleManager);
-    log("BLE Manager initialized");
+    // log("BLE Manager initialized");
 
     return () => {
-      log("Cleaning up BLE Manager...");
+      // log("Cleaning up BLE Manager...");
       subscription.remove();
       bleManager
         .destroy()
-        .then(() => log("BLE Manager destroyed"))
-        .catch((error) => log("Error destroying BLE Manager", error));
+        // .then(() => console.log("BLE Manager destroyed"))
+        .catch((error) => console.error("Error destroying BLE Manager", error));
     };
   }, []);
 
@@ -234,17 +234,17 @@ const BLEBeaconScanner = () => {
   }, [manager, isScanning]);
 
   const requestPermissions = async () => {
-    log("Requesting BLE and location permissions...");
+    // log("Requesting BLE and location permissions...");
 
     if (Platform.OS === "android") {
       const apiLevel = parseInt(Platform.Version.toString(), 10);
-      log("Android API Level detected", { apiLevel });
+      // log("Android API Level detected", { apiLevel });
 
       try {
         // First, check if location is enabled
         const locationEnabled = await Location.hasServicesEnabledAsync();
         if (!locationEnabled) {
-          log("Location services are disabled, requesting to enable...");
+          // log("Location services are disabled, requesting to enable...");
           const enabled = await new Promise<boolean>((resolve) => {
             Alert.alert(
               "Location Required",
@@ -263,7 +263,7 @@ const BLEBeaconScanner = () => {
                       await Location.enableNetworkProviderAsync();
                       resolve(true);
                     } catch (error) {
-                      log("Error enabling location services", error);
+                      console.error("Error enabling location services", error);
                       resolve(false);
                     }
                   },
@@ -274,7 +274,7 @@ const BLEBeaconScanner = () => {
           });
 
           if (!enabled) {
-            log("User declined to enable location services");
+            console.error("User declined to enable location services");
             Alert.alert(
               "Location Required",
               "Bluetooth scanning requires location services to be enabled."
@@ -285,7 +285,7 @@ const BLEBeaconScanner = () => {
 
         // Now request the actual permissions
         if (apiLevel >= 31) {
-          log("Android 12+ detected, requesting runtime permissions");
+          // console.log("Android 12+ detected, requesting runtime permissions");
           const permissions = [
             PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
             PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
@@ -300,9 +300,9 @@ const BLEBeaconScanner = () => {
             );
           }
 
-          log("Requesting permissions", { permissions });
+          //onsole.log("Requesting permissions", { permissions });
           const result = await PermissionsAndroid.requestMultiple(permissions);
-          log("Permission request result", result);
+          //console.log("Permission request result", result);
 
           // For Android 12+, we only need BLUETOOTH_SCAN and BLUETOOTH_CONNECT
           const requiredPermissions =
@@ -327,7 +327,7 @@ const BLEBeaconScanner = () => {
           );
 
           if (!allGranted) {
-            log("Not all required permissions were granted", {
+            console.error("Not all required permissions were granted", {
               result,
               requiredPermissions,
             });
@@ -337,13 +337,13 @@ const BLEBeaconScanner = () => {
               [{ text: "OK" }]
             );
           } else {
-            log("All required permissions granted");
+            //console.log("All required permissions granted");
           }
 
           return allGranted;
         } else {
           // For Android < 12, we only need location permission
-          log("Android <12 detected, requesting location permission");
+          //console.log("Android <12 detected, requesting location permission");
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
             {
@@ -357,7 +357,9 @@ const BLEBeaconScanner = () => {
           );
 
           const isGranted = granted === PermissionsAndroid.RESULTS.GRANTED;
-          log(`Location permission ${isGranted ? "granted" : "denied"}`);
+          //console.log(
+          //  `Location permission ${isGranted ? "granted" : "denied"}`
+          //);
 
           if (!isGranted) {
             Alert.alert(
@@ -370,14 +372,14 @@ const BLEBeaconScanner = () => {
           return isGranted;
         }
       } catch (error) {
-        log("Error requesting permissions", error);
+        console.error("Error requesting permissions", error);
         Alert.alert("Error", "Failed to request required permissions");
         return false;
       }
     }
 
     // For iOS, we'll rely on the system prompt
-    log("iOS platform detected, using system permission prompt");
+    //console.log("iOS platform detected, using system permission prompt");
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       const granted = status === "granted";
@@ -389,16 +391,16 @@ const BLEBeaconScanner = () => {
       }
       return granted;
     } catch (error) {
-      log("Error requesting iOS location permission", error);
+      console.error("Error requesting iOS location permission", error);
       return false;
     }
   };
 
   const startScan = async (): Promise<boolean> => {
-    log("Starting BLE scan...");
+    //console.log("Starting BLE scan...");
 
     if (!manager) {
-      log("BLE Manager not initialized");
+      console.error("BLE Manager not initialized");
       Alert.alert("Error", "Bluetooth not available");
       return false;
     }
@@ -407,7 +409,7 @@ const BLEBeaconScanner = () => {
       // Request notification permissions if not already granted
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== "granted") {
-        log("Notification permission not granted");
+        //console.log("Notification permission not granted");
         Alert.alert(
           "Notifications Disabled",
           "You will not receive alerts for nearby beacons."
@@ -417,7 +419,7 @@ const BLEBeaconScanner = () => {
       const permissionsGranted = await requestPermissions();
       if (!permissionsGranted) {
         const errorMsg = "Required permissions not granted";
-        log(errorMsg);
+        console.error(errorMsg);
         Alert.alert(
           "Permission Required",
           "Bluetooth and Location permissions are required to scan for beacons."
@@ -429,7 +431,7 @@ const BLEBeaconScanner = () => {
       const state = await manager.state();
       if (state !== "PoweredOn") {
         const errorMsg = `Bluetooth is not on. Current state: ${state}`;
-        log(errorMsg);
+        console.error(errorMsg);
         Alert.alert(
           "Bluetooth Off",
           "Please enable Bluetooth to scan for beacons."
@@ -494,7 +496,7 @@ const BLEBeaconScanner = () => {
         }
       );
 
-      log("BLE scan started");
+      // log("BLE scan started");
       return true;
     } catch (error) {
       console.error("Failed to start scan:", error);
@@ -504,16 +506,16 @@ const BLEBeaconScanner = () => {
   };
 
   const stopScan = async (): Promise<void> => {
-    log("Stopping BLE scan...");
+    // log("Stopping BLE scan...");
 
     if (manager) {
       try {
         manager.stopDeviceScan();
-        log("BLE scan stopped");
+        // log("BLE scan stopped");
       } catch (error) {
         console.error("Error stopping scan:", error);
       }
-      log("Cannot stop scan: BLE Manager not initialized");
+      // log("Cannot stop scan: BLE Manager not initialized");
     }
   };
 
@@ -569,9 +571,9 @@ const BLEBeaconScanner = () => {
                 borderRadius: 5,
                 borderLeftWidth: 3,
                 borderLeftColor:
-                  beacon.rssi > -70
+                  (beacon.rssi ?? -999) > -70
                     ? "#4CAF50"
-                    : beacon.rssi > -85
+                    : (beacon.rssi ?? -999) > -85
                     ? "#FFC107"
                     : "#F44336",
               }}

@@ -1,7 +1,8 @@
+import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
@@ -29,6 +30,28 @@ const Me = () => {
   const [isLoading, setIsLoading] = useState(true);
   const isDark = useColorScheme() === "dark";
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const { user } = useUser();
+  const params = useLocalSearchParams();
+
+  useEffect(() => {
+    if (params.name || params.class || params.color) {
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const getString = (val: unknown, fallback: string): string =>
+          typeof val === "string"
+            ? val
+            : Array.isArray(val)
+            ? val[0] ?? fallback
+            : fallback;
+        return {
+          ...prev,
+          name: getString(params.name, prev.name),
+          class: getString(params.class, prev.class ?? ""),
+          color: getString(params.color, prev.color),
+        };
+      });
+    }
+  }, [params]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -115,6 +138,53 @@ const Me = () => {
         setIsDebugMode(value === "true");
       };
       fetchDebugMode();
+
+      const fetchProfile = async () => {
+        try {
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+
+          if (userError) throw userError;
+          if (!user) throw new Error("No user found");
+
+          // Get user metadata from auth
+          const userData = {
+            name:
+              user.user_metadata?.full_name ||
+              user.email?.split("@")[0] ||
+              "Käyttäjä",
+            class: user.user_metadata?.class || "",
+            color: user.user_metadata?.color || "#4A89EE",
+            email: user.email,
+          };
+
+          // Try to get additional data from users table
+          const { data: profileData, error: profileError } = await supabase
+            .from("users")
+            .select("name, class, color")
+            .eq("id", user.id)
+            .single();
+
+          if (!profileError && profileData) {
+            setProfile({
+              ...userData,
+              ...profileData,
+              name: profileData.name || userData.name,
+              class: profileData.class || userData.class,
+              color: profileData.color || userData.color,
+            });
+          } else {
+            setProfile(userData);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchProfile();
     }, [])
   );
 
