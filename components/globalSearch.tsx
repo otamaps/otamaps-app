@@ -482,7 +482,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               />
             ) : searchQuery.length > 0 ? (
               <View style={styles.noResults}>
-                <Text style={styles.noResultsText}>No results found</Text>
+                <Text style={styles.noResultsText}>Ei tuloksia</Text>
               </View>
             ) : null}
           </Animated.View>
