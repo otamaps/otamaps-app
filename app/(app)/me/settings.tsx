@@ -8,10 +8,10 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   PermissionsAndroid,
   Platform,
   Pressable,
+  SafeAreaView,
   StyleSheet,
   Switch,
   Text,
@@ -140,7 +140,7 @@ const Settings = () => {
   }
 
   return (
-    <KeyboardAvoidingView
+    <SafeAreaView
       style={[
         styles.container,
         isDark && { backgroundColor: "#1e1e1e" },
@@ -384,8 +384,29 @@ const Settings = () => {
             </Text>
           </Pressable>
         </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionContainer,
+            pressed && styles.optionContainerPressed,
+            {
+              alignItems: "center",
+              marginTop: 24,
+            },
+          ]}
+          onPress={() => Linking.openURL("https://otamaps.fi/remove-me")}
+        >
+          <Text
+            style={[
+              styles.settingTitle,
+              isDark && { color: "#ff637e" },
+              { color: "#ff2056" },
+            ]}
+          >
+            Poista tili
+          </Text>
+        </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
