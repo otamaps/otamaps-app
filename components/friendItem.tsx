@@ -15,6 +15,7 @@ interface FriendItemProps {
     status?: "away" | "busy" | "at school";
     lastSeen?: string | number; // Can be ISO string or timestamp
     isFavorite?: boolean;
+    color?: string; // Optional color for the icon background
   };
   onPress?: () => void;
 }

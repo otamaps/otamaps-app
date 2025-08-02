@@ -27,12 +27,12 @@ import {
   CustomLocationProvider,
   FillLayer,
   MapView,
-  OnPressEvent,
   RasterLayer,
   setAccessToken,
   ShapeSource,
   SymbolLayer,
 } from "@rnmapbox/maps";
+import { OnPressEvent } from "@rnmapbox/maps/lib/typescript/src/types/OnPressEvent";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { MultiPolygon, Polygon } from "geojson";
@@ -65,10 +65,10 @@ type RoomFeatureProperties = {
   rgba: string;
 };
 
-type RoomFeature = MapboxFeature & {
-  id: string;
-  properties: RoomFeatureProperties;
-};
+// type RoomFeature = MapboxFeature & {
+//   id: string;
+//   properties: RoomFeatureProperties;
+// };
 
 type myFeature = {
   id?: string;
@@ -79,9 +79,9 @@ type myFeature = {
   [key: string]: any;
 };
 
-type CustomMapPressEvent = MapPressEvent & {
-  features?: myFeature[];
-};
+// type CustomMapPressEvent = MapPressEvent & {
+//   features?: myFeature[];
+// };
 
 type RoomItemData = {
   id: string;
@@ -325,18 +325,18 @@ export default function HomeScreen() {
     friendModalRef.current?.present();
   };
 
-  const handleDismiss = () => {
-    console.log("[HomeScreen] Dismissing modal");
-    friendModalRef.current?.dismiss();
-  };
+  // const handleDismiss = () => {
+  //   console.log("[HomeScreen] Dismissing modal");
+  //   friendModalRef.current?.dismiss();
+  // };
 
   // On mount: try loading from cache
-  useEffect(() => {
-    (async () => {
-      const cached = await getCachedGeoJSON();
-      if (cached) setGeoData(cached);
-    })();
-  }, []);
+  // useEffect(() => {
+  //   (async () => {
+  //     const cached = await getCachedGeoJSON();
+  //     if (cached) setGeoData(cached);
+  //   })();
+  // }, []);
 
   const handleRoomPress = useCallback(
     (roomId: string) => {
@@ -373,11 +373,12 @@ export default function HomeScreen() {
             : [0, 0]; // Fallback to [0,0] if no valid points
 
         // Animate camera to the centroid
-        mapRef.current?.setCamera({
-          centerCoordinate: [centroid[0], centroid[1]],
-          zoomLevel: 18,
-          animationDuration: 1000,
-        });
+        // mapRef.current?.setCamera({
+        //   centerCoordinate: [centroid[0], centroid[1]],
+        //   zoomLevel: 18,
+        //   animationDuration: 1000,
+        // });
+        mapRef.current?.setCamera();
       }
     },
     [rooms]
@@ -751,7 +752,9 @@ export default function HomeScreen() {
           </MapView>
 
           <GlobalSearch
-            roomModalRef={roomModalRef}
+            roomModalRef={
+              roomModalRef as React.MutableRefObject<RoomModalSheetMethods>
+            }
             onFocus={() => mapBottomSheetRef.current?.snapToMin()}
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
             selectedFloor={selectedFloor}
@@ -1000,7 +1003,16 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                       <FriendItem
-                        friend={item}
+                        friend={
+                          item as {
+                            id: string;
+                            name: string;
+                            status?: "away" | "busy" | "at school";
+                            lastSeen?: string | number;
+                            isFavorite?: boolean;
+                            color?: string;
+                          }
+                        }
                         onPress={() => handleFriendOpen(item.id)}
                       />
                     )}

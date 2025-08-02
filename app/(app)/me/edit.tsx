@@ -1,4 +1,5 @@
 import { generateCode } from "@/components/functions/codeGen";
+import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabase";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
@@ -34,6 +35,7 @@ const Edit = () => {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
+  const { setUser } = useUser();
 
   const isDark = useColorScheme() === "dark";
 
@@ -69,8 +71,6 @@ const Edit = () => {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // In a real app, you would fetch the user's current data here
-        // For now, we'll use placeholder data
         setName(user.user_metadata?.full_name || "");
         setUserClass(user.user_metadata?.class || "");
         setSelectedColor(user.user_metadata?.color || COLORS[0]);
@@ -136,7 +136,21 @@ const Edit = () => {
 
       if (dbError) throw dbError;
 
+      setUser({
+        name: name.trim(),
+        class: userClass.trim(),
+        color: selectedColor,
+      });
+
       router.back();
+      // router.push({
+      //   pathname: "/me",
+      //   params: {
+      //     name: name.trim(),
+      //     class: userClass.trim(),
+      //     color: selectedColor,
+      //   },
+      // });
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Profiilin päivitys epäonnistui. Yritä uudelleen.");
@@ -151,7 +165,7 @@ const Edit = () => {
     >
       <Stack.Screen
         options={{
-          title: "Edit Profile",
+          title: "Muokkaa tietoja",
           headerStyle: {
             backgroundColor: isDark ? "#1e1e1e" : "#fff",
           },
