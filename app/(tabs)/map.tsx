@@ -27,11 +27,12 @@ import {
   CustomLocationProvider,
   FillLayer,
   MapView,
-  OnPressEvent,
   RasterLayer,
   setAccessToken,
   ShapeSource,
+  SymbolLayer,
 } from "@rnmapbox/maps";
+import { OnPressEvent } from "@rnmapbox/maps/lib/typescript/src/types/OnPressEvent";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { MultiPolygon, Polygon } from "geojson";
@@ -64,10 +65,10 @@ type RoomFeatureProperties = {
   rgba: string;
 };
 
-type RoomFeature = MapboxFeature & {
-  id: string;
-  properties: RoomFeatureProperties;
-};
+// type RoomFeature = MapboxFeature & {
+//   id: string;
+//   properties: RoomFeatureProperties;
+// };
 
 type myFeature = {
   id?: string;
@@ -78,9 +79,9 @@ type myFeature = {
   [key: string]: any;
 };
 
-type CustomMapPressEvent = MapPressEvent & {
-  features?: myFeature[];
-};
+// type CustomMapPressEvent = MapPressEvent & {
+//   features?: myFeature[];
+// };
 
 type RoomItemData = {
   id: string;
@@ -126,10 +127,12 @@ const emptyGeoJSON: GeoJSON.FeatureCollection = {
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
+  const accessToken =
+    "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ";
 
-  setAccessToken(
-    "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ"
-  );
+  useEffect(() => {
+    setAccessToken(accessToken);
+  }, []);
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);
@@ -322,18 +325,18 @@ export default function HomeScreen() {
     friendModalRef.current?.present();
   };
 
-  const handleDismiss = () => {
-    console.log("[HomeScreen] Dismissing modal");
-    friendModalRef.current?.dismiss();
-  };
+  // const handleDismiss = () => {
+  //   console.log("[HomeScreen] Dismissing modal");
+  //   friendModalRef.current?.dismiss();
+  // };
 
   // On mount: try loading from cache
-  useEffect(() => {
-    (async () => {
-      const cached = await getCachedGeoJSON();
-      if (cached) setGeoData(cached);
-    })();
-  }, []);
+  // useEffect(() => {
+  //   (async () => {
+  //     const cached = await getCachedGeoJSON();
+  //     if (cached) setGeoData(cached);
+  //   })();
+  // }, []);
 
   const handleRoomPress = useCallback(
     (roomId: string) => {
@@ -370,11 +373,12 @@ export default function HomeScreen() {
             : [0, 0]; // Fallback to [0,0] if no valid points
 
         // Animate camera to the centroid
-        mapRef.current?.setCamera({
-          centerCoordinate: [centroid[0], centroid[1]],
-          zoomLevel: 18,
-          animationDuration: 1000,
-        });
+        // mapRef.current?.setCamera({
+        //   centerCoordinate: [centroid[0], centroid[1]],
+        //   zoomLevel: 18,
+        //   animationDuration: 1000,
+        // });
+        mapRef.current?.setCamera();
       }
     },
     [rooms]
@@ -540,6 +544,8 @@ export default function HomeScreen() {
         id: friend.id,
         name: friend.name,
         status: friend.status || "at school",
+        color: friend.color,
+        initial: friend.name.charAt(0).toUpperCase(),
       },
     }));
 
@@ -611,7 +617,9 @@ export default function HomeScreen() {
     [handleFriendOpen]
   );
 
-  customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
+  useEffect(() => {
+    customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -689,6 +697,11 @@ export default function HomeScreen() {
                 shape={friendsGeoJSON}
                 onPress={handleFriendFeaturePress}
               >
+                {/* 
+                  Text will NOT work here. 
+                  Mapbox layers (like ShapeSource, CircleLayer) do not render React Native <Text> elements on the map.
+                  To show text labels on the map, use a SymbolLayer with the 'textField' property.
+                */}
                 <CircleLayer
                   id="friend-circles"
                   style={{
@@ -701,19 +714,37 @@ export default function HomeScreen() {
                       18,
                       16,
                     ],
-                    circleColor: [
-                      "case",
-                      ["==", ["get", "status"], "at school"],
-                      "#4CAF50", // Green for "at school"
-                      ["==", ["get", "status"], "busy"],
-                      "#FF9800", // Orange for "busy"
-                      ["==", ["get", "status"], "away"],
-                      "#9E9E9E", // Gray for "away"
-                      "#2196F3", // Blue for default
-                    ],
-                    circleStrokeColor: "#FFFFFF",
+                    // circleColor: isDark ? "#1e1e1e" : "#fff",
+                    // circleStrokeColor: [
+                    //   "case",
+                    //   ["==", ["get", "status"], "at school"],
+                    //   "#4CAF50",
+                    //   ["==", ["get", "status"], "busy"],
+                    //   "#FF9800",
+                    //   ["==", ["get", "status"], "away"],
+                    //   "#9E9E9E",
+                    //   "#2196F3",
+                    // ],
+                    circleStrokeColor: isDark ? "#171717" : "#fff",
+                    circleColor: ["get", "color"],
                     circleStrokeWidth: 2,
-                    circleOpacity: 0.9,
+                    circleOpacity: 1,
+                  }}
+                />
+
+                <SymbolLayer
+                  id="friend-labels"
+                  style={{
+                    textField: ["get", "initial"], // or use initials logic
+                    textSize: 15,
+                    textColor: "white",
+                    textAnchor: "center",
+                    textOffset: [0, 0],
+                    textHaloColor: ["get", "color"],
+                    textHaloWidth: 1,
+                    textFont: ["Open Sans Bold", "Arial Unicode MS Bold"],
+                    // textWeight: "bold",
+                    // textAllowOverlap: true,
                   }}
                 />
               </ShapeSource>
@@ -721,7 +752,9 @@ export default function HomeScreen() {
           </MapView>
 
           <GlobalSearch
-            roomModalRef={roomModalRef}
+            roomModalRef={
+              roomModalRef as React.MutableRefObject<RoomModalSheetMethods>
+            }
             onFocus={() => mapBottomSheetRef.current?.snapToMin()}
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
             selectedFloor={selectedFloor}
@@ -749,20 +782,16 @@ export default function HomeScreen() {
               ]}
             >
               <View style={fmstyles.headerLeft}>
-                <Text style={fmstyles.name}>
+                <Text style={[fmstyles.name, isDark && { color: "white" }]}>
                   {friends.find((f) => f.id === friendId)?.name}
                 </Text>
                 <Text style={fmstyles.status}>
-                  {friends
-                    .find((f) => f.id === friendId)
-                    ?.status.charAt(0)
-                    .toUpperCase() +
-                    friends
-                      .find((f) => f.id === friendId)
-                      ?.status.slice(1)}{" "}
+                  {"Luokassa "}
+                  {friends.find((f) => f.id === friendId)
+                    ?.user_friendly_location || "Unknown location"}{" "}
                   •{" "}
                   {formatLastSeen(
-                    friends.find((f) => f.id === friendId)?.lastSeen
+                    friends.find((f) => f.id === friendId)?.lastSeen || ""
                   )}
                 </Text>
               </View>
@@ -776,8 +805,16 @@ export default function HomeScreen() {
             </View>
 
             <Pressable style={fmstyles.button}>
-              <MaterialIcons name="edit" size={20} color="black" />
-              <Text style={fmstyles.buttonText}>Muokkaa nimeä</Text>
+              <MaterialIcons
+                name="edit"
+                size={20}
+                color={isDark ? "#e5e5e5" : "black"}
+              />
+              <Text
+                style={[fmstyles.buttonText, isDark && { color: "#e5e5e5" }]}
+              >
+                Muokkaa nimeä
+              </Text>
             </Pressable>
 
             <View style={{ height: 8 }} />
@@ -833,8 +870,8 @@ export default function HomeScreen() {
                       ]}
                     >
                       {currentRoom
-                        ? `Room: ${currentRoom}`
-                        : "Location: Not detected"}
+                        ? `Sijainti: ${currentRoom}`
+                        : "Sijaintia ei havaittu"}
                     </Text>
                     {scannedBeacons.length > 0 && (
                       <Text style={styles.bleBeaconCount}>
@@ -859,7 +896,7 @@ export default function HomeScreen() {
                         }}
                       >
                         <TextInput
-                          placeholder="Search friends..."
+                          placeholder="Hae kavereita..."
                           value={searchQuery}
                           onChangeText={setSearchQuery}
                           placeholderTextColor={isDark ? "#B5B5B5" : "#a1a1a1"}
@@ -966,7 +1003,16 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                       <FriendItem
-                        friend={item}
+                        friend={
+                          item as {
+                            id: string;
+                            name: string;
+                            status?: "away" | "busy" | "at school";
+                            lastSeen?: string | number;
+                            isFavorite?: boolean;
+                            color?: string;
+                          }
+                        }
                         onPress={() => handleFriendOpen(item.id)}
                       />
                     )}
@@ -979,7 +1025,8 @@ export default function HomeScreen() {
                     ListEmptyComponent={
                       <View style={{ padding: 20, alignItems: "center" }}>
                         <Text style={isDark && { color: "#e5e5e5" }}>
-                          No {showFavoritesOnly ? "favorite " : ""}people found
+                          {/* No {showFavoritesOnly ? "favorite " : ""}people found */}
+                          Kavereita ei löytynyt
                         </Text>
                       </View>
                     }
@@ -1010,7 +1057,7 @@ export default function HomeScreen() {
                             isDark && { color: "#8ec5ff" },
                           ]}
                         >
-                          Add Friend
+                          Lisää kaveri
                         </Text>
                       </Pressable>
                     }
