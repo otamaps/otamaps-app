@@ -2,12 +2,12 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "newArchEnabled": false,
       "supportsTablet": true,
@@ -28,14 +28,15 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "fi.otamaps.app",
+      "versionCode": 2,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT"
-      ]
+      ],
+      "blockedPermissions": ["ACTIVITY_RECOGNITION", "android.permission.ACTIVITY_RECOGNITION"]
     },
     "web": {
       "bundler": "metro",
