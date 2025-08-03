@@ -11,7 +11,7 @@
     "ios": {
       "newArchEnabled": false,
       "supportsTablet": true,
-      "bundleIdentifier": "fi.otamaps.app",
+      "bundleIdentifier": "fi.otamaps.ios",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app uses your location to detect which room you are in using Bluetooth beacons.",
@@ -27,7 +27,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "fi.otamaps.app",
+      "package": "fi.otamaps.ios",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
