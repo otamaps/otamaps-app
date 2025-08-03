@@ -5,6 +5,7 @@ import {
   getRoomIdFromBleId,
 } from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { BleManager, Device } from "react-native-ble-plx";
@@ -30,10 +31,99 @@ class BLEScannerService {
   private readonly UPLOAD_INTERVAL = 30000; // Upload every 30 seconds
   private readonly BEACON_TIMEOUT = 10000; // Consider beacon lost after 10 seconds
   private readonly RSSI_THRESHOLD = -80; // Minimum signal strength to consider
+  
+  // Long-lasting cache for beacon-to-room mappings (30 days)
+  private roomIdCache: Map<string, string | null> = new Map();
+  private readonly CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+  private cacheTimestamps: Map<string, number> = new Map();
 
   constructor() {
+    this.loadCacheFromStorage();
     this.startContinuousScanning();
     this.startPeriodicUpload();
+  }
+
+  // Load cached beacon-to-room mappings from persistent storage
+  private async loadCacheFromStorage() {
+    try {
+      const cacheData = await AsyncStorage.getItem('beacon_room_cache');
+      const timestampData = await AsyncStorage.getItem('beacon_cache_timestamps');
+      
+      if (cacheData && timestampData) {
+        const cache = JSON.parse(cacheData);
+        const timestamps = JSON.parse(timestampData);
+        
+        // Only load non-expired cache entries
+        const now = Date.now();
+        for (const [beaconId, roomId] of Object.entries(cache)) {
+          const timestamp = timestamps[beaconId];
+          if (timestamp && (now - timestamp < this.CACHE_DURATION)) {
+            this.roomIdCache.set(beaconId, roomId as string | null);
+            this.cacheTimestamps.set(beaconId, timestamp);
+          }
+        }
+        
+        console.log(`📱 Loaded ${this.roomIdCache.size} beacon mappings from cache`);
+      }
+    } catch (error) {
+      console.warn('Error loading beacon cache from storage:', error);
+    }
+  }
+
+  // Save cache to persistent storage
+  private async saveCacheToStorage() {
+    try {
+      const cacheObj: Record<string, string | null> = {};
+      const timestampObj: Record<string, number> = {};
+      
+      for (const [beaconId, roomId] of this.roomIdCache.entries()) {
+        cacheObj[beaconId] = roomId;
+      }
+      
+      for (const [beaconId, timestamp] of this.cacheTimestamps.entries()) {
+        timestampObj[beaconId] = timestamp;
+      }
+      
+      await AsyncStorage.setItem('beacon_room_cache', JSON.stringify(cacheObj));
+      await AsyncStorage.setItem('beacon_cache_timestamps', JSON.stringify(timestampObj));
+    } catch (error) {
+      console.warn('Error saving beacon cache to storage:', error);
+    }
+  }
+
+  // Get room ID with long-lasting cache
+  private async getCachedRoomId(beaconId: string): Promise<string | null> {
+    const now = Date.now();
+    const cacheTime = this.cacheTimestamps.get(beaconId);
+    
+    // Check if we have a valid cached result (30 days cache)
+    if (cacheTime && (now - cacheTime < this.CACHE_DURATION) && this.roomIdCache.has(beaconId)) {
+      console.log(`🎯 Using cached room ID for beacon ${beaconId} (age: ${Math.round((now - cacheTime) / (1000 * 60 * 60 * 24))} days)`);
+      return this.roomIdCache.get(beaconId) || null;
+    }
+    
+    // Cache miss or expired - fetch from database
+    console.log(`🔄 Cache miss for beacon ${beaconId}, fetching from database`);
+    const roomLookupStart = Date.now();
+    const roomId = await getRoomIdFromBleId(beaconId);
+    const roomLookupTime = Date.now() - roomLookupStart;
+    
+    // Store in cache
+    this.roomIdCache.set(beaconId, roomId || null);
+    this.cacheTimestamps.set(beaconId, now);
+    
+    // Save to persistent storage (async, don't wait)
+    this.saveCacheToStorage().catch(err => 
+      console.warn('Failed to save cache:', err)
+    );
+    
+    if (roomId) {
+      console.log(`🏠 Beacon ${beaconId} mapped to room: ${roomId} (lookup took ${roomLookupTime}ms, cached for 30 days)`);
+    } else {
+      console.warn(`⚠️  Beacon ${beaconId} has no room mapping (lookup took ${roomLookupTime}ms)`);
+    }
+    
+    return roomId || null;
   }
 
   private async startContinuousScanning() {
@@ -112,22 +202,14 @@ class BLEScannerService {
       `🔍 Processing OtaMaps beacon - ID: ${beaconId}, RSSI: ${device.rssi} dBm`
     );
 
-    // ✅ Await the room ID here
-    const roomLookupStart = Date.now();
-    const roomId = await getRoomIdFromBleId(beaconId);
-    const roomLookupTime = Date.now() - roomLookupStart;
-    
-    if (roomId) {
-      console.log(`🏠 Beacon ${beaconId} mapped to room: ${roomId} (lookup took ${roomLookupTime}ms)`);
-    } else {
-      console.warn(`⚠️  Beacon ${beaconId} has no room mapping (lookup took ${roomLookupTime}ms)`);
-    }
+    // ✅ Use cached room lookup instead of direct database call
+    const roomId = await this.getCachedRoomId(beaconId);
 
     const beaconData: BeaconData = {
       id: beaconId,
       rssi: device.rssi,
       timestamp: Date.now(),
-      roomId, // now properly resolved
+      roomId: roomId || undefined, // convert null to undefined for type compatibility
     };
 
     // Check if this is a new beacon or signal strength changed significantly
@@ -315,8 +397,37 @@ class BLEScannerService {
     await this.uploadLocationToSupabase();
   }
 
+  // Get cache statistics for debugging
+  getCacheStats(): { size: number; oldestEntry: number | null; newestEntry: number | null } {
+    const timestamps = Array.from(this.cacheTimestamps.values());
+    return {
+      size: this.roomIdCache.size,
+      oldestEntry: timestamps.length > 0 ? Math.min(...timestamps) : null,
+      newestEntry: timestamps.length > 0 ? Math.max(...timestamps) : null,
+    };
+  }
+
+  // Clear cache (useful for debugging or when beacon mappings change)
+  async clearCache(): Promise<void> {
+    this.roomIdCache.clear();
+    this.cacheTimestamps.clear();
+    
+    try {
+      await AsyncStorage.removeItem('beacon_room_cache');
+      await AsyncStorage.removeItem('beacon_cache_timestamps');
+      console.log('🧹 Beacon cache cleared from memory and storage');
+    } catch (error) {
+      console.warn('Error clearing cache from storage:', error);
+    }
+  }
+
   destroy() {
     manager.stopDeviceScan();
+    // Save cache before destroying
+    this.saveCacheToStorage().catch(err => 
+      console.warn('Failed to save cache during destroy:', err)
+    );
+    console.log('🛑 BLE Scanner service destroyed');
   }
 }
 
