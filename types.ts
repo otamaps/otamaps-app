@@ -62,17 +62,17 @@ export interface SearchFilters {
   tags?: string[];
 }
 
-export type SortOrder = 'nearest' | 'alphabetical' | 'recently-added';
+export type SortOrder = "nearest" | "alphabetical" | "recently-added";
 
 export interface ApiResponse<T> {
   data?: T;
   error?: {
-    message: string; 
+    message: string;
     code: string;
   };
 }
 
-declare module "*.po" {
-  import type { Messages } from "@lingui/core";
-  export const messages: Messages;
-}
+// declare module "*.po" {
+//   import type { Messages } from "@lingui/core";
+//   export const messages: Messages;
+// }

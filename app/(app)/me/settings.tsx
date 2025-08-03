@@ -1,4 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
@@ -28,12 +30,24 @@ const Settings = () => {
   >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     checkPermissions();
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("isDebugMode").then((value) => {
+      if (value !== null) setIsDebugMode(value === "true");
+    });
+  }, []);
+
+  const handleDebugModeChange = async (value: boolean) => {
+    setIsDebugMode(value);
+    await AsyncStorage.setItem("isDebugMode", value.toString());
+  };
 
   const checkPermissions = async () => {
     try {
@@ -127,7 +141,11 @@ const Settings = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[
+        styles.container,
+        isDark && { backgroundColor: "#1e1e1e" },
+        { padding: 0 },
+      ]}
     >
       <Stack.Screen
         options={{
@@ -289,7 +307,7 @@ const Settings = () => {
             Asetukset
           </Text>
 
-          <View
+          {/* <View DISABLED FOR NOW
             style={[
               styles.settingItem,
               isDark && { borderBottomColor: "#454545" },
@@ -316,6 +334,27 @@ const Settings = () => {
               trackColor={{ false: "#767577", true: "#4A89EE" }}
               thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
             />
+          </View> */}
+
+          <View
+            style={[
+              styles.settingItem,
+              isDark && { borderBottomColor: "#454545" },
+            ]}
+          >
+            <View style={styles.settingTextContainer}>
+              <Text
+                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
+              >
+                Debug tila
+              </Text>
+            </View>
+            <Switch
+              value={isDebugMode}
+              onValueChange={handleDebugModeChange}
+              trackColor={{ false: "#767577", true: "#4A89EE" }}
+              thumbColor={isDebugMode ? "#f4f3f4" : "#f4f3f4"}
+            />
           </View>
 
           <Pressable
@@ -323,7 +362,7 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() => router.push("/me/privacy")}
+            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Tietosuoja
@@ -338,13 +377,34 @@ const Settings = () => {
               styles.optionContainer,
               pressed && styles.optionContainerPressed,
             ]}
-            onPress={() => router.push("/me/terms")}
+            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
           >
             <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
               Käyttöehdot
             </Text>
           </Pressable>
         </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionContainer,
+            pressed && styles.optionContainerPressed,
+            {
+              alignItems: "center",
+              marginTop: 24,
+            },
+          ]}
+          onPress={() => Linking.openURL("https://otamaps.fi/remove-me")}
+        >
+          <Text
+            style={[
+              styles.settingTitle,
+              isDark && { color: "#ff637e" },
+              { color: "#ff2056" },
+            ]}
+          >
+            Poista tili
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

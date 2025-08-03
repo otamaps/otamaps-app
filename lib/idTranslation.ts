@@ -24,14 +24,20 @@ const fetchBeacons = async () => {
 const getRoomIdFromBleId = async (
   bleId: string
 ): Promise<string | undefined> => {
+  var intBleId: number = +bleId;
+
   const { data, error } = await supabase
     .from("beacons")
     .select("room_id")
-    .eq("ble_id", bleId)
+    .eq("ble_id", intBleId)
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching room_id from ble_id:", error.message);
+    console.error(
+      "Error fetching room_id from ble_id:",
+      error.message,
+      intBleId
+    );
     return undefined;
   }
 

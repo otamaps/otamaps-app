@@ -78,7 +78,7 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
         onDismiss={onDismiss}
         // style={[isDark && { backgroundColor: "#1e1e1e" }]}
         handleStyle={{
-          backgroundColor: isDark ? "#1e1e1e" : "#f0f0f0",
+          backgroundColor: isDark ? "#1e1e1e" : "#fff",
           borderTopLeftRadius: 14,
           borderTopRightRadius: 14,
         }}
