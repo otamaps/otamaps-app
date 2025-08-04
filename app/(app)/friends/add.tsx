@@ -68,30 +68,52 @@ const AddFriendScreen = () => {
         setRequestSent(false);
         setButtonLabel("Lisää kaveri");
       } else {
-        setFriend(data);
-        console.log("User found:", data);
-        const { data: relations, error: relationsError } = await supabase
+        const { data: checkIfBlocked, error: blockError } = await supabase
           .from("relations")
           .select("*")
-          .or(
-            `and(subject.eq.${user?.id},object.eq.${data.id}),and(subject.eq.${data.id},object.eq.${user?.id})`
-          );
+          .eq("object", user?.id)
+          .eq("subject", data.id)
+          .eq("status", "blocked");
 
-        if (relationsError) {
-          console.log("Error fetching relations:", relationsError);
-          setRequestSent(false);
+        if (blockError) {
+          console.log("Error checking if blocked:", blockError);
+        } else if (checkIfBlocked && checkIfBlocked.length > 0) {
+          console.log("User is blocked:", checkIfBlocked);
+          setFriend(null);
           setButtonLabel("Lisää kaveri");
+          setRequestSent(false);
         }
 
-        console.log("Relations:", relations, user?.id, data.id);
+        if (blockError) {
+          console.log("Error checking if blocked:", blockError);
+        } else if (checkIfBlocked && checkIfBlocked.length > 0) {
+          console.log("User is blocked:", checkIfBlocked);
+        } else {
+          setFriend(data);
+          console.log("User found:", data);
+          const { data: relations, error: relationsError } = await supabase
+            .from("relations")
+            .select("*")
+            .or(
+              `and(subject.eq.${user?.id},object.eq.${data.id}),and(subject.eq.${data.id},object.eq.${user?.id})`
+            );
 
-        if (relations && relations.length > 0) {
-          const relation = relations[0];
-          if (relation.status === "request") {
-            setRequestSent(true);
-            setButtonLabel("Pyydetty");
-          } else if (relation.status === "friends") {
-            setButtonLabel(`Kaverisi`);
+          if (relationsError) {
+            console.log("Error fetching relations:", relationsError);
+            setRequestSent(false);
+            setButtonLabel("Lisää kaveri");
+          }
+
+          console.log("Relations:", relations, user?.id, data.id);
+
+          if (relations && relations.length > 0) {
+            const relation = relations[0];
+            if (relation.status === "request") {
+              setRequestSent(true);
+              setButtonLabel("Pyydetty");
+            } else if (relation.status === "friends") {
+              setButtonLabel(`Kaverisi`);
+            }
           }
         }
       }

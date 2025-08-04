@@ -16,7 +16,6 @@ import {
   Friend,
   getFriends,
   getRequests,
-  handleBlockFriend,
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
 import { Room, useRoomStore } from "@/lib/roomService";
@@ -51,6 +50,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -241,6 +241,37 @@ export default function HomeScreen() {
       console.error("Error in fetchFriendLocations:", error);
     }
   }, [friends]);
+
+  const handleReportFriend = async (friendId: string) => {
+    Alert.prompt(
+      "Ilmoita käyttäjästä",
+      "Miksi haluat ilmoittaa tästä käyttäjästä?",
+      [
+        {
+          text: "Peruuta",
+          style: "cancel",
+        },
+        {
+          text: "Ilmoita",
+          onPress: async (reason) => {
+            if (reason) {
+              try {
+                const { error } = await supabase
+                  .from("reports")
+                  .insert([{ user_id: friendId, reason }]);
+                if (error) throw error;
+                Alert.alert("Ilmoitus lähetetty", "Kiitos ilmoituksesta!");
+              } catch (err) {
+                console.error("Error reporting friend:", err);
+                Alert.alert("Virhe", "Ilmoituksen lähettäminen epäonnistui.");
+              }
+            }
+          },
+        },
+      ],
+      "plain-text"
+    );
+  };
 
   // Fetch friend locations when friends change or component mounts
   useEffect(() => {
@@ -839,9 +870,26 @@ export default function HomeScreen() {
             <Pressable
               style={fmstyles.redButton}
               onPress={() => {
-                handleRemoveFriend(friendId);
-                getFriends(true);
-                friendModalRef.current?.close();
+                Alert.alert(
+                  `Poista ${friends.find((f) => f.id === friendId)?.name}`,
+                  "Haluatko varmasti poistaa kaverin?",
+                  [
+                    {
+                      text: "Kumoa",
+                      onPress: () => console.log("Cancel Pressed"),
+                      style: "cancel",
+                    },
+                    {
+                      text: "Kyllä",
+                      style: "destructive",
+                      onPress: () => {
+                        handleRemoveFriend(friendId);
+                        getFriends(true);
+                        friendModalRef.current?.close();
+                      },
+                    },
+                  ]
+                );
               }}
             >
               <Text style={fmstyles.redButtonText}>Poista kaveri</Text>
@@ -849,8 +897,26 @@ export default function HomeScreen() {
             <Pressable
               style={fmstyles.redButton}
               onPress={() => {
-                handleBlockFriend(friendId);
-                friendModalRef.current?.close();
+                Alert.alert(
+                  `Estä ${friends.find((f) => f.id === friendId)?.name}`,
+                  "Haluatko varmasti estää kaverin?",
+                  [
+                    {
+                      text: "Kumoa",
+                      onPress: () => console.log("Cancel Pressed"),
+                      style: "cancel",
+                    },
+                    {
+                      text: "Kyllä",
+                      style: "destructive",
+                      onPress: () => {
+                        handleRemoveFriend(friendId);
+                        getFriends(true);
+                        friendModalRef.current?.close();
+                      },
+                    },
+                  ]
+                );
               }}
             >
               <Text style={fmstyles.redButtonText}>
@@ -860,7 +926,7 @@ export default function HomeScreen() {
             <Pressable
               style={fmstyles.redButton}
               onPress={() => {
-                // handleReportFriend(friendId);
+                handleReportFriend(friendId);
               }}
             >
               <Text style={fmstyles.redButtonText}>
