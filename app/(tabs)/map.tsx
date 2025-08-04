@@ -12,7 +12,13 @@ import FriendModalSheet, {
 import RoomModalSheet, {
   RoomModalSheetMethods,
 } from "@/components/sheets/roomModalSheet";
-import { Friend, getFriends, getRequests } from "@/lib/friendsHandler";
+import {
+  Friend,
+  getFriends,
+  getRequests,
+  handleBlockFriend,
+  handleRemoveFriend,
+} from "@/lib/friendsHandler";
 import { Room, useRoomStore } from "@/lib/roomService";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -819,21 +825,31 @@ export default function HomeScreen() {
 
             <View style={{ height: 8 }} />
 
-            <Pressable
+            {/* <Pressable
               style={fmstyles.redButton}
               onPress={() => {
-                // handleStopSharing(friendId);
+                handleStopSharing(friendId);
                 friendModalRef.current?.close();
               }}
             >
               <Text style={fmstyles.redButtonText}>
                 Lopeta oman sijainnin jako
               </Text>
+            </Pressable> */}
+            <Pressable
+              style={fmstyles.redButton}
+              onPress={() => {
+                handleRemoveFriend(friendId);
+                getFriends(true);
+                friendModalRef.current?.close();
+              }}
+            >
+              <Text style={fmstyles.redButtonText}>Poista kaveri</Text>
             </Pressable>
             <Pressable
               style={fmstyles.redButton}
               onPress={() => {
-                // handleBlockFriend(friendId);
+                handleBlockFriend(friendId);
                 friendModalRef.current?.close();
               }}
             >
