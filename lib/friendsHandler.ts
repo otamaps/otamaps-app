@@ -92,9 +92,7 @@ export const getFriends = async (forceRefresh = false): Promise<Friend[]> => {
 };
 
 export const getRequests = async () => {
-  const user = await getUser({
-    forceRefresh: true,
-  });
+  const user = await getUser();
   console.log(
     `👤 Authenticated user: ${
       user?.id || "None"
@@ -118,4 +116,80 @@ export const getRequests = async () => {
 
   console.log("Requests fetched", requests);
   return requests;
+};
+
+// export const handleStopSharing = async (friendId: string) => {
+//   const user = await getUser();
+//   const { data: location, error: locationError } = await supabase
+//     .from("locations")
+//     .select("shared_to")
+//     .eq("user_id", user.id)
+//     .single();
+
+//   if (locationError) {
+//     console.log("Error fetching locations:", locationError);
+//     return;
+//   }
+
+//   const sharedTo = location?.shared_to || [];
+//   const updatedSharedTo = sharedTo.filter((id: any) => id !== friendId);
+
+//   const { error: stopSharingError } = await supabase
+//     .from("locations")
+//     .update({ shared_to: updatedSharedTo })
+//     .eq("user_id", user.id);
+
+//   if (stopSharingError) {
+//     console.log("Error updating shared_to:", stopSharingError);
+//   }
+// };
+
+export const handleBlockFriend = async (friendId: string) => {
+  const user = await getUser();
+  if (!user) {
+    console.log("No authenticated user found");
+    return;
+  }
+
+  const { error: removeError } = await supabase
+    .from("relations")
+    .delete()
+    .or(
+      `and(subject.eq.${friendId},object.eq.${user.id}),and(subject.eq.${user.id},object.eq.${friendId})`
+    );
+
+  if (removeError) {
+    console.log("Error removing friend relation:", removeError);
+    return;
+  }
+
+  const { error: blockError } = await supabase.from("relations").insert({
+    subject: user.id,
+    object: friendId,
+    status: "blocked",
+  });
+
+  if (blockError) {
+    console.log("Error blocking friend:", blockError);
+  }
+};
+
+export const handleRemoveFriend = async (friendId: string) => {
+  const user = await getUser();
+  if (!user) {
+    console.log("No authenticated user found");
+    return;
+  }
+
+  const { error: removeError } = await supabase
+    .from("relations")
+    .delete()
+    .eq("status", "friends")
+    .or(
+      `and(subject.eq.${friendId},object.eq.${user.id}),and(subject.eq.${user.id},object.eq.${friendId})`
+    );
+
+  if (removeError) {
+    console.log("Error removing friend relation:", removeError);
+  }
 };
