@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/getUserHandle";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 
 export interface UserLocationData {
@@ -21,94 +22,239 @@ export interface LocationHistoryItem {
   created_at: string;
 }
 
-// New interface for the updated locations table
 export interface LocationData {
   id?: string;
   user_id: string;
   floor: string | null;
-  x: number; // latitude of closest beacon
-  y: number; // longitude of closest beacon
-  radius: number; // calculated from RSSI
-  beacons: BeaconInfo[]; // JSONB array of detected beacons
+  x: number;
+  y: number;
+  radius: number;
+  beacons: BeaconInfo[];
   updated_at?: string;
-  shared_to: string[]; // array of user IDs who can see this location
+  shared_to: string[];
 }
 
 export interface BeaconInfo {
   id: string;
   rssi: number;
   timestamp: number;
-  coordinates?: [number, number]; // beacon's coordinates from database
-  distance?: number; // calculated distance based on RSSI
+  coordinates?: [number, number];
+  distance?: number;
 }
 
-/**
- * Calculate approximate distance from RSSI value
- * Formula: distance = 10^((Measured Power - RSSI) / (10 * N))
- * where Measured Power is typically -59 dBm at 1 meter, N is path loss exponent (2-4)
- */
+export interface Beacon {
+  ble_id: string;
+  x: number;
+  y: number;
+  floor: string | null;
+}
+
 function calculateDistanceFromRSSI(rssi: number): number {
   if (rssi === 0) return -1.0;
-
-  const measuredPower = -59; // dBm at 1 meter
-  const pathLossExponent = 2.5; // typical value for indoor environments
-
-  if (rssi < measuredPower) {
-    const ratio = (measuredPower - rssi) / (10 * pathLossExponent);
-    return Math.pow(10, ratio);
-  } else {
-    const ratio = (measuredPower - rssi) / (10 * pathLossExponent);
-    return Math.pow(10, ratio);
-  }
+  const measuredPower = -59;
+  const pathLossExponent = 2.5;
+  const ratio = (measuredPower - rssi) / (10 * pathLossExponent);
+  return Math.pow(10, ratio);
 }
 
-/**
- * Calculate location radius based on beacon distances
- * Uses the closest beacon distance as base radius with some uncertainty
- */
 function calculateLocationRadius(beacons: BeaconInfo[]): number {
-  if (beacons.length === 0) return 50; // default radius in meters
-
+  if (beacons.length === 0) return 50;
   const distances = beacons.map((beacon) => beacon.distance || 50);
   const minDistance = Math.min(...distances);
-
-  // Add uncertainty based on number of beacons and signal strength
-  const uncertainty = beacons.length > 1 ? 5 : 15; // meters
-  return Math.max(5, minDistance + uncertainty); // minimum 5m radius
+  const uncertainty = beacons.length > 1 ? 5 : 15;
+  return Math.max(5, minDistance + uncertainty);
 }
 
-/**
- * Service for managing user location data in the new locations table
- */
+const BEACONS_CACHE_KEY = "beacons";
+const BEACONS_CACHE_TIMESTAMP_KEY = "beacons_cache_timestamp";
+
+const getBeaconsFromSupabase = async (): Promise<Beacon[] | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("beacons")
+      .select("ble_id, x, y, floor");
+    if (error) {
+      console.error(
+        "Error fetching beacons from Supabase:",
+        error.message,
+        error.details
+      );
+      return null;
+    }
+    if (!data || data.length === 0) {
+      console.warn("No beacons found in database");
+      return [];
+    }
+    console.log("Fetched beacons from Supabase:", data);
+    return data as Beacon[];
+  } catch (error) {
+    console.error("Error in getBeaconsFromSupabase:", error);
+    return null;
+  }
+};
+
+const getCachedBeacons = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(BEACONS_CACHE_KEY);
+    const timestampRaw = await AsyncStorage.getItem(
+      BEACONS_CACHE_TIMESTAMP_KEY
+    );
+    const beacons = raw ? JSON.parse(raw) : null;
+    const timestamp = timestampRaw ? parseInt(timestampRaw, 10) : null;
+    console.log("Cached beacons:", beacons, "Timestamp:", timestamp);
+    return beacons && timestamp ? { beacons, timestamp } : null;
+  } catch (err) {
+    console.warn("Failed to load cached beacons", err);
+    return null;
+  }
+};
+
+const setCachedBeacons = async (beacons: Beacon[] | null) => {
+  try {
+    console.log("Storing beacons in cache:", beacons);
+    if (beacons) {
+      // Ensure ble_id is stored as a string
+      const normalizedBeacons = beacons.map((beacon) => ({
+        ...beacon,
+        ble_id: String(beacon.ble_id),
+      }));
+      await AsyncStorage.setItem(
+        BEACONS_CACHE_KEY,
+        JSON.stringify(normalizedBeacons)
+      );
+      await AsyncStorage.setItem(
+        BEACONS_CACHE_TIMESTAMP_KEY,
+        Date.now().toString()
+      );
+    } else {
+      await AsyncStorage.removeItem(BEACONS_CACHE_KEY);
+      await AsyncStorage.removeItem(BEACONS_CACHE_TIMESTAMP_KEY);
+    }
+  } catch (err) {
+    console.warn("Failed to update cached beacons", err);
+  }
+};
+
+export const clearBeaconsCache = async () => {
+  try {
+    await AsyncStorage.removeItem(BEACONS_CACHE_KEY);
+    await AsyncStorage.removeItem(BEACONS_CACHE_TIMESTAMP_KEY);
+    console.log("Beacons cache cleared");
+  } catch (err) {
+    console.warn("Failed to clear cached beacons", err);
+  }
+};
+
+export const getBeacons = async ({ forceRefresh = false } = {}): Promise<
+  Beacon[] | null
+> => {
+  if (!forceRefresh) {
+    const cached = await getCachedBeacons();
+    if (cached) {
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      if (now - cached.timestamp < ONE_DAY) {
+        console.log("Returning cached beacons:", cached.beacons);
+        return cached.beacons;
+      }
+      console.log("Cache is stale, fetching from Supabase");
+    } else {
+      console.log("No cache found, fetching from Supabase");
+    }
+  }
+  const beacons = await getBeaconsFromSupabase();
+  await setCachedBeacons(beacons);
+  return beacons;
+};
+
 export class BLELocationService {
-  /**
-   * Get beacon coordinates from database
-   */
   static async getBeaconCoordinates(
     beaconId: string
   ): Promise<[number, number] | null> {
     try {
+      // Normalize beaconId to avoid mismatches
+      const normalizedBeaconId = beaconId.toString().trim();
+      console.log(`Fetching coordinates for beacon: ${normalizedBeaconId}`);
+
+      const beacons = await getBeacons();
+      if (!beacons || beacons.length === 0) {
+        console.warn("No beacons available from getBeacons");
+        // Fallback to direct Supabase query
+        const { data, error } = await supabase
+          .from("beacons")
+          .select("x, y")
+          .eq("ble_id", normalizedBeaconId)
+          .single();
+        if (error || !data || data.x == null || data.y == null) {
+          console.warn(
+            `No coordinates found for beacon ${normalizedBeaconId} in Supabase`
+          );
+          return null;
+        }
+        console.log(
+          `Fetched coordinates from Supabase for beacon ${normalizedBeaconId}: [${data.x}, ${data.y}]`
+        );
+        // Update cache with new beacon
+        await setCachedBeacons([
+          { ble_id: normalizedBeaconId, x: data.x, y: data.y, floor: null },
+        ]);
+        return [data.x, data.y];
+      }
+
+      // Log all ble_id values for debugging
+      console.log(
+        "Available beacon IDs:",
+        beacons.map((b) => b.ble_id)
+      );
+      const beacon = beacons.find(
+        (b) => String(b.ble_id) === normalizedBeaconId
+      );
+      console.log(
+        `Fetching coordinates for beacon ${normalizedBeaconId}:`,
+        beacon ? `(${beacon.x}, ${beacon.y})` : "Not found",
+        beacons
+      );
+
+      if (beacon && beacon.x != null && beacon.y != null) {
+        console.log(
+          `Found coordinates in cache for beacon ${normalizedBeaconId}: [${beacon.x}, ${beacon.y}]`
+        );
+        return [beacon.x, beacon.y];
+      }
+
+      console.warn(
+        `No coordinates found for beacon ${normalizedBeaconId} in cache, trying Supabase`
+      );
       const { data, error } = await supabase
         .from("beacons")
         .select("x, y")
-        .eq("ble_id", beaconId)
+        .eq("ble_id", normalizedBeaconId)
         .single();
-
-      if (error || !data) {
-        console.warn(`No coordinates found for beacon ${beaconId}`);
+      if (error || !data || data.x == null || data.y == null) {
+        console.warn(
+          `No coordinates found for beacon ${normalizedBeaconId} in Supabase`
+        );
         return null;
       }
-
+      console.log(
+        `Fetched coordinates from Supabase for beacon ${normalizedBeaconId}: [${data.x}, ${data.y}]`
+      );
+      // Update cache with new beacon
+      const updatedBeacons = [
+        ...beacons,
+        { ble_id: normalizedBeaconId, x: data.x, y: data.y, floor: null },
+      ];
+      await setCachedBeacons(updatedBeacons);
       return [data.x, data.y];
     } catch (error) {
-      console.error("Error fetching beacon coordinates:", error);
+      console.error(
+        `Error fetching beacon coordinates for ${beaconId}:`,
+        error
+      );
       return null;
     }
   }
 
-  /**
-   * Get user's friend list for shared_to field
-   */
   static async getFriendIds(): Promise<string[]> {
     try {
       const user = await getUser();
@@ -116,10 +262,9 @@ export class BLELocationService {
       console.log(
         `👤 Authenticated user: ${
           user?.id || "None"
-        } in bleLocationService.ts in getFFriendIds`
+        } in bleLocationService.ts in getFriendIds`
       );
 
-      // Get accepted friends from the relations table
       const { data, error } = await supabase
         .from("relations")
         .select("subject, object")
@@ -131,13 +276,11 @@ export class BLELocationService {
         return [];
       }
 
-      // Extract friend IDs (the other person in each relation)
       const friendIds = data
         .map((relation) =>
           relation.subject === user.id ? relation.object : relation.subject
         )
-        .filter((id) => id !== user.id); // Just to be safe
-
+        .filter((id) => id !== user.id);
       return friendIds;
     } catch (error) {
       console.error("Error in getFriendIds:", error);
@@ -145,9 +288,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Update user location based on detected beacons
-   */
   static async updateLocation(
     detectedBeacons: Map<string, any>
   ): Promise<boolean> {
@@ -159,65 +299,66 @@ export class BLELocationService {
           user?.id || "None"
         } in bleLocationService.ts in updateLocation`
       );
+      console.log("Detected beacons:", Array.from(detectedBeacons.entries()));
 
       if (detectedBeacons.size === 0) {
         console.log("No beacons detected, skipping location update");
         return false;
       }
 
-      // Convert beacon data and fetch coordinates
       const beaconInfos: BeaconInfo[] = [];
       let closestBeacon: BeaconInfo | null = null;
       let strongestRSSI = -999;
 
       for (const [beaconId, beaconData] of detectedBeacons) {
         const coordinates = await this.getBeaconCoordinates(beaconId);
+        if (!coordinates) {
+          console.warn(
+            `Skipping beacon ${beaconId} due to missing coordinates`
+          );
+          continue;
+        }
         const distance = calculateDistanceFromRSSI(beaconData.rssi);
 
         const beaconInfo: BeaconInfo = {
           id: beaconId,
           rssi: beaconData.rssi,
           timestamp: beaconData.timestamp,
-          coordinates: coordinates || undefined,
+          coordinates,
           distance,
         };
 
         beaconInfos.push(beaconInfo);
 
-        // Track closest beacon (strongest RSSI)
-        if (beaconData.rssi > strongestRSSI && coordinates) {
+        if (beaconData.rssi > strongestRSSI) {
           strongestRSSI = beaconData.rssi;
           closestBeacon = beaconInfo;
         }
       }
 
       if (!closestBeacon || !closestBeacon.coordinates) {
-        console.warn("No valid beacon coordinates found");
+        console.warn(
+          "No valid beacon coordinates found for any detected beacons"
+        );
         return false;
       }
 
-      // Get shared_to list (friends)
       const sharedTo = await this.getFriendIds();
-
-      // Calculate location data
       const radius = calculateLocationRadius(beaconInfos);
       const [x, y] = closestBeacon.coordinates;
-
-      // Determine floor from beacon location (you might need to add floor info to beacons table)
       const floor = await this.getFloorFromBeacon(closestBeacon.id);
 
       const locationData: LocationData = {
         user_id: user.id,
         floor,
-        x, // latitude of closest beacon
-        y, // longitude of closest beacon
+        x,
+        y,
         radius,
         beacons: beaconInfos,
         shared_to: sharedTo,
         updated_at: new Date().toISOString(),
       };
 
-      // Upsert location data
       const { error } = await supabase.from("locations").upsert(locationData, {
         onConflict: "user_id",
       });
@@ -239,31 +380,62 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Get floor information from beacon (you may need to add this to your beacons table)
-   */
   static async getFloorFromBeacon(beaconId: string): Promise<string | null> {
     try {
+      const normalizedBeaconId = beaconId.toString().trim();
+      const beacons = await getBeacons();
+      if (!beacons || beacons.length === 0) {
+        console.warn("No beacons available from getBeacons for floor lookup");
+        const { data, error } = await supabase
+          .from("beacons")
+          .select("floor")
+          .eq("ble_id", normalizedBeaconId)
+          .single();
+        if (error || !data || !data.floor) {
+          console.warn(
+            `No floor found for beacon ${normalizedBeaconId} in Supabase`
+          );
+          return null;
+        }
+        await setCachedBeacons([
+          { ble_id: normalizedBeaconId, x: 0, y: 0, floor: data.floor },
+        ]);
+        return data.floor;
+      }
+
+      const beacon = beacons.find(
+        (b) => String(b.ble_id) === normalizedBeaconId
+      );
+      if (beacon && beacon.floor != null) {
+        return beacon.floor;
+      }
+
+      console.warn(
+        `No floor found for beacon ${normalizedBeaconId} in cache, trying Supabase`
+      );
       const { data, error } = await supabase
         .from("beacons")
         .select("floor")
-        .eq("ble_id", beaconId)
+        .eq("ble_id", normalizedBeaconId)
         .single();
-
-      if (error || !data) {
+      if (error || !data || !data.floor) {
+        console.warn(
+          `No floor found for beacon ${normalizedBeaconId} in Supabase`
+        );
         return null;
       }
-
+      const updatedBeacons = [
+        ...beacons,
+        { ble_id: normalizedBeaconId, x: 0, y: 0, floor: data.floor },
+      ];
+      await setCachedBeacons(updatedBeacons);
       return data.floor;
     } catch (error) {
-      console.error("Error fetching floor from beacon:", error);
+      console.error(`Error fetching floor for beacon ${beaconId}:`, error);
       return null;
     }
   }
 
-  /**
-   * Get current user location
-   */
   static async getCurrentLocation(): Promise<LocationData | null> {
     try {
       const user = await getUser();
@@ -292,9 +464,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Get locations of friends
-   */
   static async getFriendsLocations(): Promise<LocationData[]> {
     try {
       const user = await getUser();
@@ -305,11 +474,9 @@ export class BLELocationService {
       );
       if (!user) return [];
 
-      // Get friend IDs
       const friendIds = await this.getFriendIds();
       if (friendIds.length === 0) return [];
 
-      // Get locations for friends
       const { data, error } = await supabase
         .from("locations")
         .select("*")
@@ -327,9 +494,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Subscribe to real-time location updates
-   */
   static subscribeToLocationUpdates(callback: (payload: any) => void) {
     return supabase
       .channel("location_updates")
@@ -345,12 +509,6 @@ export class BLELocationService {
       .subscribe();
   }
 
-  // ============ LEGACY METHODS FOR BACKWARD COMPATIBILITY ============
-
-  /**
-   * @deprecated Use updateLocation instead
-   * Upload user location data to Supabase (legacy method)
-   */
   static async uploadLocation(
     locationData: UserLocationData
   ): Promise<boolean> {
@@ -373,9 +531,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Get user's location history for a specific time period
-   */
   static async getLocationHistory(
     hours: number = 24
   ): Promise<LocationHistoryItem[]> {
@@ -410,9 +565,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Get all users currently in a specific room
-   */
   static async getUsersInRoom(roomId: string): Promise<LocationHistoryItem[]> {
     try {
       const { data, error } = await supabase
@@ -433,9 +585,6 @@ export class BLELocationService {
     }
   }
 
-  /**
-   * Clean up old location data for the current user
-   */
   static async cleanupOldLocations(daysBefore: number = 7): Promise<boolean> {
     try {
       const user = await getUser();
