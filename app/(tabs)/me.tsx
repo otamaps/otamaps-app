@@ -1,4 +1,5 @@
 import { useUser } from "@/context/UserContext";
+import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -56,12 +57,9 @@ const Me = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+        const user = await getUser();
+        console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
 
-        if (userError) throw userError;
         if (!user) throw new Error("No user found");
 
         // Get user metadata from auth
@@ -141,12 +139,10 @@ const Me = () => {
 
       const fetchProfile = async () => {
         try {
-          const {
-            data: { user },
-            error: userError,
-          } = await supabase.auth.getUser();
+          const user = await getUser();
 
-          if (userError) throw userError;
+          console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
+
           if (!user) throw new Error("No user found");
 
           // Get user metadata from auth
@@ -434,6 +430,7 @@ const Me = () => {
             ]}
             onPress={() => {
               supabase.auth.signOut();
+              clearUserCache();
               router.push("/");
             }}
           >

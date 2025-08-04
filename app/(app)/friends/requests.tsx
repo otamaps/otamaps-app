@@ -1,3 +1,4 @@
+import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
@@ -23,8 +24,11 @@ const RequestsScreen = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
+      const user = await getUser();
+      setUser(user);
+      console.log(
+        `👤 Authenticated user: ${user?.id || "None"} in requests.tsx`
+      );
     };
     fetchUser();
   }, []);

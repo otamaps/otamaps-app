@@ -1,3 +1,4 @@
+import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "./supabase";
 
 export interface UserLocationData {
@@ -110,10 +111,13 @@ export class BLELocationService {
    */
   static async getFriendIds(): Promise<string[]> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return [];
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in getFFriendIds`
+      );
 
       // Get accepted friends from the relations table
       const { data, error } = await supabase
@@ -148,10 +152,13 @@ export class BLELocationService {
     detectedBeacons: Map<string, any>
   ): Promise<boolean> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return false;
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in updateLocation`
+      );
 
       if (detectedBeacons.size === 0) {
         console.log("No beacons detected, skipping location update");
@@ -259,9 +266,12 @@ export class BLELocationService {
    */
   static async getCurrentLocation(): Promise<LocationData | null> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in getCurrentLocation`
+      );
       if (!user) return null;
 
       const { data, error } = await supabase
@@ -287,9 +297,12 @@ export class BLELocationService {
    */
   static async getFriendsLocations(): Promise<LocationData[]> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in getFriendLocations`
+      );
       if (!user) return [];
 
       // Get friend IDs
@@ -367,9 +380,12 @@ export class BLELocationService {
     hours: number = 24
   ): Promise<LocationHistoryItem[]> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in getLocationHistory`
+      );
       if (!user) return [];
 
       const since = new Date();
@@ -422,9 +438,12 @@ export class BLELocationService {
    */
   static async cleanupOldLocations(daysBefore: number = 7): Promise<boolean> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getUser();
+      console.log(
+        `👤 Authenticated user: ${
+          user?.id || "None"
+        } in bleLocationService.ts in cleanupOldLocations`
+      );
       if (!user) return false;
 
       const cutoffDate = new Date();

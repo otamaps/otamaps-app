@@ -1,5 +1,6 @@
 // friendsHandler.ts
 
+import { getUser } from "@/lib/getUserHandle";
 import { getRoomIdFromBleId } from "@/lib/idTranslation";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -91,9 +92,16 @@ export const getFriends = async (forceRefresh = false): Promise<Friend[]> => {
 };
 
 export const getRequests = async () => {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData?.user?.id) {
-    console.log("Error fetching user", userError);
+  const user = await getUser({
+    forceRefresh: true,
+  });
+  console.log(
+    `👤 Authenticated user: ${
+      user?.id || "None"
+    } in friendsHandler.ts in getRequests`
+  );
+  if (!user?.id) {
+    console.log("Error fetching user");
     return [];
   }
 
@@ -101,7 +109,7 @@ export const getRequests = async () => {
     .from("relations")
     .select("*")
     .eq("status", "request")
-    .eq("object", userData.user.id);
+    .eq("object", user.id);
 
   if (requestsError) {
     console.log("Error fetching requests:", requestsError);

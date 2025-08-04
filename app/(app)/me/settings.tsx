@@ -174,7 +174,7 @@ const Settings = () => {
             Käyttöoikeudet
           </Text>
 
-          <View
+          {/* <View
             style={[
               styles.settingItem,
               isDark && { borderBottomColor: "#454545" },
@@ -262,7 +262,7 @@ const Settings = () => {
                 </Text>
               </Pressable>
             )}
-          </View>
+          </View> */}
 
           <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
             <View style={styles.settingTextContainer}>

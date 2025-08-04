@@ -1,5 +1,6 @@
 import { generateCode } from "@/components/functions/codeGen";
 import { useUser } from "@/context/UserContext";
+import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
@@ -35,7 +36,7 @@ const Edit = () => {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
-  const { setUser } = useUser();
+  const { user, setUser } = useUser();
 
   const isDark = useColorScheme() === "dark";
 
@@ -67,9 +68,8 @@ const Edit = () => {
   useEffect(() => {
     // Load current user data
     const loadUserData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await await getUser();
+      console.log(`👤 Authenticated user: ${user?.id || "None"} in edit.tsx`);
       if (user) {
         setName(user.user_metadata?.full_name || "");
         setUserClass(user.user_metadata?.class || "");
@@ -98,11 +98,8 @@ const Edit = () => {
     setIsLoading(true);
     try {
       // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError) throw userError;
+      const user = await getUser();
+      console.log(`👤 Authenticated user: ${user?.id || "None"} in edit.tsx`);
       if (!user) throw new Error("Käyttäjää ei löytynyt");
 
       // Update user metadata in auth
