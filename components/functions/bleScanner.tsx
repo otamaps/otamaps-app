@@ -1,11 +1,7 @@
-import {
-  BLELocationService,
-} from "@/lib/bleLocationService";
-import {
-  getRoomIdFromBleId,
-} from "@/lib/idTranslation";
-import { supabase } from "@/lib/supabase";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BLELocationService } from "@/lib/bleLocationService";
+import { getUser } from "@/lib/getUserHandle";
+import { getRoomIdFromBleId } from "@/lib/idTranslation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { BleManager, Device } from "react-native-ble-plx";
@@ -31,7 +27,7 @@ class BLEScannerService {
   private readonly UPLOAD_INTERVAL = 30000; // Upload every 30 seconds
   private readonly BEACON_TIMEOUT = 10000; // Consider beacon lost after 10 seconds
   private readonly RSSI_THRESHOLD = -80; // Minimum signal strength to consider
-  
+
   // Long-lasting cache for beacon-to-room mappings (30 days)
   private roomIdCache: Map<string, string | null> = new Map();
   private readonly CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
@@ -46,27 +42,31 @@ class BLEScannerService {
   // Load cached beacon-to-room mappings from persistent storage
   private async loadCacheFromStorage() {
     try {
-      const cacheData = await AsyncStorage.getItem('beacon_room_cache');
-      const timestampData = await AsyncStorage.getItem('beacon_cache_timestamps');
-      
+      const cacheData = await AsyncStorage.getItem("beacon_room_cache");
+      const timestampData = await AsyncStorage.getItem(
+        "beacon_cache_timestamps"
+      );
+
       if (cacheData && timestampData) {
         const cache = JSON.parse(cacheData);
         const timestamps = JSON.parse(timestampData);
-        
+
         // Only load non-expired cache entries
         const now = Date.now();
         for (const [beaconId, roomId] of Object.entries(cache)) {
           const timestamp = timestamps[beaconId];
-          if (timestamp && (now - timestamp < this.CACHE_DURATION)) {
+          if (timestamp && now - timestamp < this.CACHE_DURATION) {
             this.roomIdCache.set(beaconId, roomId as string | null);
             this.cacheTimestamps.set(beaconId, timestamp);
           }
         }
-        
-        console.log(`📱 Loaded ${this.roomIdCache.size} beacon mappings from cache`);
+
+        console.log(
+          `📱 Loaded ${this.roomIdCache.size} beacon mappings from cache`
+        );
       }
     } catch (error) {
-      console.warn('Error loading beacon cache from storage:', error);
+      console.warn("Error loading beacon cache from storage:", error);
     }
   }
 
@@ -75,19 +75,22 @@ class BLEScannerService {
     try {
       const cacheObj: Record<string, string | null> = {};
       const timestampObj: Record<string, number> = {};
-      
+
       for (const [beaconId, roomId] of this.roomIdCache.entries()) {
         cacheObj[beaconId] = roomId;
       }
-      
+
       for (const [beaconId, timestamp] of this.cacheTimestamps.entries()) {
         timestampObj[beaconId] = timestamp;
       }
-      
-      await AsyncStorage.setItem('beacon_room_cache', JSON.stringify(cacheObj));
-      await AsyncStorage.setItem('beacon_cache_timestamps', JSON.stringify(timestampObj));
+
+      await AsyncStorage.setItem("beacon_room_cache", JSON.stringify(cacheObj));
+      await AsyncStorage.setItem(
+        "beacon_cache_timestamps",
+        JSON.stringify(timestampObj)
+      );
     } catch (error) {
-      console.warn('Error saving beacon cache to storage:', error);
+      console.warn("Error saving beacon cache to storage:", error);
     }
   }
 
@@ -95,34 +98,46 @@ class BLEScannerService {
   private async getCachedRoomId(beaconId: string): Promise<string | null> {
     const now = Date.now();
     const cacheTime = this.cacheTimestamps.get(beaconId);
-    
+
     // Check if we have a valid cached result (30 days cache)
-    if (cacheTime && (now - cacheTime < this.CACHE_DURATION) && this.roomIdCache.has(beaconId)) {
-      console.log(`🎯 Using cached room ID for beacon ${beaconId} (age: ${Math.round((now - cacheTime) / (1000 * 60 * 60 * 24))} days)`);
+    if (
+      cacheTime &&
+      now - cacheTime < this.CACHE_DURATION &&
+      this.roomIdCache.has(beaconId)
+    ) {
+      console.log(
+        `🎯 Using cached room ID for beacon ${beaconId} (age: ${Math.round(
+          (now - cacheTime) / (1000 * 60 * 60 * 24)
+        )} days)`
+      );
       return this.roomIdCache.get(beaconId) || null;
     }
-    
+
     // Cache miss or expired - fetch from database
     console.log(`🔄 Cache miss for beacon ${beaconId}, fetching from database`);
     const roomLookupStart = Date.now();
     const roomId = await getRoomIdFromBleId(beaconId);
     const roomLookupTime = Date.now() - roomLookupStart;
-    
+
     // Store in cache
     this.roomIdCache.set(beaconId, roomId || null);
     this.cacheTimestamps.set(beaconId, now);
-    
+
     // Save to persistent storage (async, don't wait)
-    this.saveCacheToStorage().catch(err => 
-      console.warn('Failed to save cache:', err)
+    this.saveCacheToStorage().catch((err) =>
+      console.warn("Failed to save cache:", err)
     );
-    
+
     if (roomId) {
-      console.log(`🏠 Beacon ${beaconId} mapped to room: ${roomId} (lookup took ${roomLookupTime}ms, cached for 30 days)`);
+      console.log(
+        `🏠 Beacon ${beaconId} mapped to room: ${roomId} (lookup took ${roomLookupTime}ms, cached for 30 days)`
+      );
     } else {
-      console.warn(`⚠️  Beacon ${beaconId} has no room mapping (lookup took ${roomLookupTime}ms)`);
+      console.warn(
+        `⚠️  Beacon ${beaconId} has no room mapping (lookup took ${roomLookupTime}ms)`
+      );
     }
-    
+
     return roomId || null;
   }
 
@@ -216,8 +231,11 @@ class BLEScannerService {
     const existingBeacon = this.scannedBeacons.get(beaconId);
     if (existingBeacon) {
       const rssiDelta = Math.abs(existingBeacon.rssi - device.rssi);
-      if (rssiDelta > 5) { // Only log if significant change
-        console.log(`📶 Beacon ${beaconId} RSSI changed: ${existingBeacon.rssi} -> ${device.rssi} dBm (Δ${rssiDelta})`);
+      if (rssiDelta > 5) {
+        // Only log if significant change
+        console.log(
+          `📶 Beacon ${beaconId} RSSI changed: ${existingBeacon.rssi} -> ${device.rssi} dBm (Δ${rssiDelta})`
+        );
       }
     } else {
       console.log(`🆕 New beacon detected: ${beaconId} at ${device.rssi} dBm`);
@@ -279,22 +297,34 @@ class BLEScannerService {
     const beforeCleanup = this.scannedBeacons.size;
     for (const [beaconId, beacon] of this.scannedBeacons.entries()) {
       if (now - beacon.timestamp > this.BEACON_TIMEOUT) {
-        console.log(`Removing expired beacon: ${beaconId} (age: ${now - beacon.timestamp}ms)`);
+        console.log(
+          `Removing expired beacon: ${beaconId} (age: ${
+            now - beacon.timestamp
+          }ms)`
+        );
         this.scannedBeacons.delete(beaconId);
       }
     }
-    
+
     if (beforeCleanup !== this.scannedBeacons.size) {
-      console.log(`Beacon cleanup: ${beforeCleanup} -> ${this.scannedBeacons.size} beacons`);
+      console.log(
+        `Beacon cleanup: ${beforeCleanup} -> ${this.scannedBeacons.size} beacons`
+      );
     }
 
     // Find the strongest beacon signal that has a room mapping
     let strongestBeacon: BeaconData | null = null;
     const availableBeacons = Array.from(this.scannedBeacons.values());
-    console.log(`Evaluating ${availableBeacons.length} active beacons for room detection:`);
-    
+    console.log(
+      `Evaluating ${availableBeacons.length} active beacons for room detection:`
+    );
+
     for (const beacon of availableBeacons) {
-      console.log(`  - Beacon ${beacon.id}: RSSI ${beacon.rssi}dBm, Room: ${beacon.roomId || 'unmapped'}`);
+      console.log(
+        `  - Beacon ${beacon.id}: RSSI ${beacon.rssi}dBm, Room: ${
+          beacon.roomId || "unmapped"
+        }`
+      );
       if (
         beacon.roomId &&
         (!strongestBeacon || beacon.rssi > strongestBeacon.rssi)
@@ -307,47 +337,67 @@ class BLEScannerService {
     if (newRoom !== this.currentRoom) {
       console.log(`🚪 Room changed: "${this.currentRoom}" -> "${newRoom}"`);
       if (strongestBeacon) {
-        console.log(`   └─ Strongest beacon: ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`);
+        console.log(
+          `   └─ Strongest beacon: ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`
+        );
       }
       this.currentRoom = newRoom;
     } else if (strongestBeacon) {
-      console.log(`📍 Staying in room "${newRoom}" via beacon ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`);
+      console.log(
+        `📍 Staying in room "${newRoom}" via beacon ${strongestBeacon.id} (${strongestBeacon.rssi}dBm)`
+      );
     } else {
       console.log(`❌ No room detected - no valid beacons with room mapping`);
     }
   }
 
   private startPeriodicUpload() {
-    console.log(`⏰ Starting periodic location uploads every ${this.UPLOAD_INTERVAL/1000}s`);
+    console.log(
+      `⏰ Starting periodic location uploads every ${
+        this.UPLOAD_INTERVAL / 1000
+      }s`
+    );
     setInterval(() => {
       const timeSinceLastUpload = Date.now() - this.lastUploadTime;
-      console.log(`⏰ Periodic upload triggered (${Math.round(timeSinceLastUpload/1000)}s since last upload)`);
+      console.log(
+        `⏰ Periodic upload triggered (${Math.round(
+          timeSinceLastUpload / 1000
+        )}s since last upload)`
+      );
       this.uploadLocationToSupabase();
     }, this.UPLOAD_INTERVAL);
   }
 
   private async uploadLocationToSupabase() {
-    console.log(`📤 Starting location upload - ${this.scannedBeacons.size} beacons detected`);
-    
+    console.log(
+      `📤 Starting location upload - ${this.scannedBeacons.size} beacons detected`
+    );
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      
+      const user = await getUser();
+
+      console.log(
+        `👤 Authenticated user: ${user?.id || "None"} in bleScanner.tsx`
+      );
+
       if (!user) {
         console.warn(`❌ Upload failed: No authenticated user`);
         return;
       }
 
       console.log(`👤 Uploading location for user: ${user.id}`);
-      console.log(`📊 Current room: ${this.currentRoom || 'None'}`);
-      
+      console.log(`📊 Current room: ${this.currentRoom || "None"}`);
+
       // Log beacon details before upload
       if (this.scannedBeacons.size > 0) {
         console.log(`📡 Active beacons:`);
         for (const [beaconId, beacon] of this.scannedBeacons.entries()) {
           const age = Date.now() - beacon.timestamp;
-          console.log(`   - ${beaconId}: ${beacon.rssi}dBm, room: ${beacon.roomId || 'unmapped'}, age: ${age}ms`);
+          console.log(
+            `   - ${beaconId}: ${beacon.rssi}dBm, room: ${
+              beacon.roomId || "unmapped"
+            }, age: ${age}ms`
+          );
         }
       } else {
         console.log(`📡 No active beacons to upload`);
@@ -355,13 +405,19 @@ class BLEScannerService {
 
       // Use the new location updating system
       const startTime = Date.now();
-      const success = await BLELocationService.updateLocation(this.scannedBeacons);
+      const success = await BLELocationService.updateLocation(
+        this.scannedBeacons
+      );
       const uploadTime = Date.now() - startTime;
-      
+
       if (!success) {
-        console.error(`❌ Failed to update location data (took ${uploadTime}ms)`);
+        console.error(
+          `❌ Failed to update location data (took ${uploadTime}ms)`
+        );
       } else {
-        console.log(`✅ Location successfully updated in new locations table (took ${uploadTime}ms)`);
+        console.log(
+          `✅ Location successfully updated in new locations table (took ${uploadTime}ms)`
+        );
         this.lastUploadTime = Date.now();
       }
     } catch (error) {
@@ -398,7 +454,11 @@ class BLEScannerService {
   }
 
   // Get cache statistics for debugging
-  getCacheStats(): { size: number; oldestEntry: number | null; newestEntry: number | null } {
+  getCacheStats(): {
+    size: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+  } {
     const timestamps = Array.from(this.cacheTimestamps.values());
     return {
       size: this.roomIdCache.size,
@@ -411,23 +471,23 @@ class BLEScannerService {
   async clearCache(): Promise<void> {
     this.roomIdCache.clear();
     this.cacheTimestamps.clear();
-    
+
     try {
-      await AsyncStorage.removeItem('beacon_room_cache');
-      await AsyncStorage.removeItem('beacon_cache_timestamps');
-      console.log('🧹 Beacon cache cleared from memory and storage');
+      await AsyncStorage.removeItem("beacon_room_cache");
+      await AsyncStorage.removeItem("beacon_cache_timestamps");
+      console.log("🧹 Beacon cache cleared from memory and storage");
     } catch (error) {
-      console.warn('Error clearing cache from storage:', error);
+      console.warn("Error clearing cache from storage:", error);
     }
   }
 
   destroy() {
     manager.stopDeviceScan();
     // Save cache before destroying
-    this.saveCacheToStorage().catch(err => 
-      console.warn('Failed to save cache during destroy:', err)
+    this.saveCacheToStorage().catch((err) =>
+      console.warn("Failed to save cache during destroy:", err)
     );
-    console.log('🛑 BLE Scanner service destroyed');
+    console.log("🛑 BLE Scanner service destroyed");
   }
 }
 

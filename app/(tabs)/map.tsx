@@ -799,12 +799,12 @@ export default function HomeScreen() {
                 <MaterialIcons name="close" size={24} color="#666" />
               </Pressable>
             </View>
-            <View style={fmstyles.navigateButton}>
+            <View style={[fmstyles.navigateButton, { opacity: 0.5 }]}>
               <Text style={fmstyles.navigateButtonText}>Reittiohjeet</Text>
               <MaterialIcons name="directions" size={24} color="white" />
             </View>
 
-            <Pressable style={fmstyles.button}>
+            {/* <Pressable style={[fmstyles.button, { opacity: 0.3 }]}>
               <MaterialIcons
                 name="edit"
                 size={20}
@@ -813,23 +813,40 @@ export default function HomeScreen() {
               <Text
                 style={[fmstyles.buttonText, isDark && { color: "#e5e5e5" }]}
               >
-                Muokkaa nimeä
+                Muokkaa nimeä (Tulossa pian....)
               </Text>
-            </Pressable>
+            </Pressable> */}
 
             <View style={{ height: 8 }} />
 
-            <Pressable style={fmstyles.redButton}>
+            <Pressable
+              style={fmstyles.redButton}
+              onPress={() => {
+                // handleStopSharing(friendId);
+                friendModalRef.current?.close();
+              }}
+            >
               <Text style={fmstyles.redButtonText}>
                 Lopeta oman sijainnin jako
               </Text>
             </Pressable>
-            <Pressable style={fmstyles.redButton}>
+            <Pressable
+              style={fmstyles.redButton}
+              onPress={() => {
+                // handleBlockFriend(friendId);
+                friendModalRef.current?.close();
+              }}
+            >
               <Text style={fmstyles.redButtonText}>
                 Estä {friends.find((f) => f.id === friendId)?.name}
               </Text>
             </Pressable>
-            <Pressable style={fmstyles.redButton}>
+            <Pressable
+              style={fmstyles.redButton}
+              onPress={() => {
+                // handleReportFriend(friendId);
+              }}
+            >
               <Text style={fmstyles.redButtonText}>
                 Ilmianna {friends.find((f) => f.id === friendId)?.name}
               </Text>

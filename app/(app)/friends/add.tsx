@@ -1,3 +1,4 @@
+import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
@@ -28,16 +29,18 @@ const AddFriendScreen = () => {
   const [friend, setFriend] = useState<FriendUser | null>(null);
   const [user, setUser] = useState<any>(null);
   const [requestSent, setRequestSent] = useState(false);
-  const [buttonLabel, setButtonLabel] = useState("Add friend");
+  const [buttonLabel, setButtonLabel] = useState("Lisää kaveri");
   const isDark = useColorScheme() === "dark";
 
   const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
+      const user = await getUser();
+      setUser(user);
+      console.log(`👤 Authenticated user: ${user?.id || "None"} in add.tsx`);
     };
+
     fetchUser();
   }, []);
 
@@ -63,7 +66,7 @@ const AddFriendScreen = () => {
         console.log("Error fetching user:", error);
         setFriend(null);
         setRequestSent(false);
-        setButtonLabel("Add friend");
+        setButtonLabel("Lisää kaveri");
       } else {
         setFriend(data);
         console.log("User found:", data);
@@ -77,7 +80,7 @@ const AddFriendScreen = () => {
         if (relationsError) {
           console.log("Error fetching relations:", relationsError);
           setRequestSent(false);
-          setButtonLabel("Add friend");
+          setButtonLabel("Lisää kaveri");
         }
 
         console.log("Relations:", relations, user?.id, data.id);
@@ -181,7 +184,7 @@ const AddFriendScreen = () => {
               setCode(value);
               setFriend(null);
               setRequestSent(false);
-              setButtonLabel("Add friend");
+              setButtonLabel("Lisää kaveri");
               if (value.length === 6 && !isSearching) {
                 handleSearch(value);
               }
@@ -263,7 +266,7 @@ const AddFriendScreen = () => {
         {code.length === 6 &&
           !isSearching &&
           friend !== null &&
-          friend.id === user?.id && (
+          friend.id === user.id && (
             <View style={styles.resultContainer}>
               <MaterialIcons
                 name="favorite"
