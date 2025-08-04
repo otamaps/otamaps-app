@@ -9,9 +9,11 @@ import MapBottomSheet, {
 import FriendModalSheet, {
   FriendModalSheetRef,
 } from "@/components/sheets/friendModalSheet";
+
 import RoomModalSheet, {
   RoomModalSheetMethods,
 } from "@/components/sheets/roomModalSheet";
+import { BLELocationService } from "@/lib/bleLocationService";
 import {
   Friend,
   getFriends,
@@ -200,6 +202,10 @@ export default function HomeScreen() {
   const [friendsWithLocations, setFriendsWithLocations] = useState<
     FriendWithLocation[]
   >([]);
+
+  const currentLocation = useMemo(() => {
+    return BLELocationService.getCurrentLocation();
+  }, []);
 
   // Fetch friend locations from Supabase
   const fetchFriendLocations = useCallback(async () => {
@@ -508,122 +514,88 @@ export default function HomeScreen() {
   }, [filteredRoomsWithGeometry, selectedRoomId]);
 
   // Create GeoJSON for friend locations
+  // Spiderfy logic: spread friends at the same coordinates in a circle
   const friendsGeoJSON = useMemo(() => {
-    console.log("🔍 Friend filtering debug:", {
-      selectedFloor,
-      selectedFloorType: typeof selectedFloor,
-      selectedFloorAsString: selectedFloor.toString(),
-    });
-
+    // Filter friends to show on the selected floor and with valid location
     const friendsToShow = friendsWithLocations.filter((friend) => {
       const hasLocation = !!friend.location;
-      // Convert both to numbers for comparison since floor might be stored as number or string
       const friendFloor = Number(friend.locationData?.floor);
       const selectedFloorNum = Number(selectedFloor);
-      const floorMatch = friendFloor === selectedFloorNum;
-
-      console.log(`🧑 Filtering ${friend.name}:`, {
-        hasLocation,
-        friendFloor: friend.locationData?.floor,
-        friendFloorType: typeof friend.locationData?.floor,
-        friendFloorAsNumber: friendFloor,
-        selectedFloor: selectedFloor,
-        selectedFloorAsNumber: selectedFloorNum,
-        floorMatch,
-        willShow: hasLocation && floorMatch,
-      });
-
-      return hasLocation && floorMatch;
+      return hasLocation && friendFloor === selectedFloorNum;
     });
 
-    console.log("🗺️ Creating friends GeoJSON:", {
-      selectedFloor,
-      totalFriendsWithLocations: friendsWithLocations.length,
-      friendsToShow: friendsToShow.length,
-      friendsToShowSample: friendsToShow[0],
+    // Group friends by their coordinates (rounded to 5 decimals)
+    const coordKey = (loc: [number, number]) =>
+      loc[0].toFixed(5) + "," + loc[1].toFixed(5);
+    const groups: Record<string, FriendWithLocation[]> = {};
+    friendsToShow.forEach((friend) => {
+      if (!friend.location) return;
+      const key = coordKey(friend.location);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(friend);
     });
 
-    // Log all friends with their coordinates
-    console.log("👥 All friends with locations:");
-    friendsWithLocations.forEach((friend, index) => {
-      console.log(`  ${index + 1}. ${friend.name}:`, {
-        id: friend.id,
-        status: friend.status,
-        hasLocation: !!friend.location,
-        coordinates: friend.location,
-        floor: friend.locationData?.floor,
-        selectedFloor: selectedFloor.toString(),
-        matchesFloor: friend.locationData?.floor === selectedFloor.toString(),
-        willBeDisplayed:
-          friend.location &&
-          friend.locationData?.floor === selectedFloor.toString(),
-      });
-    });
-
-    // Log friends that will be displayed on map
-    console.log("🎯 Friends to be displayed on map:");
-    friendsToShow.forEach((friend, index) => {
-      console.log(`  ${index + 1}. ${friend.name}:`, {
-        id: friend.id,
-        coordinates: friend.location,
-        status: friend.status,
-        floor: friend.locationData?.floor,
-      });
-    });
-
-    const features = friendsToShow.map((friend) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: friend.location!,
-      },
-      properties: {
-        id: friend.id,
-        name: friend.name,
-        status: friend.status || "at school",
-        color: friend.color,
-        initial: friend.name.charAt(0).toUpperCase(),
-      },
-    }));
-
-    console.log("📍 GeoJSON features created:", features.length);
-    console.log("📍 Individual features:");
-    features.forEach((feature, index) => {
-      console.log(`  Feature ${index + 1}:`, {
-        coordinates: feature.geometry.coordinates,
-        properties: feature.properties,
-        geometryType: feature.geometry.type,
-      });
-    });
-
-    const finalGeoJSON = {
-      type: "FeatureCollection",
-      features,
+    // For each group, if more than one friend, offset their positions in a circle
+    const features: any[] = [];
+    const offsetMeters = 2; // how far to offset (meters)
+    const metersToDegrees = (meters: number, lat: number) => {
+      // Approximate conversion for small distances
+      const earthRadius = 6378137;
+      const dLat = (meters / earthRadius) * (180 / Math.PI);
+      const dLng =
+        (meters / (earthRadius * Math.cos((Math.PI * lat) / 180))) *
+        (180 / Math.PI);
+      return { dLat, dLng };
     };
 
-    console.log("📍 Final GeoJSON object:", finalGeoJSON);
-    console.log("📍 Will render ShapeSource:", features.length > 0);
+    Object.entries(groups).forEach(([key, group]) => {
+      if (group.length === 1) {
+        const friend = group[0];
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: friend.location!,
+          },
+          properties: {
+            id: friend.id,
+            name: friend.name,
+            status: friend.status || "at school",
+            color: friend.color,
+            initial: friend.name.charAt(0).toUpperCase(),
+          },
+        });
+      } else {
+        // Spread friends in a circle
+        const [lng, lat] = group[0].location!;
+        const { dLat, dLng } = metersToDegrees(offsetMeters, lat);
+        const angleStep = (2 * Math.PI) / group.length;
+        group.forEach((friend, idx) => {
+          const angle = idx * angleStep;
+          const offsetLng = lng + Math.cos(angle) * dLng;
+          const offsetLat = lat + Math.sin(angle) * dLat;
+          features.push({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [offsetLng, offsetLat],
+            },
+            properties: {
+              id: friend.id,
+              name: friend.name,
+              status: friend.status || "at school",
+              color: friend.color,
+              initial: friend.name.charAt(0).toUpperCase(),
+            },
+          });
+        });
+      }
+    });
 
-    // Additional coordinate debugging
-    if (features.length > 0) {
-      const firstFeature = features[0];
-      const [lng, lat] = firstFeature.geometry.coordinates;
-      console.log("🌍 Coordinate analysis:", {
-        originalCoords: firstFeature.geometry.coordinates,
-        longitude: lng,
-        latitude: lat,
-        isInFinland: lat >= 59.8 && lat <= 70.1 && lng >= 19.1 && lng <= 31.6,
-        isNearOtaniemi:
-          Math.abs(lat - 60.184) < 0.01 && Math.abs(lng - 24.818) < 0.01,
-        mapCenter: [24.818510511790645, 60.18394233125424],
-        distanceFromCenter: Math.sqrt(
-          Math.pow(lng - 24.818510511790645, 2) +
-            Math.pow(lat - 60.18394233125424, 2)
-        ),
-      });
-    }
-
-    return finalGeoJSON as any;
+    return {
+      type: "FeatureCollection",
+      features,
+    } as any;
   }, [friendsWithLocations, selectedFloor]);
 
   // Handle room press on the map
@@ -733,14 +705,45 @@ export default function HomeScreen() {
                 id="friendsSource"
                 shape={friendsGeoJSON}
                 onPress={handleFriendFeaturePress}
+                cluster={true}
+                clusterRadius={40}
+                clusterMaxZoom={16}
               >
-                {/* 
-                  Text will NOT work here. 
-                  Mapbox layers (like ShapeSource, CircleLayer) do not render React Native <Text> elements on the map.
-                  To show text labels on the map, use a SymbolLayer with the 'textField' property.
-                */}
+                {/* Clustered friend markers: show gray circle with count, else show friend circle/initial */}
+                <CircleLayer
+                  id="friend-cluster-circles"
+                  filter={["has", "point_count"]}
+                  style={{
+                    circleColor: "#888",
+                    circleRadius: [
+                      "step",
+                      ["get", "point_count"],
+                      16,
+                      5,
+                      20,
+                      10,
+                      24,
+                      25,
+                      28,
+                    ],
+                    circleOpacity: 0.8,
+                  }}
+                />
+                <SymbolLayer
+                  id="friend-cluster-count"
+                  filter={["has", "point_count"]}
+                  style={{
+                    textField: ["get", "point_count"],
+                    textSize: 15,
+                    textColor: "white",
+                    textFont: ["Open Sans Bold", "Arial Unicode MS Bold"],
+                    textAnchor: "center",
+                    textOffset: [0, 0],
+                  }}
+                />
                 <CircleLayer
                   id="friend-circles"
+                  filter={["!has", "point_count"]}
                   style={{
                     circleRadius: [
                       "interpolate",
@@ -751,28 +754,17 @@ export default function HomeScreen() {
                       18,
                       16,
                     ],
-                    // circleColor: isDark ? "#1e1e1e" : "#fff",
-                    // circleStrokeColor: [
-                    //   "case",
-                    //   ["==", ["get", "status"], "at school"],
-                    //   "#4CAF50",
-                    //   ["==", ["get", "status"], "busy"],
-                    //   "#FF9800",
-                    //   ["==", ["get", "status"], "away"],
-                    //   "#9E9E9E",
-                    //   "#2196F3",
-                    // ],
                     circleStrokeColor: isDark ? "#171717" : "#fff",
                     circleColor: ["get", "color"],
                     circleStrokeWidth: 2,
                     circleOpacity: 1,
                   }}
                 />
-
                 <SymbolLayer
                   id="friend-labels"
+                  filter={["!has", "point_count"]}
                   style={{
-                    textField: ["get", "initial"], // or use initials logic
+                    textField: ["get", "initial"],
                     textSize: 15,
                     textColor: "white",
                     textAnchor: "center",
@@ -780,8 +772,6 @@ export default function HomeScreen() {
                     textHaloColor: ["get", "color"],
                     textHaloWidth: 1,
                     textFont: ["Open Sans Bold", "Arial Unicode MS Bold"],
-                    // textWeight: "bold",
-                    // textAllowOverlap: true,
                   }}
                 />
               </ShapeSource>
@@ -816,6 +806,11 @@ export default function HomeScreen() {
               style={[
                 fmstyles.headerContainer,
                 isDark && { backgroundColor: "#1e1e1e" },
+                {
+                  borderBottomColor: isDark ? "#333" : "#e5e5e5",
+                  borderBottomWidth: 1,
+                  paddingBottom: 24,
+                },
               ]}
             >
               <View style={fmstyles.headerLeft}>
@@ -836,10 +831,10 @@ export default function HomeScreen() {
                 <MaterialIcons name="close" size={24} color="#666" />
               </Pressable>
             </View>
-            <View style={[fmstyles.navigateButton, { opacity: 0.5 }]}>
+            {/* <View style={[fmstyles.navigateButton, { opacity: 0.5 }]}>
               <Text style={fmstyles.navigateButtonText}>Reittiohjeet</Text>
               <MaterialIcons name="directions" size={24} color="white" />
-            </View>
+            </View> */}
 
             {/* <Pressable style={[fmstyles.button, { opacity: 0.3 }]}>
               <MaterialIcons
