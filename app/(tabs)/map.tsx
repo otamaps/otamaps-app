@@ -94,7 +94,7 @@ type myFeature = {
 type RoomItemData = {
   id: string;
   name: string;
-  floor: string;
+  floor: number; // Change from string to number to match the database
   capacity: number;
   isAvailable: boolean;
   isFavorite: boolean;
@@ -293,12 +293,18 @@ export default function HomeScreen() {
   // Filter rooms by selected floor
   const filteredRoomData = useMemo(() => {
     const filtered = roomData.filter((room) => {
-      // For now, we'll extract floor from room number if floorId isn't available
-      // Assuming room numbers like "D101" where first digit after letter is floor
-      const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
-      const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
-      return roomFloor === selectedFloor;
+      // Use the actual floor field from the database instead of parsing room number
+      return room.floor === selectedFloor;
     });
+    
+    // Debug logging
+    console.log(`🔍 Filtering rooms for floor ${selectedFloor}:`);
+    console.log(`  Total rooms: ${roomData.length}`);
+    console.log(`  Filtered rooms: ${filtered.length}`);
+    if (filtered.length > 0) {
+      console.log(`  Sample filtered rooms:`, filtered.slice(0, 3).map(r => `${r.room_number} (floor ${r.floor})`));
+    }
+    
     return filtered;
   }, [roomData, selectedFloor]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -326,14 +332,10 @@ export default function HomeScreen() {
     if (rooms.length > 0) {
       // Transform Room[] to RoomItemData[]
       const transformedRooms = rooms.map((room) => {
-        // Extract floor from room_number (e.g., "D101" -> floor 1)
-        const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
-        const floor = floorMatch ? floorMatch[1] : "1";
-
         return {
           id: room.id,
           name: room.title || room.room_number,
-          floor: floor,
+          floor: room.floor, // Use the actual floor field
           capacity: room.seats || 0,
           isAvailable: room.status !== "occupied",
           isFavorite: false, // Default to false, this will be managed by local state
@@ -341,6 +343,20 @@ export default function HomeScreen() {
         };
       });
       setRoomData(transformedRooms);
+      
+      // Debug logging to verify floor data
+      console.log('🏢 Room floor debug:');
+      console.log('Total rooms:', rooms.length);
+      console.log('Sample rooms with floors:');
+      rooms.slice(0, 5).forEach(room => {
+        console.log(`  ${room.room_number} -> floor ${room.floor} (from database)`);
+      });
+      
+      const floorCounts = transformedRooms.reduce((acc, room) => {
+        acc[room.floor] = (acc[room.floor] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>);
+      console.log('Rooms per floor:', floorCounts);
     } else {
       setRoomData([]);
     }
@@ -476,10 +492,8 @@ export default function HomeScreen() {
   // Filter rooms with geometry by selected floor
   const filteredRoomsWithGeometry = useMemo(() => {
     return roomsWithGeometry.filter((room) => {
-      // Extract floor from room number (e.g., "D101" -> floor 1)
-      const floorMatch = room.room_number?.match(/[A-Z]?(\d)/);
-      const roomFloor = floorMatch ? parseInt(floorMatch[1]) : 1;
-      return roomFloor === selectedFloor;
+      // Use the actual floor field from the database
+      return room.floor === selectedFloor;
     });
   }, [roomsWithGeometry, selectedFloor]);
 
@@ -1166,6 +1180,7 @@ export default function HomeScreen() {
                         ...item,
                         title: item.name, // Map name to title for RoomItem component
                         seats: item.capacity, // Map capacity to seats for RoomItem component
+                        floor: item.floor.toString(), // Convert number to string for RoomItem component
                         isFavorite: item.isFavorite || false,
                         onFavoritePress: () => {
                           setRoomData((prev) =>
@@ -1243,6 +1258,7 @@ export default function HomeScreen() {
                           ...item,
                           title: item.name, // Map name to title for RoomItem component
                           seats: item.capacity, // Map capacity to seats for RoomItem component
+                          floor: item.floor.toString(), // Convert number to string for RoomItem component
                         };
                         return (
                           <RoomItem
