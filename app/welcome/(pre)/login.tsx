@@ -1,6 +1,7 @@
 import { configureGoogleSignIn, isGoogleSignInAvailable, signInWithGoogle } from '@/lib/googleAuth';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -34,19 +35,24 @@ export default function Login() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#4285F4" />
-        <Text style={{ marginTop: 16 }}>Signing in with Google...</Text>
-      </View>
+      <>
+        <StatusBar style="dark" backgroundColor="#fff" />
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#4285F4" />
+          <Text style={{ marginTop: 16 }}>Signing in with Google...</Text>
+        </View>
+      </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Tervetuloa takaisin</Text>
-        <Text style={styles.subtitle}>Kirjaudu sisään jatkaaksesi sovellukseen</Text>
-      </View>
+    <>
+      <StatusBar style="dark" backgroundColor="#fff" />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Tervetuloa takaisin</Text>
+          <Text style={styles.subtitle}>Kirjaudu sisään jatkaaksesi sovellukseen</Text>
+        </View>
       
       <View style={styles.buttonContainer}>
         <Pressable 
@@ -101,6 +107,7 @@ export default function Login() {
       </Text>
 
     </SafeAreaView>
+    </>
   );
 }
 
