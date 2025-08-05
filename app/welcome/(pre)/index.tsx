@@ -15,7 +15,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -97,7 +96,25 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.logoContainer}>
-          <Text style={styles.mahdollistanut}>Mahdollistanut</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={() => router.push("/welcome/emailLogin")}
+            disabled={loading}
+          >
+            <LinearGradient
+              colors={["#518EEC", "#3478F5"]}
+              style={styles.buttonGradient}
+              pointerEvents="none"
+            />
+            <View style={styles.buttonContent}>
+              {/* <FontAwesome name="google" size={26} color="white" /> */}
+              <Text style={styles.buttonText}>Kirjaudu sisään</Text>
+            </View>
+          </Pressable>
+          {/* <Text style={styles.mahdollistanut}>Mahdollistanut</Text>
           <TouchableOpacity
             style={styles.logo}
             onPress={() => Linking.openURL("https://www.streetsmarts.fi/")}
@@ -107,7 +124,7 @@ export default function WelcomeScreen() {
               style={styles.logo}
               resizeMode="contain"
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <Text style={styles.disclaimer}>
             Kirjautumalla sisään hyväksyt{" "}
@@ -139,20 +156,6 @@ export default function WelcomeScreen() {
               <Text style={styles.buttonText}>Jatka Googlella</Text>
             </View>
           </Pressable> */}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => router.push("/welcome/emailLogin")}
-            disabled={loading}
-          >
-            <View style={styles.buttonContent}>
-              {/* <FontAwesome name="google" size={26} color="white" /> */}
-              <Text style={styles.buttonText}>Kirjaudu sisään</Text>
-            </View>
-          </Pressable>
 
           {/* <Pressable 
             style={({ pressed }) => [
@@ -205,14 +208,14 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: "30%",
+    height: "50%",
   },
   bottomGradient: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: "30%",
+    height: "50%",
   },
   topContainer: {
     alignItems: "center",
@@ -251,7 +254,7 @@ const styles = StyleSheet.create({
     color: "#cbb57f",
   },
   button: {
-    backgroundColor: "#3478F5",
+    backgroundColor: "#ff0000",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -270,7 +273,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "#fff",
-    paddingLeft: 10,
+    // paddingLeft: 10,
     fontSize: 18,
     fontFamily: "Figtree-SemiBold",
   },
@@ -298,6 +301,14 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-Regular",
     textAlign: "center",
     color: "#666",
-    marginBottom: 10,
+    marginTop: 32,
+  },
+  buttonGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "250%",
+    borderRadius: 10,
   },
 });
