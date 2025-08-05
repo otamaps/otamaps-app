@@ -20,7 +20,7 @@ import {
   getRequests,
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
-import { Room, useRoomStore } from "@/lib/roomService";
+import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -32,6 +32,7 @@ import {
   Camera,
   CircleLayer,
   CustomLocationProvider,
+  FillExtrusionLayer,
   FillLayer,
   MapView,
   RasterLayer,
@@ -286,6 +287,7 @@ export default function HomeScreen() {
     }
   }, [friends, fetchFriendLocations]);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
+  const { features, loading: featuresLoading, error: featuresError, fetchFeatures } = useFeatureStore();
   const [roomData, setRoomData] = useState<
     (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
@@ -324,8 +326,15 @@ export default function HomeScreen() {
     fetchRoomsRef.current = fetchRooms;
   }, [fetchRooms]);
 
+  const fetchFeaturesRef = useRef(fetchFeatures);
+  
+  useEffect(() => {
+    fetchFeaturesRef.current = fetchFeatures;
+  }, [fetchFeatures]);
+
   useEffect(() => {
     fetchRoomsRef.current();
+    fetchFeaturesRef.current();
   }, []);
 
   useEffect(() => {
@@ -361,6 +370,29 @@ export default function HomeScreen() {
       setRoomData([]);
     }
   }, [rooms]);
+
+  useEffect(() => {
+    if (features.length > 0) {
+      console.log('🏗️ Features debug:');
+      console.log('Total features:', features.length);
+      console.log('Sample features with types:');
+      features.slice(0, 5).forEach(feature => {
+        console.log(`  ${feature.id} -> floor ${feature.floor}, type: ${feature.type}`);
+      });
+      
+      const featureTypeCounts = features.reduce((acc, feature) => {
+        acc[feature.type] = (acc[feature.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('Features by type:', featureTypeCounts);
+      
+      const floorCounts = features.reduce((acc, feature) => {
+        acc[feature.floor] = (acc[feature.floor] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>);
+      console.log('Features per floor:', floorCounts);
+    }
+  }, [features]);
 
   useFocusEffect(
     useCallback(() => {
@@ -527,6 +559,76 @@ export default function HomeScreen() {
     } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
   }, [filteredRoomsWithGeometry, selectedRoomId]);
 
+  // Filter features by selected floor
+  const filteredFeatures = useMemo(() => {
+    const filtered = features.filter((feature) => {
+      // Add safety checks for feature structure
+      if (!feature || typeof feature.floor !== 'number') {
+        console.warn('🏗️ Invalid feature found:', feature);
+        return false;
+      }
+      return feature.floor === selectedFloor;
+    });
+    
+    console.log(`🏗️ Filtering features for floor ${selectedFloor}:`, {
+      totalFeatures: features.length,
+      filteredFeatures: filtered.length,
+      invalidFeatures: features.length - features.filter(f => f && typeof f.floor === 'number').length,
+    });
+    
+    return filtered;
+  }, [features, selectedFloor]);
+
+  // Create GeoJSON for features with extrusion heights
+  const featuresGeoJSON = useMemo(() => {
+    const geoFeatures = filteredFeatures
+      .filter((feature) => {
+        // Safety checks for geometry
+        if (!feature.geometry) {
+          console.warn('🏗️ Feature missing geometry:', feature.id);
+          return false;
+        }
+        if (!feature.geometry.type || !feature.geometry.coordinates) {
+          console.warn('🏗️ Feature has invalid geometry structure:', feature.id, feature.geometry);
+          return false;
+        }
+        // Check if coordinates are properly formatted
+        if (!Array.isArray(feature.geometry.coordinates)) {
+          console.warn('🏗️ Feature geometry coordinates not an array:', feature.id);
+          return false;
+        }
+        return true;
+      })
+      .map((feature) => {
+        // Set height based on feature type
+        const height = feature.type === 'wall' ? 5 : 2; // 5m for walls, 2m for other features
+        
+        return {
+          type: "Feature",
+          geometry: feature.geometry,
+          properties: {
+            id: feature.id,
+            type: feature.type,
+            floor: feature.floor,
+            height: height,
+            ...feature.properties,
+          },
+        };
+      });
+
+    console.log(`🏗️ Features GeoJSON for floor ${selectedFloor}:`, {
+      totalFiltered: filteredFeatures.length,
+      validFeatures: geoFeatures.length,
+      invalidFeatures: filteredFeatures.length - geoFeatures.length,
+      wallFeatures: geoFeatures.filter(f => f.properties.type === 'wall').length,
+    });
+
+    return {
+      type: "FeatureCollection",
+      features: geoFeatures,
+    } as any;
+  }, [filteredFeatures, selectedFloor]);
+
   // Create GeoJSON for friend locations
   // Spiderfy logic: spread friends at the same coordinates in a circle
   const friendsGeoJSON = useMemo(() => {
@@ -690,6 +792,31 @@ export default function HomeScreen() {
                     ],
                     fillOpacity: 0.8,
                     fillOutlineColor: "#fff",
+                  }}
+                />
+              </ShapeSource>
+            )}
+
+            {/* Building Features (walls, etc.) */}
+            {featuresGeoJSON.features.length > 0 && (
+              <ShapeSource
+                id="featuresSource"
+                shape={featuresGeoJSON}
+              >
+                <FillExtrusionLayer
+                  id="features-extrusion"
+                  minZoomLevel={10}
+                  maxZoomLevel={22}
+                  style={{
+                    fillExtrusionColor: [
+                      "case",
+                      ["==", ["get", "type"], "wall"],
+                      "#666666", // Brown color for walls
+                      "#666666"  // Gray for other features
+                    ],
+                    fillExtrusionHeight: ["get", "height"],
+                    fillExtrusionBase: 0,
+                    fillExtrusionOpacity: 0.8,
                   }}
                 />
               </ShapeSource>
