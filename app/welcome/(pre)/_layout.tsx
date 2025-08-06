@@ -1,16 +1,22 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
 export default function WelcomeLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // presentation: "modal",
+        // gestureEnabled: false,
+      }}
+    >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="login" 
-        options={{ 
+      <Stack.Screen
+        name="login"
+        options={{
           headerShown: false,
-          presentation: 'card',
-          gestureEnabled: false 
-        }} 
+          presentation: "card",
+          gestureEnabled: false,
+        }}
       />
     </Stack>
   );
