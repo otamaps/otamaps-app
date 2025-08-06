@@ -2,7 +2,7 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
@@ -14,10 +14,10 @@
       "bundleIdentifier": "fi.otamaps.ios",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "OtaMaps uses your GPS location to show your position on the school map. This helps you navigate the building. Location is only stored on your device.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps uses your location in the background to keep showing your position on the map while scanning for nearby BLE beacons. No GPS data is sent outside the app.",
-        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect fixed BLE beacons installed in rooms at your school. For example, when you walk into a classroom, OtaMaps recognizes the beacon there and updates your room location. This helps the app show your indoor position and optionally share it with selected friends. No Bluetooth data is stored or shared outside the app.",
-        "NSBluetoothPeripheralUsageDescription": "OtaMaps scans for BLE beacons placed in rooms like classrooms or the cafeteria. For example, when you pass a beacon near the library, the app knows you are there and updates your location on the school map. This improves indoor navigation and optional location sharing. OtaMaps does not store or share any Bluetooth data outside your device."
+        "NSLocationWhenInUseUsageDescription": "OtaMaps uses your GPS and Bluetooth-based location to show your position on the school map. Your location is sent to our server and shared with friends you have added.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps uses your location in the background to detect nearby BLE beacons and keep your position updated. Your location is sent to our server and shared with friends you have added.",
+        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect BLE beacons installed in school rooms to determine your location. This location is sent to our server and shared with friends you have added to help show your position on the school map.",
+        "NSBluetoothPeripheralUsageDescription": "OtaMaps scans for BLE beacons in classrooms and other areas to estimate your current room. This data is sent to our server and shared with friends you have added."
       }
     },
     "android": {
