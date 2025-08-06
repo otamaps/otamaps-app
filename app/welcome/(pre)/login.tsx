@@ -1,7 +1,7 @@
 import { configureGoogleSignIn, isGoogleSignInAvailable, signInWithGoogle } from '@/lib/googleAuth';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);

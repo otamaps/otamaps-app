@@ -241,11 +241,11 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                   resizeMode="cover"
                 />
               ) : (
-                <View style={[styles.roomImage, styles.imagePlaceholder]}>
+                <View style={[styles.roomImage, styles.imagePlaceholder, isDark && styles.imagePlaceholderDark]}>
                   <MaterialIcons
                     name="image-not-supported"
                     size={50}
-                    color="#ccc"
+                    color={isDark ? "#666" : "#ccc"}
                   />
                 </View>
               )}
@@ -261,9 +261,9 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
             {/* Room Details */}
             <View style={styles.detailsContainer}>
               <View style={styles.headerRow}>
-                <View>
+                <View style={styles.roomTitleContainer}>
                   <Text style={[styles.roomName, isDark && { color: "#fff" }]}>
-                    {room.title}
+                    {room.room_number} {room.title}
                   </Text>
                   <Text
                     style={[
@@ -322,12 +322,14 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                     Up to {room.seats} people
                   </Text>
                 </View>
-                <View style={styles.infoItem}>
-                  <MaterialIcons name="straighten" size={20} color="#666" />
-                  <Text style={[styles.infoText, isDark && { color: "#fff" }]}>
-                    {room.size} m²
-                  </Text>
-                </View>
+                {room.size && room.size > 0 && (
+                  <View style={styles.infoItem}>
+                    <MaterialIcons name="straighten" size={20} color="#666" />
+                    <Text style={[styles.infoText, isDark && { color: "#fff" }]}>
+                      {room.size} m²
+                    </Text>
+                  </View>
+                )}
                 {room.is_accessible && (
                   <View style={styles.infoItem}>
                     <MaterialIcons name="accessible" size={20} color="#666" />
@@ -340,19 +342,27 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                 )}
               </View>
 
-              <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
-                About This Room
-              </Text>
-              <Text style={[styles.description, isDark && { color: "#fff" }]}>
-                {room.description}
-              </Text>
+              {room.description && room.description.trim() && (
+                <>
+                  <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
+                    About This Room
+                  </Text>
+                  <Text style={[styles.description, isDark && { color: "#fff" }]}>
+                    {room.description}
+                  </Text>
+                </>
+              )}
 
-              <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
-                Equipment
-              </Text>
-              <View style={styles.amenitiesContainer}>
-                {room.equipment?.map((item) => renderAmenityIcon(item))}
-              </View>
+              {room.equipment && room.equipment.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
+                    Equipment
+                  </Text>
+                  <View style={styles.amenitiesContainer}>
+                    {room.equipment.map((item) => renderAmenityIcon(item))}
+                  </View>
+                </>
+              )}
             </View>
           </BottomSheetScrollView>
         </BottomSheetView>
@@ -419,6 +429,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  imagePlaceholderDark: {
+    backgroundColor: "#2c2c2c",
+  },
   imageGradient: {
     position: "absolute",
     left: 0,
@@ -447,11 +460,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  roomTitleContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
   roomName: {
     fontSize: 24,
     fontWeight: "bold",
-    flex: 1,
-    marginRight: 16,
   },
   roomLocation: {
     fontSize: 14,
