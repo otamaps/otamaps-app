@@ -446,9 +446,9 @@ const Me = () => {
           </Pressable>
         </View>
 
-        <TouchableOpacity
+        <View
           style={{ alignItems: "center", marginBottom: 80, opacity: 0.55 }}
-          onPress={() => Linking.openURL("https://streetsmarts.fi/")}
+          // onPress={() => Linking.openURL("https://streetsmarts.fi/")}
         >
           <Text
             style={{
@@ -459,13 +459,48 @@ const Me = () => {
           >
             mahdollistanut
           </Text>
-          <Image
-            source={require("@/assets/images/streetsmarts.png")}
-            resizeMode="contain"
-            style={{ width: 90, height: 70, marginVertical: 8 }}
-            tintColor="#999"
-          />
-        </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: "Figtree-SemiBold",
+                color: isDark ? "#a1a1a1" : "#999",
+              }}
+            >
+              OPKH
+            </Text>
+            <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
+              |
+            </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL("https://streetsmarts.fi/")}
+            >
+              <Image
+                source={require("@/assets/images/streetsmarts.png")}
+                resizeMode="contain"
+                style={{
+                  width: 70,
+                  height: 50,
+                  marginVertical: 8,
+                  marginTop: 20,
+                }}
+                tintColor="#999"
+              />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
+              |
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: "Figtree-SemiBold",
+                color: isDark ? "#a1a1a1" : "#999",
+              }}
+            >
+              OLVY
+            </Text>
+          </View>
+        </View>
       </View>
     </SafeAreaView>
   );

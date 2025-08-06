@@ -2,7 +2,7 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
@@ -14,10 +14,10 @@
       "bundleIdentifier": "fi.otamaps.ios",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "This app uses your location to detect which room you are in using Bluetooth beacons.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location in the background to continue scanning for nearby beacons.",
-        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to detect nearby beacons in rooms.",
-        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to communicate with nearby devices."
+        "NSLocationWhenInUseUsageDescription": "OtaMaps uses your location to estimate which room you are in using Bluetooth beacons. For example, it shows your approximate room on the school map to help you navigate.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps needs background location access to continuously detect nearby beacons, even when the app is not active. This allows your room location to stay up to date on the school map.",
+        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect room-specific BLE beacons placed inside the school. For example, it shows your estimated room location on the school map for indoor navigation.",
+        "NSBluetoothPeripheralUsageDescription": "OtaMaps uses Bluetooth to scan for BLE beacons located in specific rooms. These signals help determine your approximate indoor location."
       }
     },
     "android": {
