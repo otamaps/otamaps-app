@@ -74,7 +74,7 @@
         {
           "isBackgroundEnabled": true,
           "modes": ["peripheral", "central"],
-          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
+          "bluetoothAlwaysPermission": "OtaMaps uses your location in the background to detect nearby BLE beacons and keep your position updated. Your location is sent to our server and shared with friends you have added."
         }
       ],
       "expo-font",
