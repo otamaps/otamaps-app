@@ -263,7 +263,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
               <View style={styles.headerRow}>
                 <View style={styles.roomTitleContainer}>
                   <Text style={[styles.roomName, isDark && { color: "#fff" }]}>
-                    {room.room_number} {room.title}
+                    {room.room_number ? `${room.room_number} ${room.title}` : room.title}
                   </Text>
                   <Text
                     style={[

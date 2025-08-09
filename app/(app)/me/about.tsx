@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
@@ -59,7 +60,7 @@ const About = () => {
           fontSize: 16,
         }}
       >
-        Versio 0.0.1
+        Versio {Constants.expoConfig?.version || "0.0.1"} ({Constants.expoConfig?.android?.versionCode || ""})
       </Text>
       <Text
         style={{
