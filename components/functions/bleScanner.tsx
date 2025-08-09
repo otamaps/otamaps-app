@@ -144,9 +144,14 @@ class BLEScannerService {
   private async startContinuousScanning() {
     await this.requestPermissions();
 
-    // Scan specifically for OtaMaps service UUID
+    // On Android, scan for all devices since UUID filtering is problematic
+    // On iOS, continue using UUID filtering for better performance
+    const serviceUUIDs = Platform.OS === 'android' ? null : [OTAMAPS_SERVICE_UUID];
+    
+    console.log(`🔍 Starting BLE scan on ${Platform.OS} with UUID filtering: ${serviceUUIDs ? 'enabled' : 'disabled'}`);
+
     manager.startDeviceScan(
-      [OTAMAPS_SERVICE_UUID],
+      serviceUUIDs,
       { allowDuplicates: true },
       (error, device) => {
         if (error) {
