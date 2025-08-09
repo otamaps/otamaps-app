@@ -28,12 +28,14 @@ import {
   BottomSheetModalProvider,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Camera,
   CircleLayer,
   CustomLocationProvider,
   FillExtrusionLayer,
   FillLayer,
+  Images,
   MapView,
   RasterLayer,
   setAccessToken,
@@ -199,10 +201,18 @@ export default function HomeScreen() {
   }, [friends, searchQuery]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [selectedFloor, setSelectedFloor] = useState<number>(1);
+  const [selectedFloor, setSelectedFloor] = useState<number>(0);
   const [friendsWithLocations, setFriendsWithLocations] = useState<
     FriendWithLocation[]
   >([]);
+  const [isDebugMode, setIsDebugMode] = useState(false);
+  
+  // Camera state for dynamic positioning
+  const [cameraConfig, setCameraConfig] = useState({
+    centerCoordinate: [24.818510511790645, 60.18394233125424] as [number, number],
+    zoomLevel: 16,
+    animationDuration: 1000,
+  });
 
   const currentLocation = useMemo(() => {
     return BLELocationService.getCurrentLocation();
@@ -337,6 +347,13 @@ export default function HomeScreen() {
     fetchFeaturesRef.current();
   }, []);
 
+  // Load debug mode from AsyncStorage
+  useEffect(() => {
+    AsyncStorage.getItem("isDebugMode").then((value) => {
+      if (value !== null) setIsDebugMode(value === "true");
+    });
+  }, []);
+
   useEffect(() => {
     if (rooms.length > 0) {
       // Transform Room[] to RoomItemData[]
@@ -430,14 +447,28 @@ export default function HomeScreen() {
   // }, []);
 
   const handleRoomPress = useCallback(
-    (roomId: string) => {
-      setSelectedRoomId(roomId);
-      mapBottomSheetRef.current?.snapToMin();
-      roomModalRef.current?.open(roomId);
-
-      // Center the map on the selected room
+    (roomId: string, options?: { focusMap?: boolean }) => {
+      // Find the room to get its floor information
       const room = rooms.find((r) => r.id === roomId);
-      if (room?.geometry) {
+      
+      // Switch to the room's floor if it's different from current
+      if (room && room.floor !== selectedFloor) {
+        console.log(`🏢 Switching from floor ${selectedFloor} to floor ${room.floor} for room ${room.room_number}`);
+        setSelectedFloor(room.floor);
+      }
+
+      // Only update selection state if it's different
+      if (selectedRoomId !== roomId) {
+        setSelectedRoomId(roomId);
+        // Don't open modal immediately, let useEffect handle it
+      } else {
+        // If already selected, open modal immediately
+        mapBottomSheetRef.current?.snapToMin();
+        roomModalRef.current?.open(roomId);
+      }
+
+      // Center the map on the selected room if requested or if room has geometry
+      if (room?.geometry && (options?.focusMap !== false)) {
         // Calculate centroid of the polygon
         const coordinates = room.geometry.coordinates[0];
         type Coordinate = [number, number];
@@ -463,17 +494,26 @@ export default function HomeScreen() {
             ? [sumLng / validPoints, sumLat / validPoints]
             : [0, 0]; // Fallback to [0,0] if no valid points
 
-        // Animate camera to the centroid
-        // mapRef.current?.setCamera({
-        //   centerCoordinate: [centroid[0], centroid[1]],
-        //   zoomLevel: 18,
-        //   animationDuration: 1000,
-        // });
-        mapRef.current?.setCamera();
+        // Update camera to focus on the room
+        setCameraConfig({
+          centerCoordinate: [centroid[0], centroid[1]],
+          zoomLevel: 18,
+          animationDuration: 1000,
+        });
+        
+        console.log(`🎯 Focusing map on room ${room.room_number} at coordinates:`, centroid);
       }
     },
-    [rooms]
+    [rooms, selectedRoomId, selectedFloor]
   );
+
+  // Handle opening modal when room selection changes
+  useEffect(() => {
+    if (selectedRoomId) {
+      mapBottomSheetRef.current?.snapToMin();
+      roomModalRef.current?.open(selectedRoomId);
+    }
+  }, [selectedRoomId]);
 
   const handleFriendOpen = useCallback((friendId: string) => {
     setFriendId(friendId);
@@ -529,6 +569,17 @@ export default function HomeScreen() {
     });
   }, [roomsWithGeometry, selectedFloor]);
 
+  // Helper function to determine WC type from room name
+  const getWCType = (roomName: string): 'wc' | 'men' | 'women' | null => {
+    const name = roomName.toLowerCase();
+    if (name.includes('wc')) {
+      if (name.includes('miehet')) return 'men';
+      if (name.includes('naiset')) return 'women';
+      return 'wc';
+    }
+    return null;
+  };
+
   const roomsGeoJSON = useMemo(() => {
     const features = filteredRoomsWithGeometry.map((room) => {
       const roomColor = getValidColor(room.color);
@@ -537,6 +588,8 @@ export default function HomeScreen() {
         parseInt(roomColor.slice(3, 5), 16),
         parseInt(roomColor.slice(5, 7), 16),
       ];
+
+      const isWC = getWCType(room.title || room.room_number) !== null;
 
       return {
         type: "Feature",
@@ -547,6 +600,7 @@ export default function HomeScreen() {
           title: room.title || "Untitled Room",
           isSelected: selectedRoomId === room.id,
           color: roomColor,
+          isWC: isWC,
           // Pre-calculate RGBA values for unselected state
           rgba: `rgba(${r}, ${g}, ${b}, 0.5)`,
         },
@@ -558,6 +612,29 @@ export default function HomeScreen() {
       features,
     } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
   }, [filteredRoomsWithGeometry, selectedRoomId]);
+
+  // Create GeoJSON for WC room symbols
+  const wcRoomsGeoJSON = useMemo(() => {
+    const wcFeatures = filteredRoomsWithGeometry
+      .filter(room => getWCType(room.title || room.room_number))
+      .map((room) => {
+        const wcType = getWCType(room.title || room.room_number);
+        
+        return {
+          type: "Feature",
+          geometry: room.geometry,
+          properties: {
+            id: room.id,
+            wcType: wcType,
+          },
+        };
+      });
+
+    return {
+      type: "FeatureCollection",
+      features: wcFeatures,
+    } as any;
+  }, [filteredRoomsWithGeometry]);
 
   // Filter features by selected floor
   const filteredFeatures = useMemo(() => {
@@ -762,17 +839,25 @@ export default function HomeScreen() {
             compassViewMargins={{ x: 10, y: 40 }}
             pitchEnabled={true}
             scaleBarEnabled={false}
+            zoomEnabled={true}
+            scrollEnabled={true}
+            rotateEnabled={true}
           >
+            {/* Map image assets */}
+            <Images images={{ stairsIcon: require("../../assets/icons/stairs.png") }} />
             <Camera
-              centerCoordinate={[24.818510511790645, 60.18394233125424]}
-              zoomLevel={16}
-              animationDuration={1000}
+              centerCoordinate={cameraConfig.centerCoordinate}
+              zoomLevel={cameraConfig.zoomLevel}
+              animationDuration={cameraConfig.animationDuration}
               pitch={5}
               maxBounds={{
-                ne: [24.797450838759808, 60.1724484493661],
-                sw: [24.837734917168515, 60.193210548540286],
+                ne: [24.837734917168515, 60.193210548540286],
+                sw: [24.797450838759808, 60.1724484493661],
               }}
-              minZoomLevel={15}
+              minZoomLevel={14}
+              maxZoomLevel={20}
+              allowUpdates={true}
+              followUserLocation={false}
             />
             {/* Room Geometries */}
             {roomsGeoJSON.features.length > 0 && (
@@ -788,10 +873,49 @@ export default function HomeScreen() {
                       "case",
                       ["==", ["get", "isSelected"], true],
                       ["get", "color"],
+                      ["get", "isWC"],
+                      "#E7F0FF", // Blue color for WC rooms
                       ["get", "rgba"],
                     ],
                     fillOpacity: 0.8,
                     fillOutlineColor: "#fff",
+                  }}
+                />
+              </ShapeSource>
+            )}
+
+            {/* WC Room Symbols */}
+            {wcRoomsGeoJSON.features.length > 0 && (
+              <ShapeSource
+                id="wcRoomsSource"
+                shape={wcRoomsGeoJSON}
+              >
+                <SymbolLayer
+                  id="wc-symbols"
+                  minZoomLevel={18}
+                  maxZoomLevel={22}
+                  style={{
+                    textField: [
+                      "case",
+                      ["==", ["get", "wcType"], "men"], "♂",
+                      ["==", ["get", "wcType"], "women"], "♀",
+                      "WC"
+                    ],
+                    textSize: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      18, 16,
+                      19, 20,
+                      22, 26
+                    ],
+                    textAnchor: "center",
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                    textOpacity: 0.9,
+                    textColor: "#2E7D32",
+                    textHaloColor: "white",
+                    textHaloWidth: 1,
                   }}
                 />
               </ShapeSource>
@@ -817,6 +941,27 @@ export default function HomeScreen() {
                     fillExtrusionHeight: ["get", "height"],
                     fillExtrusionBase: 0,
                     fillExtrusionOpacity: 0.8,
+                  }}
+                />
+                {/* Stair Icons for stairs features */}
+                <SymbolLayer
+                  id="stairs-icons"
+                  filter={["==", ["get", "type"], "stairs"]}
+                  minZoomLevel={16}
+                  maxZoomLevel={22}
+                  style={{
+                    iconImage: "stairsIcon",
+                    iconSize: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      16, 0.5,
+                      18, 0.75,
+                      22, 1.1
+                    ],
+                    iconAllowOverlap: true,
+                    iconIgnorePlacement: true,
+                    iconAnchor: "center",
                   }}
                 />
               </ShapeSource>
@@ -909,10 +1054,8 @@ export default function HomeScreen() {
                     textSize: 15,
                     textColor: "white",
                     textAnchor: "center",
-                    textOffset: [0, 0],
                     textHaloColor: ["get", "color"],
                     textHaloWidth: 1,
-                    textFont: ["Open Sans Bold", "Arial Unicode MS Bold"],
                   }}
                 />
               </ShapeSource>
@@ -927,6 +1070,7 @@ export default function HomeScreen() {
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
             selectedFloor={selectedFloor}
             onFloorChange={setSelectedFloor}
+            onRoomSelect={(roomId: string) => handleRoomPress(roomId, { focusMap: true })}
           />
 
           <RoomModalSheet
@@ -1080,42 +1224,44 @@ export default function HomeScreen() {
                   height: "100%",
                 }}
               >
-                {/* BLE Location Status */}
-                <View
-                  style={[
-                    styles.bleStatusContainer,
-                    isDark && {
-                      backgroundColor: "#1e1e1e",
-                      borderBottomColor: "#1e1e1e",
-                    },
-                  ]}
-                >
-                  <View style={styles.bleStatusRow}>
-                    <View
-                      style={[
-                        styles.bleIndicator,
-                        isInAnyRoom() ? styles.bleActive : styles.bleInactive,
-                        isDark && { backgroundColor: "#4A89EE" },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.bleStatusText,
-                        isDark && { color: "white" },
-                      ]}
-                    >
-                      {currentRoom
-                        ? `Sijainti: ${currentRoom}`
-                        : "Sijaintia ei havaittu"}
-                    </Text>
-                    {scannedBeacons.length > 0 && (
-                      <Text style={styles.bleBeaconCount}>
-                        {scannedBeacons.length} beacon
-                        {scannedBeacons.length !== 1 ? "s" : ""}
+                {/* BLE Location Status - Only visible in debug mode */}
+                {isDebugMode && (
+                  <View
+                    style={[
+                      styles.bleStatusContainer,
+                      isDark && {
+                        backgroundColor: "#1e1e1e",
+                        borderBottomColor: "#1e1e1e",
+                      },
+                    ]}
+                  >
+                    <View style={styles.bleStatusRow}>
+                      <View
+                        style={[
+                          styles.bleIndicator,
+                          isInAnyRoom() ? styles.bleActive : styles.bleInactive,
+                          isDark && { backgroundColor: "#4A89EE" },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.bleStatusText,
+                          isDark && { color: "white" },
+                        ]}
+                      >
+                        {currentRoom
+                          ? `Sijainti: ${currentRoom}`
+                          : "Sijaintia ei havaittu"}
                       </Text>
-                    )}
+                      {scannedBeacons.length > 0 && (
+                        <Text style={styles.bleBeaconCount}>
+                          {scannedBeacons.length} beacon
+                          {scannedBeacons.length !== 1 ? "s" : ""}
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                </View>
+                )}
 
                 {selectedTab === "people" && (
                   <BottomSheetFlatList

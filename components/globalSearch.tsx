@@ -1,25 +1,25 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import React, {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
 } from "react";
 import { useHits, useSearchBox } from "react-instantsearch-core";
 import {
-  ActivityIndicator,
-  Animated,
-  FlatList,
-  Keyboard,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  useColorScheme,
-  View,
+    ActivityIndicator,
+    Animated,
+    FlatList,
+    Keyboard,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    useColorScheme,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,6 +34,7 @@ interface GlobalSearchProps {
   onBlur?: () => void;
   selectedFloor?: number;
   onFloorChange?: (floor: number) => void;
+  onRoomSelect?: (roomId: string) => void;
 }
 
 export interface GlobalSearchMethods {
@@ -59,7 +60,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 
   const { query, refine } = useSearchBox({});
   const { hits } = useHits();
-  const [selectedFloor, setSelectedFloor] = useState(propSelectedFloor || 1);
+  const [selectedFloor, setSelectedFloor] = useState(propSelectedFloor || 0);
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState(query);
 
@@ -201,11 +202,22 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     handleBlur();
     dismissKeyboard();
 
-    // Open the room modal using the ref from props
-    if (props.roomModalRef?.current) {
-      props.roomModalRef.current.open(item.id);
+    // Switch to the room's floor if available and different from current
+    if (item.floor !== undefined && item.floor !== selectedFloor && onFloorChange) {
+      console.log(`🏢 Search: Switching from floor ${selectedFloor} to floor ${item.floor} for room ${item.room_number?.value || item._highlightResult.room_number?.value || 'unknown'}`);
+      onFloorChange(item.floor);
+    }
+
+    // Call the room select handler first (this will handle floor switching and camera focusing)
+    if (props.onRoomSelect) {
+      props.onRoomSelect(item.id);
     } else {
-      console.warn("Room modal ref not found");
+      // Fallback: Open the room modal using the ref from props
+      if (props.roomModalRef?.current) {
+        props.roomModalRef.current.open(item.id);
+      } else {
+        console.warn("Room modal ref not found");
+      }
     }
   };
 
@@ -432,7 +444,6 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               <Pressable
                 style={[
                   selectedFloor === 1 ? styles.buttonSelected : styles.button,
-                  { borderBottomEndRadius: 10, borderBottomStartRadius: 10 },
                 ]}
                 onPress={() => handleFloorPress(1)}
               >
@@ -445,6 +456,30 @@ const GlobalSearch = forwardRef(function GlobalSearch(
                   ]}
                 >
                   1
+                </Text>
+              </Pressable>
+              <View
+                style={[
+                  styles.spacer,
+                  isDark && { backgroundColor: "#262626" },
+                ]}
+              />
+              <Pressable
+                style={[
+                  selectedFloor === 0 ? styles.buttonSelected : styles.button,
+                  { borderBottomEndRadius: 10, borderBottomStartRadius: 10 },
+                ]}
+                onPress={() => handleFloorPress(0)}
+              >
+                <Text
+                  style={[
+                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+                    selectedFloor === 0
+                      ? { color: "#fff" }
+                      : { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
+                  0
                 </Text>
               </Pressable>
             </>

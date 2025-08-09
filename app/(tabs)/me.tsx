@@ -24,6 +24,7 @@ type UserProfile = {
   class?: string;
   color: string;
   email?: string;
+  code?: string;
 };
 
 const Me = () => {
@@ -76,7 +77,7 @@ const Me = () => {
         // Try to get additional data from users table
         const { data: profileData, error: profileError } = await supabase
           .from("users")
-          .select("name, class, color")
+          .select("name, class, color, code")
           .eq("id", user.id)
           .single();
 
@@ -159,7 +160,7 @@ const Me = () => {
           // Try to get additional data from users table
           const { data: profileData, error: profileError } = await supabase
             .from("users")
-            .select("name, class, color")
+            .select("name, class, color, code")
             .eq("id", user.id)
             .single();
 
@@ -264,6 +265,26 @@ const Me = () => {
                   </Text>
                 )}
               </View>
+              {profile?.code && (
+                <View style={styles.friendCodeSide}>
+                  <Text
+                    style={[
+                      styles.friendCodeLabelSide,
+                      isDark && { color: "#ffffff70" },
+                    ]}
+                  >
+                    Ystäväkoodi
+                  </Text>
+                  <Text
+                    style={[
+                      styles.friendCodeTextSide,
+                      isDark && { color: "#fff" },
+                    ]}
+                  >
+                    {profile.code}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -516,6 +537,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: "#fff",
+  },
+  friendCodeContainer: {
+    width: "90%",
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  friendCodeLabel: {
+    fontSize: 16,
+    fontFamily: "Figtree-Medium",
+    color: "#666",
+    marginBottom: 4,
+  },
+  friendCodeText: {
+    fontSize: 18,
+    fontFamily: "Figtree-Bold",
+    color: "#333",
+    letterSpacing: 2,
+  },
+  friendCodeSide: {
+    alignItems: "center",
+    marginLeft: 16,
+  },
+  friendCodeLabelSide: {
+    fontSize: 14,
+    fontFamily: "Figtree-Medium",
+    color: "#666",
+    marginBottom: 2,
+  },
+  friendCodeTextSide: {
+    fontSize: 18,
+    fontFamily: "Figtree-Bold",
+    color: "#333",
+    letterSpacing: 1,
   },
   optionsContainer: {
     width: "90%",
