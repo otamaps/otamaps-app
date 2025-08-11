@@ -887,7 +887,7 @@ export default function HomeScreen() {
                 sw: [24.797450838759808, 60.1724484493661],
               }}
               minZoomLevel={14}
-              maxZoomLevel={20}
+              maxZoomLevel={21}
               allowUpdates={true}
               followUserLocation={false}
             />
@@ -898,6 +898,38 @@ export default function HomeScreen() {
                 shape={roomsGeoJSON}
                 onPress={handleRoomFeaturePress}
               >
+                <SymbolLayer
+                  id="room-numbers"
+                  minZoomLevel={19}
+                  style={{
+                    textField: ["get", "roomNumber"],
+                    textSize: 18,
+                    textAnchor: "center",
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                    textOpacity: 0.9,
+                    textColor: isDark ? "#ffffffff" : "#424853ff",
+                    textHaloColor: "white",
+                    textHaloWidth: 0,
+                    textTranslate: [0, -10],
+                  }}
+                />
+                <SymbolLayer
+                  id="room-symbols"
+                  minZoomLevel={19}
+                  style={{
+                    textField: ["get", "title"],
+                    textSize: 12,
+                    textAnchor: "center",
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                    textOpacity: 1,
+                    textColor: isDark ? "#ffffffff" : "#606875",
+                    textHaloColor: "white",
+                    textHaloWidth: 0,
+                    textTranslate: [0, 10],
+                  }}
+                />
                 <FillLayer
                   id="room-fill"
                   style={{
@@ -947,9 +979,10 @@ export default function HomeScreen() {
                     textAllowOverlap: true,
                     textIgnorePlacement: true,
                     textOpacity: 0.9,
-                    textColor: "#2E7D32",
+                    textColor: "#8A919C",
                     textHaloColor: "white",
                     textHaloWidth: 1,
+                    textTranslate: [0, -10],
                   }}
                 />
               </ShapeSource>
@@ -966,12 +999,12 @@ export default function HomeScreen() {
                     fillExtrusionColor: [
                       "case",
                       ["==", ["get", "type"], "wall"],
-                      "#666666", // Brown color for walls
-                      "#666666", // Gray for other features
+                      isDark ? "#666666" : "#EFF2F7", // Brown color for walls
+                      "#B0C9F2", // Gray for other features
                     ],
                     fillExtrusionHeight: ["get", "height"],
                     fillExtrusionBase: 0,
-                    fillExtrusionOpacity: 0.8,
+                    fillExtrusionOpacity: 0.9,
                   }}
                 />
                 {/* Stair Icons for stairs features */}
