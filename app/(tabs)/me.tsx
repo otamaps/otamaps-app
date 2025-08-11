@@ -469,7 +469,6 @@ const Me = () => {
 
         <View
           style={{ alignItems: "center", marginBottom: "15%", opacity: 0.55 }}
-          // onPress={() => Linking.openURL("https://streetsmarts.fi/")}
         >
           <Text
             style={{
