@@ -1385,7 +1385,7 @@ export default function HomeScreen() {
                         onPress={() => handleFriendOpen(item.id)}
                       />
                     )}
-                    scrollEnabled={true} // Always enable scrolling
+                    scrollEnabled={currentSnapIndex === 2} // Always enable scrolling
                     contentContainerStyle={{
                       paddingBottom: 80,
                       // Remove restrictive height and flex settings

@@ -88,6 +88,8 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
         index={currentSnapIndex}
         snapPoints={[minHeight, midHeight, maxHeight]}
         enablePanDownToClose={false}
+        enableContentPanningGesture={currentSnapIndex !== 2}
+        enableHandlePanningGesture={true}
         style={styles.container}
         backgroundStyle={
           isDark ? { backgroundColor: "#1e1e1e" } : { backgroundColor: "#fff" }
