@@ -98,7 +98,7 @@ const Edit = () => {
     setIsLoading(true);
     try {
       // Get current user
-      const user = await getUser();
+      const user = await getUser({ forceRefresh: true });
       console.log(`👤 Authenticated user: ${user?.id || "None"} in edit.tsx`);
       if (!user) throw new Error("Käyttäjää ei löytynyt");
 
