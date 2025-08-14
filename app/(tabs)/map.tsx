@@ -9,7 +9,6 @@ import MapBottomSheet, {
 import FriendModalSheet, {
   FriendModalSheetRef,
 } from "@/components/sheets/friendModalSheet";
-
 import RoomModalSheet, {
   RoomModalSheetMethods,
 } from "@/components/sheets/roomModalSheet";
@@ -201,7 +200,7 @@ export default function HomeScreen() {
   }, [friends, searchQuery]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [selectedFloor, setSelectedFloor] = useState<number>(0);
+  const [selectedFloor, setSelectedFloor] = useState<number>(1);
   const [friendsWithLocations, setFriendsWithLocations] = useState<
     FriendWithLocation[]
   >([]);
