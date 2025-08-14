@@ -205,10 +205,13 @@ export default function HomeScreen() {
     FriendWithLocation[]
   >([]);
   const [isDebugMode, setIsDebugMode] = useState(false);
-  
+
   // Camera state for dynamic positioning
   const [cameraConfig, setCameraConfig] = useState({
-    centerCoordinate: [24.818510511790645, 60.18394233125424] as [number, number],
+    centerCoordinate: [24.818510511790645, 60.18394233125424] as [
+      number,
+      number
+    ],
     zoomLevel: 16,
     animationDuration: 1000,
   });
@@ -296,7 +299,12 @@ export default function HomeScreen() {
     }
   }, [friends, fetchFriendLocations]);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
-  const { features, loading: featuresLoading, error: featuresError, fetchFeatures } = useFeatureStore();
+  const {
+    features,
+    loading: featuresLoading,
+    error: featuresError,
+    fetchFeatures,
+  } = useFeatureStore();
   const [roomData, setRoomData] = useState<
     (RoomItemData & { id: string; isFavorite: boolean })[]
   >([]);
@@ -307,15 +315,18 @@ export default function HomeScreen() {
       // Use the actual floor field from the database instead of parsing room number
       return room.floor === selectedFloor;
     });
-    
+
     // Debug logging
     console.log(`🔍 Filtering rooms for floor ${selectedFloor}:`);
     console.log(`  Total rooms: ${roomData.length}`);
     console.log(`  Filtered rooms: ${filtered.length}`);
     if (filtered.length > 0) {
-      console.log(`  Sample filtered rooms:`, filtered.slice(0, 3).map(r => `${r.room_number} (floor ${r.floor})`));
+      console.log(
+        `  Sample filtered rooms:`,
+        filtered.slice(0, 3).map((r) => `${r.room_number} (floor ${r.floor})`)
+      );
     }
-    
+
     return filtered;
   }, [roomData, selectedFloor]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -336,7 +347,7 @@ export default function HomeScreen() {
   }, [fetchRooms]);
 
   const fetchFeaturesRef = useRef(fetchFeatures);
-  
+
   useEffect(() => {
     fetchFeaturesRef.current = fetchFeatures;
   }, [fetchFeatures]);
@@ -368,20 +379,22 @@ export default function HomeScreen() {
         };
       });
       setRoomData(transformedRooms);
-      
+
       // Debug logging to verify floor data
-      console.log('🏢 Room floor debug:');
-      console.log('Total rooms:', rooms.length);
-      console.log('Sample rooms with floors:');
-      rooms.slice(0, 5).forEach(room => {
-        console.log(`  ${room.room_number} -> floor ${room.floor} (from database)`);
+      console.log("🏢 Room floor debug:");
+      console.log("Total rooms:", rooms.length);
+      console.log("Sample rooms with floors:");
+      rooms.slice(0, 5).forEach((room) => {
+        console.log(
+          `  ${room.room_number} -> floor ${room.floor} (from database)`
+        );
       });
-      
+
       const floorCounts = transformedRooms.reduce((acc, room) => {
         acc[room.floor] = (acc[room.floor] || 0) + 1;
         return acc;
       }, {} as Record<number, number>);
-      console.log('Rooms per floor:', floorCounts);
+      console.log("Rooms per floor:", floorCounts);
     } else {
       setRoomData([]);
     }
@@ -389,24 +402,26 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (features.length > 0) {
-      console.log('🏗️ Features debug:');
-      console.log('Total features:', features.length);
-      console.log('Sample features with types:');
-      features.slice(0, 5).forEach(feature => {
-        console.log(`  ${feature.id} -> floor ${feature.floor}, type: ${feature.type}`);
+      console.log("🏗️ Features debug:");
+      console.log("Total features:", features.length);
+      console.log("Sample features with types:");
+      features.slice(0, 5).forEach((feature) => {
+        console.log(
+          `  ${feature.id} -> floor ${feature.floor}, type: ${feature.type}`
+        );
       });
-      
+
       const featureTypeCounts = features.reduce((acc, feature) => {
         acc[feature.type] = (acc[feature.type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
-      console.log('Features by type:', featureTypeCounts);
-      
+      console.log("Features by type:", featureTypeCounts);
+
       const floorCounts = features.reduce((acc, feature) => {
         acc[feature.floor] = (acc[feature.floor] || 0) + 1;
         return acc;
       }, {} as Record<number, number>);
-      console.log('Features per floor:', floorCounts);
+      console.log("Features per floor:", floorCounts);
     }
   }, [features]);
 
@@ -449,10 +464,12 @@ export default function HomeScreen() {
     (roomId: string, options?: { focusMap?: boolean }) => {
       // Find the room to get its floor information
       const room = rooms.find((r) => r.id === roomId);
-      
+
       // Switch to the room's floor if it's different from current
       if (room && room.floor !== selectedFloor) {
-        console.log(`🏢 Switching from floor ${selectedFloor} to floor ${room.floor} for room ${room.room_number}`);
+        console.log(
+          `🏢 Switching from floor ${selectedFloor} to floor ${room.floor} for room ${room.room_number}`
+        );
         setSelectedFloor(room.floor);
       }
 
@@ -467,7 +484,7 @@ export default function HomeScreen() {
       }
 
       // Center the map on the selected room if requested or if room has geometry
-      if (room?.geometry && (options?.focusMap !== false)) {
+      if (room?.geometry && options?.focusMap !== false) {
         // Calculate centroid of the polygon
         const coordinates = room.geometry.coordinates[0];
         type Coordinate = [number, number];
@@ -499,8 +516,11 @@ export default function HomeScreen() {
           zoomLevel: 18,
           animationDuration: 1000,
         });
-        
-        console.log(`🎯 Focusing map on room ${room.room_number} at coordinates:`, centroid);
+
+        console.log(
+          `🎯 Focusing map on room ${room.room_number} at coordinates:`,
+          centroid
+        );
       }
     },
     [rooms, selectedRoomId, selectedFloor]
@@ -569,12 +589,12 @@ export default function HomeScreen() {
   }, [roomsWithGeometry, selectedFloor]);
 
   // Helper function to determine WC type from room name
-  const getWCType = (roomName: string): 'wc' | 'men' | 'women' | null => {
+  const getWCType = (roomName: string): "wc" | "men" | "women" | null => {
     const name = roomName.toLowerCase();
-    if (name.includes('wc')) {
-      if (name.includes('miehet')) return 'men';
-      if (name.includes('naiset')) return 'women';
-      return 'wc';
+    if (name.includes("wc")) {
+      if (name.includes("miehet")) return "men";
+      if (name.includes("naiset")) return "women";
+      return "wc";
     }
     return null;
   };
@@ -615,10 +635,10 @@ export default function HomeScreen() {
   // Create GeoJSON for WC room symbols
   const wcRoomsGeoJSON = useMemo(() => {
     const wcFeatures = filteredRoomsWithGeometry
-      .filter(room => getWCType(room.title || room.room_number))
+      .filter((room) => getWCType(room.title || room.room_number))
       .map((room) => {
         const wcType = getWCType(room.title || room.room_number);
-        
+
         return {
           type: "Feature",
           geometry: room.geometry,
@@ -639,19 +659,21 @@ export default function HomeScreen() {
   const filteredFeatures = useMemo(() => {
     const filtered = features.filter((feature) => {
       // Add safety checks for feature structure
-      if (!feature || typeof feature.floor !== 'number') {
-        console.warn('🏗️ Invalid feature found:', feature);
+      if (!feature || typeof feature.floor !== "number") {
+        console.warn("🏗️ Invalid feature found:", feature);
         return false;
       }
       return feature.floor === selectedFloor;
     });
-    
+
     console.log(`🏗️ Filtering features for floor ${selectedFloor}:`, {
       totalFeatures: features.length,
       filteredFeatures: filtered.length,
-      invalidFeatures: features.length - features.filter(f => f && typeof f.floor === 'number').length,
+      invalidFeatures:
+        features.length -
+        features.filter((f) => f && typeof f.floor === "number").length,
     });
-    
+
     return filtered;
   }, [features, selectedFloor]);
 
@@ -661,24 +683,31 @@ export default function HomeScreen() {
       .filter((feature) => {
         // Safety checks for geometry
         if (!feature.geometry) {
-          console.warn('🏗️ Feature missing geometry:', feature.id);
+          console.warn("🏗️ Feature missing geometry:", feature.id);
           return false;
         }
         if (!feature.geometry.type || !feature.geometry.coordinates) {
-          console.warn('🏗️ Feature has invalid geometry structure:', feature.id, feature.geometry);
+          console.warn(
+            "🏗️ Feature has invalid geometry structure:",
+            feature.id,
+            feature.geometry
+          );
           return false;
         }
         // Check if coordinates are properly formatted
         if (!Array.isArray(feature.geometry.coordinates)) {
-          console.warn('🏗️ Feature geometry coordinates not an array:', feature.id);
+          console.warn(
+            "🏗️ Feature geometry coordinates not an array:",
+            feature.id
+          );
           return false;
         }
         return true;
       })
       .map((feature) => {
         // Set height based on feature type
-        const height = feature.type === 'wall' ? 5 : 2; // 5m for walls, 2m for other features
-        
+        const height = feature.type === "wall" ? 5 : 2; // 5m for walls, 2m for other features
+
         return {
           type: "Feature",
           geometry: feature.geometry,
@@ -696,7 +725,8 @@ export default function HomeScreen() {
       totalFiltered: filteredFeatures.length,
       validFeatures: geoFeatures.length,
       invalidFeatures: filteredFeatures.length - geoFeatures.length,
-      wallFeatures: geoFeatures.filter(f => f.properties.type === 'wall').length,
+      wallFeatures: geoFeatures.filter((f) => f.properties.type === "wall")
+        .length,
     });
 
     return {
@@ -843,7 +873,9 @@ export default function HomeScreen() {
             rotateEnabled={true}
           >
             {/* Map image assets */}
-            <Images images={{ stairsIcon: require("../../assets/icons/stairs.png") }} />
+            <Images
+              images={{ stairsIcon: require("../../assets/icons/stairs.png") }}
+            />
             <Camera
               centerCoordinate={cameraConfig.centerCoordinate}
               zoomLevel={cameraConfig.zoomLevel}
@@ -854,7 +886,7 @@ export default function HomeScreen() {
                 sw: [24.797450838759808, 60.1724484493661],
               }}
               minZoomLevel={14}
-              maxZoomLevel={20}
+              maxZoomLevel={21}
               allowUpdates={true}
               followUserLocation={false}
             />
@@ -865,6 +897,38 @@ export default function HomeScreen() {
                 shape={roomsGeoJSON}
                 onPress={handleRoomFeaturePress}
               >
+                <SymbolLayer
+                  id="room-numbers"
+                  minZoomLevel={19}
+                  style={{
+                    textField: ["get", "roomNumber"],
+                    textSize: 18,
+                    textAnchor: "center",
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                    textOpacity: 0.9,
+                    textColor: isDark ? "#ffffffff" : "#424853ff",
+                    textHaloColor: "white",
+                    textHaloWidth: 0,
+                    textTranslate: [0, -10],
+                  }}
+                />
+                <SymbolLayer
+                  id="room-symbols"
+                  minZoomLevel={19}
+                  style={{
+                    textField: ["get", "title"],
+                    textSize: 12,
+                    textAnchor: "center",
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
+                    textOpacity: 1,
+                    textColor: isDark ? "#ffffffff" : "#606875",
+                    textHaloColor: "white",
+                    textHaloWidth: 0,
+                    textTranslate: [0, 10],
+                  }}
+                />
                 <FillLayer
                   id="room-fill"
                   style={{
@@ -885,10 +949,7 @@ export default function HomeScreen() {
 
             {/* WC Room Symbols */}
             {wcRoomsGeoJSON.features.length > 0 && (
-              <ShapeSource
-                id="wcRoomsSource"
-                shape={wcRoomsGeoJSON}
-              >
+              <ShapeSource id="wcRoomsSource" shape={wcRoomsGeoJSON}>
                 <SymbolLayer
                   id="wc-symbols"
                   minZoomLevel={18}
@@ -896,25 +957,31 @@ export default function HomeScreen() {
                   style={{
                     textField: [
                       "case",
-                      ["==", ["get", "wcType"], "men"], "♂",
-                      ["==", ["get", "wcType"], "women"], "♀",
-                      "WC"
+                      ["==", ["get", "wcType"], "men"],
+                      "♂",
+                      ["==", ["get", "wcType"], "women"],
+                      "♀",
+                      "WC",
                     ],
                     textSize: [
                       "interpolate",
                       ["linear"],
                       ["zoom"],
-                      18, 16,
-                      19, 20,
-                      22, 26
+                      18,
+                      16,
+                      19,
+                      20,
+                      22,
+                      26,
                     ],
                     textAnchor: "center",
                     textAllowOverlap: true,
                     textIgnorePlacement: true,
                     textOpacity: 0.9,
-                    textColor: "#2E7D32",
+                    textColor: "#8A919C",
                     textHaloColor: "white",
                     textHaloWidth: 1,
+                    textTranslate: [0, -10],
                   }}
                 />
               </ShapeSource>
@@ -922,10 +989,7 @@ export default function HomeScreen() {
 
             {/* Building Features (walls, etc.) */}
             {featuresGeoJSON.features.length > 0 && (
-              <ShapeSource
-                id="featuresSource"
-                shape={featuresGeoJSON}
-              >
+              <ShapeSource id="featuresSource" shape={featuresGeoJSON}>
                 <FillExtrusionLayer
                   id="features-extrusion"
                   minZoomLevel={10}
@@ -934,12 +998,12 @@ export default function HomeScreen() {
                     fillExtrusionColor: [
                       "case",
                       ["==", ["get", "type"], "wall"],
-                      "#666666", // Brown color for walls
-                      "#666666"  // Gray for other features
+                      isDark ? "#666666" : "#EFF2F7", // Brown color for walls
+                      "#B0C9F2", // Gray for other features
                     ],
                     fillExtrusionHeight: ["get", "height"],
                     fillExtrusionBase: 0,
-                    fillExtrusionOpacity: 0.8,
+                    fillExtrusionOpacity: 0.9,
                   }}
                 />
                 {/* Stair Icons for stairs features */}
@@ -954,9 +1018,12 @@ export default function HomeScreen() {
                       "interpolate",
                       ["linear"],
                       ["zoom"],
-                      16, 0.5,
-                      18, 0.75,
-                      22, 1.1
+                      16,
+                      0.5,
+                      18,
+                      0.75,
+                      22,
+                      1.1,
                     ],
                     iconAllowOverlap: true,
                     iconIgnorePlacement: true,
@@ -1069,7 +1136,9 @@ export default function HomeScreen() {
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
             selectedFloor={selectedFloor}
             onFloorChange={setSelectedFloor}
-            onRoomSelect={(roomId: string) => handleRoomPress(roomId, { focusMap: true })}
+            onRoomSelect={(roomId: string) =>
+              handleRoomPress(roomId, { focusMap: true })
+            }
           />
 
           <RoomModalSheet
@@ -1281,7 +1350,6 @@ export default function HomeScreen() {
                           onChangeText={setSearchQuery}
                           placeholderTextColor={isDark ? "#B5B5B5" : "#a1a1a1"}
                           onFocus={() => {
-                            // open the sheet
                             mapBottomSheetRef.current?.snapToMax();
                           }}
                           style={{
@@ -1294,21 +1362,6 @@ export default function HomeScreen() {
                             color: isDark ? "white" : "black",
                           }}
                         />
-                        {/* <Pressable
-                          onPress={() => router.push("/friends/add")}
-                          style={{
-                            marginLeft: 12,
-                            backgroundColor: isDark ? "#1e1e1e" : "#f5f5f5",
-                            padding: 8,
-                            borderRadius: 8,
-                          }}
-                        >
-                          <MaterialIcons
-                            name="person-add"
-                            size={22}
-                            color="#737373"
-                          />
-                        </Pressable> */}
                         <Pressable
                           onPress={() => router.push("/friends/requests")}
                           style={{
@@ -1347,38 +1400,6 @@ export default function HomeScreen() {
                         </Pressable>
                       </View>
                     }
-                    // data={[
-                    //   {
-                    //     name: "Faru Yusupov",
-                    //     id: "1",
-                    //     status: "at school" as const,
-                    //     lastSeen: new Date().toISOString(), // Now (will show as 'Just now' if within 30s)
-                    //   },
-                    //   {
-                    //     name: "Toivo Kallio",
-                    //     id: "2",
-                    //     status: "at school" as const,
-                    //     lastSeen: new Date(
-                    //       Date.now() - 2 * 60 * 60 * 1000
-                    //     ).toISOString(), // 2 hours ago
-                    //   },
-                    //   {
-                    //     name: "Wilmer von Harpe",
-                    //     id: "3",
-                    //     status: "at school" as const,
-                    //     lastSeen: new Date(
-                    //       Date.now() - 4 * 60 * 60 * 1000
-                    //     ).toISOString(), // 4 hours ago
-                    //   },
-                    //   {
-                    //     name: "Maximilian Bergström",
-                    //     id: "4",
-                    //     status: "at school" as const,
-                    //     lastSeen: new Date(
-                    //       Date.now() - 6 * 60 * 60 * 1000
-                    //     ).toISOString(),
-                    //   },
-                    // ]}
                     data={filteredFriends}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
@@ -1396,16 +1417,14 @@ export default function HomeScreen() {
                         onPress={() => handleFriendOpen(item.id)}
                       />
                     )}
-                    scrollEnabled={currentSnapIndex === 2}
+                    scrollEnabled={currentSnapIndex === 2} // Always enable scrolling
                     contentContainerStyle={{
-                      paddingBottom: 20,
-                      flex: currentSnapIndex === 2 ? 1 : 0,
-                      height: currentSnapIndex === 2 ? "100%" : "auto",
+                      paddingBottom: 80,
+                      // Remove restrictive height and flex settings
                     }}
                     ListEmptyComponent={
                       <View style={{ padding: 20, alignItems: "center" }}>
                         <Text style={isDark && { color: "#e5e5e5" }}>
-                          {/* No {showFavoritesOnly ? "favorite " : ""}people found */}
                           Kavereita ei löytynyt
                         </Text>
                       </View>
@@ -1421,7 +1440,6 @@ export default function HomeScreen() {
                           },
                         ]}
                         onPress={() => {
-                          // Handle add friend action
                           console.log("Add friend pressed");
                           router.push("/friends/add");
                         }}

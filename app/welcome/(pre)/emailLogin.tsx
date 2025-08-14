@@ -18,7 +18,7 @@ export default function EmailLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [name, setName] = useState("");
 
   const handleAuth = async () => {
@@ -136,7 +136,7 @@ export default function EmailLogin() {
         {isSignUp && (
           <TextInput
             style={styles.input}
-            placeholder="Koko nimesi"
+            placeholder="Käyttäjänimi"
             placeholderTextColor="#666666"
             value={name}
             onChangeText={setName}
