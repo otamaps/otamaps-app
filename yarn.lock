@@ -4996,6 +4996,11 @@ expo-router@~5.1.0:
     server-only "^0.0.1"
     shallowequal "^1.1.0"
 
+expo-secure-store@^14.2.3:
+  version "14.2.3"
+  resolved "https://registry.yarnpkg.com/expo-secure-store/-/expo-secure-store-14.2.3.tgz#8e74da512e671cec5f7b88679def3d54b59cd49d"
+  integrity sha512-hYBbaAD70asKTFd/eZBKVu+9RTo9OSTMMLqXtzDF8ndUGjpc6tmRCoZtrMHlUo7qLtwL5jm+vpYVBWI8hxh/1Q==
+
 expo-sensors@^14.1.4:
   version "14.1.4"
   resolved "https://registry.yarnpkg.com/expo-sensors/-/expo-sensors-14.1.4.tgz#a2d4d20354650371a37d6f0d334973f68cd44f9c"
