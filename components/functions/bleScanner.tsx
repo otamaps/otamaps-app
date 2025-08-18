@@ -15,6 +15,20 @@ interface BeaconData {
   roomId?: string;
 }
 
+export interface LocalUserLocation {
+  coordinates: [number, number] | null; // [longitude, latitude]
+  floor: number | null;
+  radius: number;
+  currentRoom: string | null;
+  beacons: {
+    id: string;
+    rssi: number;
+    coordinates?: [number, number];
+    distance?: number;
+  }[];
+  lastUpdated: number;
+}
+
 // OtaMaps specific service UUID from ESP32 firmware
 export const OTAMAPS_SERVICE_UUID = "f47fcfd9-0634-49de-8e99-80d05ae8fcef";
 
@@ -486,6 +500,83 @@ class BLEScannerService {
     }
   }
 
+  private calculateDistanceFromRSSI(rssi: number): number {
+    if (rssi === 0) return -1.0;
+    const measuredPower = -59;
+    const pathLossExponent = 2.5;
+    const ratio = (measuredPower - rssi) / (10 * pathLossExponent);
+    return Math.pow(10, ratio);
+  }
+
+  private calculateLocationRadius(beacons: { distance?: number }[]): number {
+    if (beacons.length === 0) return 50;
+    const distances = beacons.map((beacon) => beacon.distance || 50);
+    const minDistance = Math.min(...distances);
+    const uncertainty = beacons.length > 1 ? 5 : 15;
+    return Math.max(5, minDistance + uncertainty);
+  }
+
+  async calculateCurrentLocation(): Promise<LocalUserLocation | null> {
+    if (this.scannedBeacons.size === 0) {
+      return null;
+    }
+
+    try {
+      const beaconInfos = [];
+      let closestBeacon = null;
+      let strongestRSSI = -999;
+
+      for (const [beaconId, beaconData] of this.scannedBeacons) {
+        // Get coordinates for this beacon from the BLE Location Service
+        const coordinates = await BLELocationService.getBeaconCoordinates(beaconId);
+        if (!coordinates) continue;
+
+        const distance = this.calculateDistanceFromRSSI(beaconData.rssi);
+        
+        const beaconInfo = {
+          id: beaconId,
+          rssi: beaconData.rssi,
+          coordinates,
+          distance,
+        };
+
+        beaconInfos.push(beaconInfo);
+
+        if (beaconData.rssi > strongestRSSI) {
+          strongestRSSI = beaconData.rssi;
+          closestBeacon = beaconInfo;
+        }
+      }
+
+      if (!closestBeacon || !closestBeacon.coordinates) {
+        return null;
+      }
+
+      // Get floor from the strongest beacon
+      const floor = await BLELocationService.getFloorFromBeacon(closestBeacon.id);
+
+      // Calculate accuracy radius
+      const radius = this.calculateLocationRadius(beaconInfos);
+
+      return {
+        coordinates: closestBeacon.coordinates,
+        floor: floor ? parseInt(floor) : null,
+        radius,
+        currentRoom: this.currentRoom,
+        beacons: beaconInfos,
+        lastUpdated: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error calculating current location:", error);
+      return null;
+    }
+  }
+
+  // Add to public methods
+  async getCurrentLocation(): Promise<LocalUserLocation | null> {
+    return await this.calculateCurrentLocation();
+  }
+
   destroy() {
     manager.stopDeviceScan();
     // Save cache before destroying
@@ -545,9 +636,14 @@ export default function useBLEScanner() {
     }
   }, []);
 
+  const getCurrentLocation = useCallback(async (): Promise<LocalUserLocation | null> => {
+    return bleServiceInstance?.getCurrentLocation() || null;
+  }, []);
+
   return {
     currentRoom,
     getCurrentRoom,
+    getCurrentLocation,
     isInAnyRoom,
     getScannedBeacons,
     forceUploadLocation,

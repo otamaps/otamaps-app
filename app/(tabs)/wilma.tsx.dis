@@ -1,0 +1,838 @@
+import useBLEScanner, { LocalUserLocation } from "@/components/functions/bleScanner";
+import { getWilmaToken, wilmaLogin } from "@/lib/wilma/owLoginHandler";
+import { getWilmaMessages } from "@/lib/wilma/wilmaRequestHandlers";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useColorScheme,
+  View,
+} from "react-native";
+
+// Actual Wilma message structure
+interface WilmaMessage {
+  isEvent: boolean;
+  subject: string;
+  timeStamp: string;
+  new: boolean;
+  senders: { name: string }[];
+}
+
+// Login credentials type
+interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+export default function WilmaScreen() {
+  const isDark = useColorScheme() === "dark";
+  
+  // Authentication state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loginCredentials, setLoginCredentials] = useState<LoginCredentials>({
+    username: "",
+    password: "",
+  });
+  const [loginError, setLoginError] = useState("");
+  
+  // Messages state
+  const [messages, setMessages] = useState<WilmaMessage[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAutoRelogging, setIsAutoRelogging] = useState(false);
+  
+  // BLE Scanner for location tracking
+  const { getCurrentLocation } = useBLEScanner();
+  const [localUserLocation, setLocalUserLocation] = useState<LocalUserLocation | null>(null);
+  
+  // Debug state
+  const [isDebugMode, setIsDebugMode] = useState(false);
+
+  // Helper function to handle 401 errors and attempt auto re-login
+  const handleUnauthorized = useCallback(async (): Promise<boolean> => {
+    try {
+      setIsAutoRelogging(true);
+      const savedCredentials = await AsyncStorage.getItem("wilma_saved_credentials");
+      if (savedCredentials) {
+        const credentials = JSON.parse(savedCredentials);
+        console.log("🔄 Attempting auto re-login due to 401...");
+        
+        const loginResponse = await wilmaLogin(credentials.username, credentials.password);
+        if (loginResponse.token) {
+          console.log("✅ Auto re-login successful");
+          return true;
+        }
+      }
+      
+      console.log("❌ Auto re-login failed or no saved credentials");
+      // Clear invalid credentials and force manual login
+      await AsyncStorage.removeItem("wilma_saved_credentials");
+      setIsLoggedIn(false);
+      setLoginCredentials({ username: "", password: "" });
+      return false;
+    } catch (error) {
+      console.error("Error during auto re-login:", error);
+      setIsLoggedIn(false);
+      return false;
+    } finally {
+      setIsAutoRelogging(false);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      
+      // Use actual Wilma API
+      const wilmaMessages = await getWilmaMessages();
+      
+      if (Array.isArray(wilmaMessages)) {
+        setMessages(wilmaMessages);
+      } else {
+        console.error("Invalid messages format:", wilmaMessages);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+      
+      // Check if it's a 401 error and attempt auto re-login
+      if (error instanceof Error && error.message.includes("401")) {
+        console.log("🔑 Detected 401 error, attempting auto re-login...");
+        const reLoginSuccessful = await handleUnauthorized();
+        
+        if (reLoginSuccessful) {
+          // Retry loading messages after successful re-login
+          try {
+            const retryMessages = await getWilmaMessages();
+            if (Array.isArray(retryMessages)) {
+              setMessages(retryMessages);
+              console.log("✅ Messages loaded successfully after re-login");
+              return; // Success, exit early
+            }
+          } catch (retryError) {
+            console.error("Error loading messages after re-login:", retryError);
+          }
+        } else {
+          Alert.alert(
+            "Kirjautuminen vaaditaan", 
+            "Istunto on vanhentunut. Kirjaudu uudelleen sisään.",
+            [{ text: "OK" }]
+          );
+        }
+      } else {
+        Alert.alert("Virhe", "Viestien lataaminen epäonnistui");
+      }
+      
+      setMessages([]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [handleUnauthorized]);
+
+  const checkLoginStatus = useCallback(async () => {
+    try {
+      // First, try to load saved credentials
+      const savedCredentials = await AsyncStorage.getItem("wilma_saved_credentials");
+      if (savedCredentials) {
+        const credentials = JSON.parse(savedCredentials);
+        setLoginCredentials(credentials);
+      }
+      
+      // Check if we have a valid token
+      const token = await getWilmaToken();
+      if (token) {
+        setIsLoggedIn(true);
+        await loadMessages();
+      } else if (savedCredentials) {
+        // If no token but we have saved credentials, try auto-login
+        console.log("🔄 No valid token found, attempting auto-login with saved credentials...");
+        const credentials = JSON.parse(savedCredentials);
+        
+        try {
+          setIsAutoRelogging(true);
+          const loginResponse = await wilmaLogin(credentials.username, credentials.password);
+          if (loginResponse.token) {
+            console.log("✅ Auto-login successful");
+            setIsLoggedIn(true);
+            await loadMessages();
+          }
+        } catch (loginError) {
+          console.error("Auto-login failed:", loginError);
+          // Clear invalid credentials
+          await AsyncStorage.removeItem("wilma_saved_credentials");
+        } finally {
+          setIsAutoRelogging(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking login status:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadMessages]);
+
+  const loadDebugMode = useCallback(async () => {
+    try {
+      const debugMode = await AsyncStorage.getItem("isDebugMode");
+      if (debugMode !== null) {
+        setIsDebugMode(debugMode === "true");
+      }
+    } catch (error) {
+      console.error("Error loading debug mode:", error);
+    }
+  }, []);
+
+  // Fetch local user location from BLE scanner
+  const fetchLocalUserLocation = useCallback(async () => {
+    try {
+      const location = await getCurrentLocation();
+      if (location) {
+        setLocalUserLocation(location);
+        console.log("📍 Wilma - Local user location updated:", location);
+      } else {
+        setLocalUserLocation(null);
+      }
+    } catch (error) {
+      console.error("Error fetching local user location in Wilma:", error);
+    }
+  }, [getCurrentLocation]);
+
+  // Check login status on component mount
+  useEffect(() => {
+    const initializeApp = async () => {
+      await checkLoginStatus();
+      await loadDebugMode();
+    };
+    initializeApp();
+  }, [checkLoginStatus, loadDebugMode]);
+
+  // Update local user location periodically
+  useEffect(() => {
+    if (isLoggedIn) {
+      // Initial fetch
+      fetchLocalUserLocation();
+      
+      // Update every 3 seconds
+      const locationUpdateInterval = setInterval(fetchLocalUserLocation, 3000);
+      
+      return () => {
+        clearInterval(locationUpdateInterval);
+      };
+    }
+  }, [isLoggedIn, fetchLocalUserLocation]);
+
+  const handleLogin = async () => {
+    if (!loginCredentials.username || !loginCredentials.password) {
+      setLoginError("Täytä kaikki kentät");
+      return;
+    }
+
+    setIsLoading(true);
+    setLoginError("");
+
+    try {
+      // Use actual Wilma login
+      const loginResponse = await wilmaLogin(loginCredentials.username, loginCredentials.password);
+      
+      if (loginResponse.token) {
+        // Save credentials for auto re-login
+        await AsyncStorage.setItem("wilma_saved_credentials", JSON.stringify(loginCredentials));
+        console.log("✅ Login successful, credentials saved for auto re-login");
+        
+        setIsLoggedIn(true);
+        await loadMessages();
+      } else {
+        setLoginError("Kirjautuminen epäonnistui");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setLoginError("Kirjautuminen epäonnistui. Tarkista tiedot.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear Wilma token and saved credentials
+      await AsyncStorage.removeItem("wilma_saved_credentials");
+      setIsLoggedIn(false);
+      setMessages([]);
+      setLoginCredentials({ username: "", password: "" });
+      console.log("🚪 Logged out and cleared saved credentials");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const handleMessagePress = (message: WilmaMessage) => {
+    const senderNames = message.senders.map(s => s.name).join(", ");
+    const messageType = message.isEvent ? "Tapahtuma" : "Viesti";
+    
+    Alert.alert(
+      `${messageType}: ${message.subject}`,
+      `Lähettäjä: ${senderNames}\nAika: ${new Date(message.timeStamp).toLocaleDateString("fi-FI")}`,
+      [
+        {
+          text: "Sulje",
+          style: "cancel"
+        }
+      ]
+    );
+    
+    // Note: The actual Wilma API doesn't have an "isRead" field that we can modify
+    // The "new" field indicates if it's unread, but we can't change it client-side
+  };
+
+  const onRefresh = useCallback(async () => {
+    if (isLoggedIn) {
+      try {
+        await loadMessages();
+      } catch (error) {
+        console.error("Error during manual refresh:", error);
+        // loadMessages already handles 401 errors, so we don't need to duplicate logic here
+      }
+    }
+  }, [isLoggedIn, loadMessages]);
+
+  if (isLoading || isAutoRelogging) {
+    return (
+      <SafeAreaView style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A89EE" />
+          <Text style={[styles.loadingText, isDark && { color: "white" }]}>
+            {isAutoRelogging ? "Uudelleenkirjaudutaan..." : "Ladataan..."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <SafeAreaView style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.header}>
+            <Ionicons
+              name="school"
+              size={48}
+              color={isDark ? "#51a2ff" : "#4A89EE"}
+            />
+            <Text style={[styles.title, isDark && { color: "white" }]}>
+              Wilma-kirjautuminen
+            </Text>
+          </View>
+
+          <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
+            <Text style={[styles.cardTitle, isDark && { color: "white" }]}>
+              Kirjaudu Wilma-tilillesi
+            </Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDark && { color: "#d4d4d4" }]}>
+                Käyttäjätunnus
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  isDark && { backgroundColor: "#404040", color: "white", borderColor: "#555" }
+                ]}
+                placeholder="Käyttäjätunnus"
+                placeholderTextColor={isDark ? "#888" : "#666"}
+                value={loginCredentials.username}
+                onChangeText={(text) => setLoginCredentials(prev => ({ ...prev, username: text }))}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDark && { color: "#d4d4d4" }]}>
+                Salasana
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  isDark && { backgroundColor: "#404040", color: "white", borderColor: "#555" }
+                ]}
+                placeholder="Salasana"
+                placeholderTextColor={isDark ? "#888" : "#666"}
+                value={loginCredentials.password}
+                onChangeText={(text) => setLoginCredentials(prev => ({ ...prev, password: text }))}
+                secureTextEntry
+              />
+            </View>
+
+            {loginError ? (
+              <Text style={styles.errorText}>{loginError}</Text>
+            ) : null}
+
+            <Pressable
+              style={[
+                styles.loginButton,
+                isLoading && styles.loginButtonDisabled
+              ]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Kirjaudu sisään</Text>
+              )}
+            </Pressable>
+          </View>
+
+          <View style={[styles.note, isDark && { backgroundColor: "#303030" }]}>
+            <Ionicons
+              name="information-circle"
+              size={20}
+              color={isDark ? "#ffffff85" : "#666"}
+            />
+            <Text style={[styles.noteText, isDark && { color: "#ffffff85" }]}>
+              Kirjautumalla Wilma-tililläsi hyväksyt, että sovellus käyttää
+              Wilma-tunnuksiasi ainoastaan viestien hakemiseen ja sijaintitietojen parantamiseen.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}>
+      <View style={[styles.header, { paddingHorizontal: 16, paddingTop: 8 }]}>
+        <View style={styles.headerLeft}>
+          <Ionicons
+            name="school"
+            size={28}
+            color={isDark ? "#51a2ff" : "#4A89EE"}
+          />
+          <Text style={[styles.headerTitle, isDark && { color: "white" }]}>
+            Wilma
+          </Text>
+        </View>
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <MaterialIcons name="logout" size={24} color="#ff4444" />
+        </Pressable>
+      </View>
+
+      {/* BLE Location Status - Only visible in debug mode */}
+      {isDebugMode && (
+        <View
+          style={[
+            styles.bleStatusContainer,
+            isDark && {
+              backgroundColor: "#1e1e1e",
+              borderBottomColor: "#333",
+            },
+          ]}
+        >
+          <View style={styles.bleStatusRow}>
+            <View
+              style={[
+                styles.bleIndicator,
+                localUserLocation ? styles.bleActive : styles.bleInactive,
+              ]}
+            />
+            <Text
+              style={[
+                styles.bleStatusText,
+                isDark && { color: "white" },
+              ]}
+            >
+              {localUserLocation 
+                ? `Room: ${localUserLocation.currentRoom || "Unknown"} | Floor: ${localUserLocation.floor} | ±${Math.round(localUserLocation.radius)}m`
+                : "No location detected"}
+            </Text>
+            {localUserLocation && (
+              <Text style={styles.bleBeaconCount}>
+                {localUserLocation.beacons.length} beacon{localUserLocation.beacons.length !== 1 ? 's' : ''}
+              </Text>
+            )}
+          </View>
+          {localUserLocation?.coordinates && (
+            <Text style={[styles.bleCoordinates, isDark && { color: "#B5B5B5" }]}>
+              📍 {localUserLocation.coordinates[1].toFixed(6)}, {localUserLocation.coordinates[0].toFixed(6)}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+          />
+        }
+      >
+        <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
+          <Text style={[styles.cardTitle, isDark && { color: "white" }]}>
+            Viestit ({messages.filter(m => m.new).length} uutta)
+          </Text>
+          
+          {messages.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="mail"
+                size={48}
+                color={isDark ? "#666" : "#ccc"}
+              />
+              <Text style={[styles.emptyText, isDark && { color: "#888" }]}>
+                Ei viestejä
+              </Text>
+            </View>
+          ) : (
+            messages.map((message, index) => (
+              <Pressable
+                key={`${message.subject}-${message.timeStamp}-${index}`}
+                style={[
+                  styles.messageItem,
+                  message.new && styles.unreadMessage,
+                  index === messages.length - 1 && { borderBottomWidth: 0 },
+                  isDark && { borderBottomColor: "#404040" }
+                ]}
+                onPress={() => handleMessagePress(message)}
+              >
+                <View style={styles.messageHeader}>
+                  <View style={styles.messageInfo}>
+                    <View style={styles.messageSubjectRow}>
+                      <Text style={[
+                        styles.messageSubject,
+                        message.new && styles.unreadText,
+                        isDark && { color: message.new ? "white" : "#d4d4d4" }
+                      ]}>
+                        {message.subject}
+                      </Text>
+                      {message.isEvent && (
+                        <View style={styles.eventBadge}>
+                          <Text style={styles.eventBadgeText}>Tapahtuma</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.messageSender, isDark && { color: "#888" }]}>
+                      {message.senders.map(s => s.name).join(", ")}
+                    </Text>
+                  </View>
+                  <View style={styles.messageRight}>
+                    <Text style={[styles.messageDate, isDark && { color: "#888" }]}>
+                      {new Date(message.timeStamp).toLocaleDateString("fi-FI", {
+                        day: "numeric",
+                        month: "numeric",
+                        year: "2-digit"
+                      })}
+                    </Text>
+                    {message.new && (
+                      <View style={styles.unreadDot} />
+                    )}
+                  </View>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </View>
+
+        {/* Location Info Card */}
+        {localUserLocation && (
+          <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
+            <Text style={[styles.cardTitle, isDark && { color: "white" }]}>
+              Nykyinen sijainti
+            </Text>
+            <View style={styles.locationInfo}>
+              <Ionicons
+                name="location"
+                size={24}
+                color={isDark ? "#51a2ff" : "#4A89EE"}
+                style={styles.locationIcon}
+              />
+              <View>
+                <Text style={[styles.locationRoom, isDark && { color: "#d4d4d4" }]}>
+                  {localUserLocation.currentRoom || "Tuntematon huone"}
+                </Text>
+                <Text style={[styles.locationDetails, isDark && { color: "#888" }]}>
+                  Kerros {localUserLocation.floor} • Tarkkuus ±{Math.round(localUserLocation.radius)}m
+                </Text>
+                <Text style={[styles.locationBeacons, isDark && { color: "#888" }]}>
+                  {localUserLocation.beacons.length} beacon havaittu
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: "Figtree-SemiBold",
+    marginLeft: 12,
+    color: "#333",
+  },
+  logoutButton: {
+    padding: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: "Figtree-Bold",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontFamily: "Figtree-SemiBold",
+    marginBottom: 16,
+    color: "#222",
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: "Figtree-Medium",
+    color: "#333",
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "white",
+  },
+  errorText: {
+    color: "#ff4444",
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  loginButton: {
+    backgroundColor: "#4A89EE",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontFamily: "Figtree-SemiBold",
+  },
+  note: {
+    flexDirection: "row",
+    backgroundColor: "#f0f7ff",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "flex-start",
+    marginTop: 16,
+  },
+  noteText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 18,
+  },
+  messageItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  unreadMessage: {
+    backgroundColor: "rgba(74, 137, 238, 0.05)",
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  messageInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  messageSubject: {
+    fontSize: 16,
+    fontFamily: "Figtree-Medium",
+    color: "#333",
+    marginBottom: 4,
+  },
+  messageSubjectRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  eventBadge: {
+    backgroundColor: "#4A89EE",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  eventBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontFamily: "Figtree-Medium",
+  },
+  unreadText: {
+    fontFamily: "Figtree-SemiBold",
+    color: "#222",
+  },
+  messageSender: {
+    fontSize: 14,
+    color: "#666",
+  },
+  messageRight: {
+    alignItems: "flex-end",
+  },
+  messageDate: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 4,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4A89EE",
+  },
+  messagePreview: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 20,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#999",
+    marginTop: 16,
+  },
+  locationInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  locationIcon: {
+    marginRight: 16,
+    marginTop: 2,
+  },
+  locationRoom: {
+    fontSize: 16,
+    fontFamily: "Figtree-SemiBold",
+    color: "#333",
+    marginBottom: 4,
+  },
+  locationDetails: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 2,
+  },
+  locationBeacons: {
+    fontSize: 12,
+    color: "#888",
+  },
+  // BLE Status styles
+  bleStatusContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+    backgroundColor: "#F8F9FA",
+  },
+  bleStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  bleIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bleActive: {
+    backgroundColor: "#4CAF50",
+  },
+  bleInactive: {
+    backgroundColor: "#9E9E9E",
+  },
+  bleStatusText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    flex: 1,
+  },
+  bleBeaconCount: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "400",
+  },
+  bleCoordinates: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 4,
+    fontFamily: 'monospace',
+  },
+});

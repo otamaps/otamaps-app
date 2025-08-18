@@ -77,6 +77,13 @@
           "bluetoothAlwaysPermission": "OtaMaps uses your location in the background to detect nearby BLE beacons and keep your position updated. Your location is sent to our server and shared with friends you have added."
         }
       ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID biometric data to secure your account."
+        }
+      ],
       "expo-font",
       "expo-notifications"
     ],
