@@ -1,25 +1,25 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import React, {
-    forwardRef,
-    useEffect,
-    useImperativeHandle,
-    useRef,
-    useState,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
 import { useHits, useSearchBox } from "react-instantsearch-core";
 import {
-    ActivityIndicator,
-    Animated,
-    FlatList,
-    Keyboard,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableWithoutFeedback,
-    useColorScheme,
-    View,
+  ActivityIndicator,
+  Animated,
+  FlatList,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  useColorScheme,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -203,8 +203,20 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     dismissKeyboard();
 
     // Switch to the room's floor if available and different from current
-    if (item.floor !== undefined && item.floor !== selectedFloor && onFloorChange) {
-      console.log(`🏢 Search: Switching from floor ${selectedFloor} to floor ${item.floor} for room ${item.room_number?.value || item._highlightResult.room_number?.value || 'unknown'}`);
+    if (
+      item.floor !== undefined &&
+      item.floor !== selectedFloor &&
+      onFloorChange
+    ) {
+      console.log(
+        `🏢 Search: Switching from floor ${selectedFloor} to floor ${
+          item.floor
+        } for room ${
+          item.room_number?.value ||
+          item._highlightResult.room_number?.value ||
+          "unknown"
+        }`
+      );
       onFloorChange(item.floor);
     }
 
@@ -228,6 +240,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     const roomNumber = item.room_number?.value || "";
     const description = item.description?.value || "";
     const type = item.type || "room"; // Default to 'room' if type not specified
+    const title = item.title || "";
 
     // all actual data is in _highlightResult
     const roomNumberHighlight = item._highlightResult.room_number?.value || "";
@@ -268,8 +281,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
             ]}
             numberOfLines={1}
           >
-            {roomNumberHighlight.replace(/<mark>|<\/mark>/g, "") ||
-              "Unnamed Room"}
+            {roomNumberHighlight.replace(/<mark>|<\/mark>/g, "") || title}
           </Text>
         </View>
         <View style={styles.resultContent}>
