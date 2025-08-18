@@ -60,6 +60,7 @@ const RequestsScreen = () => {
   };
 
   const fetchUserInfo = async () => {
+    const users: any[] = [];
     for (const requester of requests) {
       const { data: user, error: userError } = await supabase
         .from("users_public")
@@ -71,11 +72,10 @@ const RequestsScreen = () => {
       }
 
       if (user && user.length > 0) {
-        setRequesters(user);
+        users.push(user[0]);
       }
     }
-
-    return [];
+    setRequesters(users);
   };
 
   const handleAcceptRequest = async (requestId: string) => {
@@ -164,7 +164,7 @@ const RequestsScreen = () => {
                       isDark && { color: "#ffffff80" },
                     ]}
                   >
-                    {item.class || "Class isn't specified"}
+                    {item.class || "Luokka ei tiedossa"}
                   </Text>
                 </View>
                 <View style={styles.requestButtons}>
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   acceptButton: {
-    backgroundColor: "#4A89EE",
+    backgroundColor: "#4a89ee",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
