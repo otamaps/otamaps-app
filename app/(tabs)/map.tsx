@@ -299,6 +299,13 @@ export default function HomeScreen() {
       fetchFriendLocations();
     }
   }, [friends, fetchFriendLocations]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFriendLocations();
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchFriendLocations]);
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const {
     features,

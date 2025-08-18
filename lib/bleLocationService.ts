@@ -31,7 +31,7 @@ export interface LocationData {
   radius: number;
   beacons: BeaconInfo[];
   updated_at?: string;
-  shared_to: string[];
+  shared_to?: string[];
 }
 
 export interface BeaconInfo {
@@ -343,19 +343,19 @@ export class BLELocationService {
         return false;
       }
 
-      const sharedTo = await this.getFriendIds();
+      // const sharedTo = await this.getFriendIds();
       const radius = calculateLocationRadius(beaconInfos);
       const [x, y] = closestBeacon.coordinates;
       const floor = await this.getFloorFromBeacon(closestBeacon.id);
 
       const locationData: LocationData = {
         user_id: user.id,
-        floor,
-        x,
-        y,
-        radius,
+        floor: floor,
+        x: x,
+        y: y,
+        radius: radius,
         beacons: beaconInfos,
-        shared_to: sharedTo,
+        // shared_to: [],
         updated_at: new Date().toISOString(),
       };
 
@@ -364,7 +364,7 @@ export class BLELocationService {
       });
 
       if (error) {
-        console.error("Error updating location:", error);
+        console.error("Error updating location:", error, locationData);
         return false;
       }
       console.log(
