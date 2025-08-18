@@ -1,6 +1,8 @@
 import { fmstyles } from "@/assets/styles/friendModalStyles";
 import { CustomUserLocation } from "@/components/customUserLocation";
-import useBLEScanner, { LocalUserLocation } from "@/components/functions/bleScanner";
+import useBLEScanner, {
+  LocalUserLocation,
+} from "@/components/functions/bleScanner";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import MapBottomSheet, {
@@ -151,7 +153,8 @@ export default function HomeScreen() {
   const customUserLocationRef = useRef<CustomUserLocation>(null);
 
   // BLE Scanner for location tracking
-  const { currentRoom, getScannedBeacons, getCurrentLocation } = useBLEScanner();
+  const { currentRoom, getScannedBeacons, getCurrentLocation } =
+    useBLEScanner();
   const scannedBeacons = getScannedBeacons();
   console.log("Scanned beacons:", scannedBeacons);
 
@@ -205,7 +208,8 @@ export default function HomeScreen() {
     FriendWithLocation[]
   >([]);
   const [isDebugMode, setIsDebugMode] = useState(false);
-  const [localUserLocation, setLocalUserLocation] = useState<LocalUserLocation | null>(null);
+  const [localUserLocation, setLocalUserLocation] =
+    useState<LocalUserLocation | null>(null);
 
   // Camera state for dynamic positioning
   const [cameraConfig, setCameraConfig] = useState({
@@ -326,10 +330,10 @@ export default function HomeScreen() {
   useEffect(() => {
     // Initial fetch
     fetchLocalUserLocation();
-    
+
     // Update every 2 seconds (more frequent than Supabase uploads)
     const locationUpdateInterval = setInterval(fetchLocalUserLocation, 2000);
-    
+
     return () => {
       clearInterval(locationUpdateInterval);
     };
@@ -858,31 +862,35 @@ export default function HomeScreen() {
 
   // Create GeoJSON for local user location
   const localUserLocationGeoJSON = useMemo(() => {
-    if (!localUserLocation || 
-        !localUserLocation.coordinates || 
-        !localUserLocation.floor || 
-        localUserLocation.floor !== selectedFloor) {
+    if (
+      !localUserLocation ||
+      !localUserLocation.coordinates ||
+      !localUserLocation.floor ||
+      localUserLocation.floor !== selectedFloor
+    ) {
       return emptyGeoJSON;
     }
 
     return {
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: localUserLocation.coordinates,
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: localUserLocation.coordinates,
+          },
+          properties: {
+            id: "local-user",
+            name: "You",
+            isUser: true,
+            radius: localUserLocation.radius,
+            floor: localUserLocation.floor,
+            currentRoom: localUserLocation.currentRoom,
+            beaconCount: localUserLocation.beacons.length,
+          },
         },
-        properties: {
-          id: "local-user",
-          name: "You",
-          isUser: true,
-          radius: localUserLocation.radius,
-          floor: localUserLocation.floor,
-          currentRoom: localUserLocation.currentRoom,
-          beaconCount: localUserLocation.beacons.length,
-        },
-      }],
+      ],
     } as any;
   }, [localUserLocation, selectedFloor]);
 
@@ -1203,13 +1211,16 @@ export default function HomeScreen() {
                 <CircleLayer
                   id="local-user-accuracy-circle"
                   style={{
-                    circleRadius: [
-                      "interpolate",
-                      ["linear"],
-                      ["zoom"],
-                      10, ["*", ["get", "radius"], 0.2],
-                      18, ["*", ["get", "radius"], 3],
-                    ],
+                    // circleRadius: [
+                    //   "interpolate",
+                    //   ["linear"],
+                    //   ["zoom"],
+                    //   10 / 2,
+                    //   ["*", ["get", "radius"], 0.2],
+                    //   18 / 2,
+                    //   ["*", ["get", "radius"], 3],
+                    // ],
+                    circleRadius: ["*", ["get", "radius"], 3],
                     circleColor: "#4A89EE",
                     circleOpacity: 0.15,
                     circleStrokeColor: "#4A89EE",
@@ -1221,13 +1232,16 @@ export default function HomeScreen() {
                 <CircleLayer
                   id="local-user-location-dot"
                   style={{
-                    circleRadius: [
-                      "interpolate",
-                      ["linear"],
-                      ["zoom"],
-                      10, 8,
-                      18, 20,
-                    ],
+                    // circleRadius: [
+                    //   "interpolate",
+                    //   ["linear"],
+                    //   ["zoom"],
+                    //   10 / 2,
+                    //   8 / 2,
+                    //   18 / 2,
+                    //   20 / 2,
+                    // ],
+                    circleRadius: 10,
                     circleColor: "#4A89EE",
                     circleStrokeColor: isDark ? "#171717" : "#fff",
                     circleStrokeWidth: 4,
@@ -1238,13 +1252,16 @@ export default function HomeScreen() {
                 <CircleLayer
                   id="local-user-pulse"
                   style={{
-                    circleRadius: [
-                      "interpolate",
-                      ["linear"],
-                      ["zoom"],
-                      10, 12,
-                      18, 28,
-                    ],
+                    // circleRadius: [
+                    //   "interpolate",
+                    //   ["linear"],
+                    //   ["zoom"],
+                    //   10,
+                    //   12,
+                    //   18,
+                    //   28,
+                    // ],
+                    circleRadius: 12,
                     circleColor: "#4A89EE",
                     circleOpacity: 0.3,
                     circleStrokeColor: "#4A89EE",
@@ -1435,7 +1452,9 @@ export default function HomeScreen() {
                       <View
                         style={[
                           styles.bleIndicator,
-                          localUserLocation ? styles.bleActive : styles.bleInactive,
+                          localUserLocation
+                            ? styles.bleActive
+                            : styles.bleInactive,
                           isDark && { backgroundColor: "#4A89EE" },
                         ]}
                       />
@@ -1445,19 +1464,30 @@ export default function HomeScreen() {
                           isDark && { color: "white" },
                         ]}
                       >
-                        {localUserLocation 
-                          ? `Room: ${localUserLocation.currentRoom || "Unknown"} | Floor: ${localUserLocation.floor} | ±${Math.round(localUserLocation.radius)}m`
+                        {localUserLocation
+                          ? `Room: ${
+                              localUserLocation.currentRoom || "Unknown"
+                            } | Floor: ${
+                              localUserLocation.floor
+                            } | ±${Math.round(localUserLocation.radius)}m`
                           : "No location detected"}
                       </Text>
                       {localUserLocation && (
                         <Text style={styles.bleBeaconCount}>
-                          {localUserLocation.beacons.length} beacon{localUserLocation.beacons.length !== 1 ? 's' : ''}
+                          {localUserLocation.beacons.length} beacon
+                          {localUserLocation.beacons.length !== 1 ? "s" : ""}
                         </Text>
                       )}
                     </View>
                     {localUserLocation?.coordinates && (
-                      <Text style={[styles.bleCoordinates, isDark && { color: "#B5B5B5" }]}>
-                        📍 {localUserLocation.coordinates[1].toFixed(6)}, {localUserLocation.coordinates[0].toFixed(6)}
+                      <Text
+                        style={[
+                          styles.bleCoordinates,
+                          isDark && { color: "#B5B5B5" },
+                        ]}
+                      >
+                        📍 {localUserLocation.coordinates[1].toFixed(6)},{" "}
+                        {localUserLocation.coordinates[0].toFixed(6)}
                       </Text>
                     )}
                   </View>
@@ -1832,7 +1862,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#666",
     marginTop: 4,
-    fontFamily: 'monospace',
+    fontFamily: "monospace",
   },
   // BLE Status styles
   bleStatusContainer: {
