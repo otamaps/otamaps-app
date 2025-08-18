@@ -1211,18 +1211,27 @@ export default function HomeScreen() {
                 <CircleLayer
                   id="local-user-accuracy-circle"
                   style={{
-                    // circleRadius: [
-                    //   "interpolate",
-                    //   ["linear"],
-                    //   ["zoom"],
-                    //   10 / 2,
-                    //   ["*", ["get", "radius"], 0.2],
-                    //   18 / 2,
-                    //   ["*", ["get", "radius"], 3],
-                    // ],
-                    circleRadius: ["*", ["get", "radius"], 3],
+                    circleRadius: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      10,
+                      ["*", ["get", "radius"], 0.0132], // Meters to pixels at zoom 10
+                      12,
+                      ["*", ["get", "radius"], 0.0527], // Meters to pixels at zoom 12
+                      15,
+                      ["*", ["get", "radius"], 0.4219], // Meters to pixels at zoom 15
+                      17,
+                      ["*", ["get", "radius"], 1.6892], // Meters to pixels at zoom 17
+                      19,
+                      ["*", ["get", "radius"], 6.7568], // Meters to pixels at zoom 19
+                      20,
+                      ["*", ["get", "radius"], 13.5135], // Meters to pixels at zoom 20
+                      21,
+                      ["*", ["get", "radius"], 27.027], // Meters to pixels at zoom 21
+                    ],
                     circleColor: "#4A89EE",
-                    circleOpacity: 0.15,
+                    circleOpacity: 0.15, // Increased for testing
                     circleStrokeColor: "#4A89EE",
                     circleStrokeWidth: 2,
                     circleStrokeOpacity: 0.4,
@@ -1232,16 +1241,16 @@ export default function HomeScreen() {
                 <CircleLayer
                   id="local-user-location-dot"
                   style={{
-                    // circleRadius: [
-                    //   "interpolate",
-                    //   ["linear"],
-                    //   ["zoom"],
-                    //   10 / 2,
-                    //   8 / 2,
-                    //   18 / 2,
-                    //   20 / 2,
-                    // ],
-                    circleRadius: 10,
+                    circleRadius: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      3,
+                      5,
+                      8,
+                      10,
+                    ],
+                    // circleRadius: 10,
                     circleColor: "#4A89EE",
                     circleStrokeColor: isDark ? "#171717" : "#fff",
                     circleStrokeWidth: 4,
@@ -1249,26 +1258,26 @@ export default function HomeScreen() {
                   }}
                 />
                 {/* User indicator pulse effect */}
-                <CircleLayer
+                {/* <CircleLayer
                   id="local-user-pulse"
                   style={{
-                    // circleRadius: [
-                    //   "interpolate",
-                    //   ["linear"],
-                    //   ["zoom"],
-                    //   10,
-                    //   12,
-                    //   18,
-                    //   28,
-                    // ],
-                    circleRadius: 12,
+                    circleRadius: [
+                      "interpolate",
+                      ["linear"],
+                      ["zoom"],
+                      10,
+                      12,
+                      18,
+                      28,
+                    ],
+                    // circleRadius: 12,
                     circleColor: "#4A89EE",
                     circleOpacity: 0.3,
                     circleStrokeColor: "#4A89EE",
                     circleStrokeWidth: 1,
                     circleStrokeOpacity: 0.6,
                   }}
-                />
+                /> */}
               </ShapeSource>
             )}
           </MapView>
