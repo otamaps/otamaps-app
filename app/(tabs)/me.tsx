@@ -3,6 +3,7 @@ import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -265,26 +266,30 @@ const Me = () => {
                   </Text>
                 )}
               </View>
-              {profile?.code && (
-                <View style={styles.friendCodeSide}>
-                  <Text
-                    style={[
-                      styles.friendCodeLabelSide,
-                      isDark && { color: "#ffffff70" },
-                    ]}
-                  >
-                    Ystäväkoodi
-                  </Text>
-                  <Text
-                    style={[
-                      styles.friendCodeTextSide,
-                      isDark && { color: "#fff" },
-                    ]}
-                  >
-                    {profile.code}
-                  </Text>
-                </View>
-              )}
+              <Pressable
+                style={styles.friendCodeSide}
+                onPress={() => {
+                  Clipboard.setStringAsync(profile?.code as string);
+                  alert("Ystäväkoodi kopioitu!");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.friendCodeLabelSide,
+                    isDark && { color: "#ffffff70" },
+                  ]}
+                >
+                  Ystäväkoodi
+                </Text>
+                <Text
+                  style={[
+                    styles.friendCodeTextSide,
+                    isDark && { color: "#fff" },
+                  ]}
+                >
+                  {profile?.code}
+                </Text>
+              </Pressable>
             </View>
           </View>
 
@@ -480,7 +485,7 @@ const Me = () => {
             mahdollistanut
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text
+            {/* <Text
               style={{
                 fontSize: 16,
                 fontFamily: "Figtree-SemiBold",
@@ -488,7 +493,18 @@ const Me = () => {
               }}
             >
               OPKH
-            </Text>
+            </Text> */}
+            <Image
+              source={require("@/assets/images/Hallitus_Logo.png")}
+              resizeMode="contain"
+              style={{
+                width: 50,
+                height: 50,
+                marginVertical: 8,
+                marginTop: 20,
+              }}
+              tintColor="#999"
+            />
             <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
               |
             </Text>
@@ -512,7 +528,7 @@ const Me = () => {
             </Text>
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontFamily: "Figtree-SemiBold",
                 color: isDark ? "#a1a1a1" : "#999",
               }}

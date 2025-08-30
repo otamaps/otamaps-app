@@ -1579,13 +1579,31 @@ export default function HomeScreen() {
                           item as {
                             id: string;
                             name: string;
-                            status?: "away" | "busy" | "at school";
+                            status?: "ei sijaintia" | "busy" | string;
                             lastSeen?: string | number;
                             isFavorite?: boolean;
                             color?: string;
                           }
                         }
-                        onPress={() => handleFriendOpen(item.id)}
+                        onPress={() => {
+                          handleFriendOpen(item.id);
+                          if (
+                            item.location &&
+                            Array.isArray(item.location) &&
+                            item.location.length === 2
+                          ) {
+                            // setSelectedFloor(3);
+                            setSelectedFloor(parseInt(item.status[0], 10));
+                            setCameraConfig({
+                              centerCoordinate: [
+                                item.location[0],
+                                item.location[1],
+                              ],
+                              zoomLevel: 20,
+                              animationDuration: 1000,
+                            });
+                          }
+                        }}
                       />
                     )}
                     scrollEnabled={currentSnapIndex === 2} // Always enable scrolling

@@ -12,7 +12,7 @@ interface FriendItemProps {
   friend: {
     id: string;
     name: string;
-    status?: "away" | "busy" | "at school";
+    status?: "ei sijaintia" | "busy" | string;
     lastSeen?: string | number; // Can be ISO string or timestamp
     isFavorite?: boolean;
     color?: string; // Optional color for the icon background
@@ -148,10 +148,12 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
 
 const getStatusColor = (status?: string, lastSeen?: string | number) => {
   // For non-'at school' statuses, return their respective colors
-  if (status !== "koulussa") {
+  if (status !== "busy") {
     switch (status) {
       case "busy":
         return "#F44336";
+      case "ei sijaintia":
+        return "#9E9E9E";
       default:
         return "#9E9E9E";
     }
