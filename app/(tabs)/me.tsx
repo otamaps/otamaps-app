@@ -9,12 +9,9 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
@@ -472,7 +469,7 @@ const Me = () => {
           </Pressable>
         </View>
 
-        <View
+        {/* <View
           style={{ alignItems: "center", marginBottom: "15%", opacity: 0.55 }}
         >
           <Text
@@ -485,15 +482,6 @@ const Me = () => {
             mahdollistanut
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {/* <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: isDark ? "#a1a1a1" : "#999",
-              }}
-            >
-              OPKH
-            </Text> */}
             <Image
               source={require("@/assets/images/Hallitus_Logo.png")}
               resizeMode="contain"
@@ -536,7 +524,7 @@ const Me = () => {
               OLVY
             </Text>
           </View>
-        </View>
+        </View> */}
       </View>
     </SafeAreaView>
   );
