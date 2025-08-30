@@ -39,7 +39,7 @@ const About = () => {
         style={{
           backgroundColor: "white",
           paddingHorizontal: 16,
-          borderRadius: 8,
+          borderRadius: 16,
           marginBottom: 16,
         }}
       >
@@ -60,7 +60,8 @@ const About = () => {
           fontSize: 16,
         }}
       >
-        Versio {Constants.expoConfig?.version || "0.0.1"} ({Constants.expoConfig?.android?.versionCode || ""})
+        Versio {Constants.expoConfig?.version || "0.0.1"} (
+        {Constants.expoConfig?.android?.versionCode || ""})
       </Text>
       <Text
         style={{
@@ -80,16 +81,59 @@ const About = () => {
       >
         Sponsorit
       </Text>
+      <Image
+        source={require("@/assets/images/Hallitus_Logo.png")}
+        style={{ width: 100, height: 100 }}
+        tintColor="gray"
+        resizeMode="contain"
+      />
       <Text
         style={{
-          fontSize: 16,
+          fontSize: 14,
           marginBottom: 8,
-          fontWeight: "bold",
-          ...(isDark ? { color: "#ffffff70" } : { color: "black" }),
+          marginTop: 8,
+          fontWeight: "medium",
+          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
         }}
       >
         Otaniemen lukion opiskelijakunnan hallitus
       </Text>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: "#eeeeee15",
+          marginVertical: 8,
+          width: "100%",
+          marginBottom: 20,
+        }}
+      />
+
+      <Image
+        source={require("@/assets/images/streetsmarts.png")}
+        style={{ width: 100, height: 100 }}
+        tintColor="gray"
+        resizeMode="contain"
+      />
+      <Text
+        style={{
+          fontSize: 14,
+          marginBottom: 8,
+          marginTop: 8,
+          fontWeight: "medium",
+          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
+        }}
+      >
+        Streetsmarts Autokoulu
+      </Text>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: "#eeeeee15",
+          marginVertical: 8,
+          width: "100%",
+          marginBottom: 20,
+        }}
+      />
       <Text
         style={{
           fontSize: 16,
@@ -100,12 +144,6 @@ const About = () => {
       >
         Otaniemen lukion vanhempainyhdistys
       </Text>
-      <Image
-        source={require("@/assets/images/streetsmarts.png")}
-        style={{ width: 100, height: 100 }}
-        tintColor="gray"
-        resizeMode="contain"
-      />
     </View>
   );
 };
