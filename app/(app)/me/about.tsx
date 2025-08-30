@@ -17,6 +17,29 @@ const About = () => {
   const backgroundColor = isDark ? "#1e1e1e" : "#fff";
   const router = useRouter();
 
+  const [logoTapCount, setLogoTapCount] = React.useState(0);
+  const logoTapTimeout = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoTap = () => {
+    setLogoTapCount((prev) => {
+      const next = prev + 1;
+      if (next === 10) {
+        setLogoTapCount(0);
+        router.push("/me/secret");
+        return 0;
+      }
+      if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
+      logoTapTimeout.current = setTimeout(() => setLogoTapCount(0), 1500);
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
+    };
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <Stack.Screen
@@ -43,14 +66,16 @@ const About = () => {
           marginBottom: 16,
         }}
       >
-        <Image
-          source={require("@/assets/images/otamaps-logo.png")}
-          style={{
-            resizeMode: "contain",
-            width: 200,
-            height: 100,
-          }}
-        />
+        <Pressable onPress={handleLogoTap} hitSlop={20}>
+          <Image
+            source={require("@/assets/images/otamaps-logo.png")}
+            style={{
+              resizeMode: "contain",
+              width: 200,
+              height: 100,
+            }}
+          />
+        </Pressable>
       </View>
 
       <Text
