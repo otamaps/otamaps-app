@@ -1,6 +1,7 @@
 import { useUser } from "@/context/UserContext";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
+import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
@@ -274,18 +275,36 @@ const Me = () => {
                   style={[
                     styles.friendCodeLabelSide,
                     isDark && { color: "#ffffff70" },
+                    { marginBottom: 6 },
                   ]}
                 >
                   Ystäväkoodi
                 </Text>
-                <Text
-                  style={[
-                    styles.friendCodeTextSide,
-                    isDark && { color: "#fff" },
-                  ]}
+                <View
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    backgroundColor: isDark ? "#303030" : "#eeeeee",
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
                 >
-                  {profile?.code}
-                </Text>
+                  <MaterialIcons
+                    name="content-copy"
+                    size={14}
+                    color={isDark ? "#fff" : "#3333337d"}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.friendCodeTextSide,
+                      isDark && { color: "#fff" },
+                    ]}
+                  >
+                    {profile?.code}
+                  </Text>
+                </View>
               </Pressable>
             </View>
           </View>
