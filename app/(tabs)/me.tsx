@@ -340,7 +340,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -349,6 +349,11 @@ const Me = () => {
                 isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
+                {
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                },
               ]}
               onPress={() => router.push("/me/wilma")}
             >
@@ -361,11 +366,28 @@ const Me = () => {
               >
                 Yhdistä Wilma-tili
               </Text>
+              <View
+                style={{
+                  backgroundColor: isDark ? "#525252" : "#eee",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: isDark ? "#fff" : "#444",
+                  }}
+                >
+                  Tulossa pian
+                </Text>
+              </View>
             </Pressable>
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -390,7 +412,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -415,7 +437,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
