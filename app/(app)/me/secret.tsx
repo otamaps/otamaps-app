@@ -1,7 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Linking,
@@ -14,19 +15,14 @@ import {
 } from "react-native";
 
 const Settings = () => {
-  const [isLoading, setIsLoading] = useState(true);
   const [isDebugMode, setIsDebugMode] = useState(false);
-
   const isDark = useColorScheme() === "dark";
-  //   setIsLoading(false);
 
-  //   if (isLoading) {
-  //     return (
-  //       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-  //         <ActivityIndicator size="large" color="#4A89EE" />
-  //       </View>
-  //     );
-  //   }
+  useEffect(() => {
+    AsyncStorage.getItem("isDebugMode").then((value) => {
+      if (value !== null) setIsDebugMode(value === "true");
+    });
+  }, []);
 
   return (
     <SafeAreaView
@@ -74,9 +70,21 @@ const Settings = () => {
           >
             Moi
           </Text>
+          {isDebugMode && (
+            <Text
+              style={{
+                color: isDark ? "#fff" : "#000",
+                fontSize: 18,
+                marginBottom: 16,
+              }}
+            >
+              Debug mode is enabled!
+            </Text>
+          )}
+
           <Button
             onPress={() => Linking.openURL("https://manual.avolites.com/")}
-            title="Salainen linkki"
+            title="Tap me"
           />
         </View>
       </View>
