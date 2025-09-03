@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -268,7 +269,7 @@ const Me = () => {
                 style={styles.friendCodeSide}
                 onPress={() => {
                   Clipboard.setStringAsync(profile?.code as string);
-                  alert("Ystäväkoodi kopioitu!");
+                  Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
                 }}
               >
                 <Text
