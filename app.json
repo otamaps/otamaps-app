@@ -28,7 +28,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "fi.otamaps.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
