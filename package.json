@@ -33,6 +33,7 @@
     "expo": "~53.0.12",
     "expo-background-fetch": "~13.1.6",
     "expo-blur": "~14.1.5",
+    "expo-clipboard": "^7.1.5",
     "expo-constants": "~17.1.6",
     "expo-dev-client": "~5.2.1",
     "expo-document-picker": "^13.1.6",

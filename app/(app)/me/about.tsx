@@ -17,6 +17,29 @@ const About = () => {
   const backgroundColor = isDark ? "#1e1e1e" : "#fff";
   const router = useRouter();
 
+  const [logoTapCount, setLogoTapCount] = React.useState(0);
+  const logoTapTimeout = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoTap = () => {
+    setLogoTapCount((prev) => {
+      const next = prev + 1;
+      if (next === 10) {
+        setLogoTapCount(0);
+        router.push("/me/secret");
+        return 0;
+      }
+      if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
+      logoTapTimeout.current = setTimeout(() => setLogoTapCount(0), 1500);
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
+    };
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <Stack.Screen
@@ -39,18 +62,20 @@ const About = () => {
         style={{
           backgroundColor: "white",
           paddingHorizontal: 16,
-          borderRadius: 8,
+          borderRadius: 16,
           marginBottom: 16,
         }}
       >
-        <Image
-          source={require("@/assets/images/otamaps-logo.png")}
-          style={{
-            resizeMode: "contain",
-            width: 200,
-            height: 100,
-          }}
-        />
+        <Pressable onPress={handleLogoTap} hitSlop={20}>
+          <Image
+            source={require("@/assets/images/otamaps-logo.png")}
+            style={{
+              resizeMode: "contain",
+              width: 200,
+              height: 100,
+            }}
+          />
+        </Pressable>
       </View>
 
       <Text
@@ -60,7 +85,8 @@ const About = () => {
           fontSize: 16,
         }}
       >
-        Versio {Constants.expoConfig?.version || "0.0.1"} ({Constants.expoConfig?.android?.versionCode || ""})
+        Versio {Constants.expoConfig?.version || "0.0.1"} (
+        {Constants.expoConfig?.android?.versionCode || ""})
       </Text>
       <Text
         style={{
@@ -80,16 +106,59 @@ const About = () => {
       >
         Sponsorit
       </Text>
+      <Image
+        source={require("@/assets/images/Hallitus_Logo.png")}
+        style={{ width: 100, height: 100 }}
+        tintColor="gray"
+        resizeMode="contain"
+      />
       <Text
         style={{
-          fontSize: 16,
+          fontSize: 14,
           marginBottom: 8,
-          fontWeight: "bold",
-          ...(isDark ? { color: "#ffffff70" } : { color: "black" }),
+          marginTop: 8,
+          fontWeight: "medium",
+          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
         }}
       >
         Otaniemen lukion opiskelijakunnan hallitus
       </Text>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: "#eeeeee15",
+          marginVertical: 8,
+          width: "100%",
+          marginBottom: 20,
+        }}
+      />
+
+      <Image
+        source={require("@/assets/images/streetsmarts.png")}
+        style={{ width: 100, height: 100 }}
+        tintColor="gray"
+        resizeMode="contain"
+      />
+      <Text
+        style={{
+          fontSize: 14,
+          marginBottom: 8,
+          marginTop: 8,
+          fontWeight: "medium",
+          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
+        }}
+      >
+        Streetsmarts Autokoulu
+      </Text>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: "#eeeeee15",
+          marginVertical: 8,
+          width: "100%",
+          marginBottom: 20,
+        }}
+      />
       <Text
         style={{
           fontSize: 16,
@@ -100,12 +169,6 @@ const About = () => {
       >
         Otaniemen lukion vanhempainyhdistys
       </Text>
-      <Image
-        source={require("@/assets/images/streetsmarts.png")}
-        style={{ width: 100, height: 100 }}
-        tintColor="gray"
-        resizeMode="contain"
-      />
     </View>
   );
 };

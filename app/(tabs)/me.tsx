@@ -1,19 +1,19 @@
 import { useUser } from "@/context/UserContext";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
+import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
-  Linking,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
@@ -265,26 +265,48 @@ const Me = () => {
                   </Text>
                 )}
               </View>
-              {profile?.code && (
-                <View style={styles.friendCodeSide}>
-                  <Text
-                    style={[
-                      styles.friendCodeLabelSide,
-                      isDark && { color: "#ffffff70" },
-                    ]}
-                  >
-                    Ystäväkoodi
-                  </Text>
+              <Pressable
+                style={styles.friendCodeSide}
+                onPress={() => {
+                  Clipboard.setStringAsync(profile?.code as string);
+                  Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.friendCodeLabelSide,
+                    isDark && { color: "#ffffff70" },
+                    { marginBottom: 6 },
+                  ]}
+                >
+                  Ystäväkoodi
+                </Text>
+                <View
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    backgroundColor: isDark ? "#303030" : "#eeeeee",
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <MaterialIcons
+                    name="content-copy"
+                    size={14}
+                    color={isDark ? "#fff" : "#3333337d"}
+                    style={{ marginRight: 4 }}
+                  />
                   <Text
                     style={[
                       styles.friendCodeTextSide,
                       isDark && { color: "#fff" },
                     ]}
                   >
-                    {profile.code}
+                    {profile?.code}
                   </Text>
                 </View>
-              )}
+              </Pressable>
             </View>
           </View>
 
@@ -319,7 +341,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -328,6 +350,11 @@ const Me = () => {
                 isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
+                {
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                },
               ]}
               onPress={() => router.push("/me/wilma")}
             >
@@ -340,11 +367,28 @@ const Me = () => {
               >
                 Yhdistä Wilma-tili
               </Text>
+              <View
+                style={{
+                  backgroundColor: isDark ? "#525252" : "#eee",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: isDark ? "#fff" : "#444",
+                  }}
+                >
+                  Tulossa pian
+                </Text>
+              </View>
             </Pressable>
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -369,7 +413,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -394,7 +438,7 @@ const Me = () => {
             <View
               style={{
                 height: 1,
-                backgroundColor: isDark ? "#454545" : "#ddd",
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
             <Pressable
@@ -467,7 +511,7 @@ const Me = () => {
           </Pressable>
         </View>
 
-        <View
+        {/* <View
           style={{ alignItems: "center", marginBottom: "15%", opacity: 0.55 }}
         >
           <Text
@@ -480,15 +524,17 @@ const Me = () => {
             mahdollistanut
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text
+            <Image
+              source={require("@/assets/images/Hallitus_Logo.png")}
+              resizeMode="contain"
               style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: isDark ? "#a1a1a1" : "#999",
+                width: 50,
+                height: 50,
+                marginVertical: 8,
+                marginTop: 20,
               }}
-            >
-              OPKH
-            </Text>
+              tintColor="#999"
+            />
             <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
               |
             </Text>
@@ -512,7 +558,7 @@ const Me = () => {
             </Text>
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontFamily: "Figtree-SemiBold",
                 color: isDark ? "#a1a1a1" : "#999",
               }}
@@ -520,7 +566,7 @@ const Me = () => {
               OLVY
             </Text>
           </View>
-        </View>
+        </View> */}
       </View>
     </SafeAreaView>
   );

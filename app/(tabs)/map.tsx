@@ -959,6 +959,7 @@ export default function HomeScreen() {
                 ne: [24.837734917168515, 60.193210548540286],
                 sw: [24.797450838759808, 60.1724484493661],
               }}
+              heading={180}
               minZoomLevel={14}
               maxZoomLevel={21}
               allowUpdates={true}
@@ -1579,13 +1580,31 @@ export default function HomeScreen() {
                           item as {
                             id: string;
                             name: string;
-                            status?: "away" | "busy" | "at school";
+                            status?: "ei sijaintia" | "busy" | string;
                             lastSeen?: string | number;
                             isFavorite?: boolean;
                             color?: string;
                           }
                         }
-                        onPress={() => handleFriendOpen(item.id)}
+                        onPress={() => {
+                          handleFriendOpen(item.id);
+                          if (
+                            item.location &&
+                            Array.isArray(item.location) &&
+                            item.location.length === 2
+                          ) {
+                            // setSelectedFloor(3);
+                            setSelectedFloor(parseInt(item.status[0], 10));
+                            setCameraConfig({
+                              centerCoordinate: [
+                                item.location[0],
+                                item.location[1],
+                              ],
+                              zoomLevel: 20,
+                              animationDuration: 1000,
+                            });
+                          }
+                        }}
                       />
                     )}
                     scrollEnabled={currentSnapIndex === 2} // Always enable scrolling
