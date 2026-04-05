@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { InstantSearch } from "react-instantsearch-core";
 import { useColorScheme, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
 // Keep the splash screen visible while we fetch resources
@@ -46,6 +47,7 @@ function RootLayoutNav() {
 
   return (
     <UserProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack
         screenOptions={{
           headerShown: false, // this disables the default header everywhere
@@ -56,6 +58,7 @@ function RootLayoutNav() {
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      </GestureHandlerRootView>
     </UserProvider>
   );
 }

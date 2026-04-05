@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Text,
   useColorScheme,
-  View,
+  View
 } from "react-native";
 
 const Settings = () => {
@@ -43,7 +43,12 @@ const Settings = () => {
           },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
+              <MaterialIcons
+                name="arrow-back"
+                size={24}
+                style={{ marginRight: 8 }}
+                color={isDark ? "#fff" : "#000"}
+              />
             </Pressable>
           ),
         }}

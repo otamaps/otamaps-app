@@ -1,7 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import React from "react";
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +48,17 @@ const Guide = () => {
           title: "Käyttöohje",
           headerStyle: { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
           headerTitleStyle: { color: isDark ? "#fff" : "#000" },
+          headerTintColor: isDark ? "#fff" : "#000",
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()}>
+              <MaterialIcons
+                name="arrow-back"
+                size={24}
+                style={{ marginRight: 8 }}
+                color={isDark ? "#fff" : "#000"}
+              />
+            </Pressable>
+          ),
         }}
       />
 

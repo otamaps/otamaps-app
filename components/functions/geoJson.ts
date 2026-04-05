@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDocumentAsync } from 'expo-document-picker';
-import { readAsStringAsync } from 'expo-file-system';
 
 const STORAGE_KEY = '@findoors:geojson';
 
@@ -20,6 +19,7 @@ export async function geoJsonPicker() {
 }
 
 export async function loadGeoJSON(uri: string) {
+  const { readAsStringAsync } = await import('expo-file-system');
   // Read the file’s contents as text
   const text = await readAsStringAsync(uri);
   // Parse into a JS object

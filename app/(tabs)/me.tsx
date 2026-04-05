@@ -1,10 +1,9 @@
-import { useUser } from "@/context/UserContext";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
+import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -27,12 +26,18 @@ type UserProfile = {
   code?: string;
 };
 
+const copyToClipboard = async (value: string | undefined) => {
+  if (!value) return;
+
+  const Clipboard = await import("expo-clipboard");
+  await Clipboard.setStringAsync(value);
+};
+
 const Me = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isDark = useColorScheme() === "dark";
   const [isDebugMode, setIsDebugMode] = useState(false);
-  const { user } = useUser();
   const params = useLocalSearchParams();
 
   useEffect(() => {
@@ -267,9 +272,16 @@ const Me = () => {
               </View>
               <Pressable
                 style={styles.friendCodeSide}
-                onPress={() => {
-                  Clipboard.setStringAsync(profile?.code as string);
-                  Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
+                onPress={async () => {
+                  try {
+                    await copyToClipboard(profile?.code);
+                    Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
+                  } catch {
+                    Alert.alert(
+                      "Ei onnistunut",
+                      "Leikepöydän käyttö ei ole saatavilla tässä versiossa."
+                    );
+                  }
                 }}
               >
                 <Text
@@ -397,6 +409,53 @@ const Me = () => {
                 isDark && { backgroundColor: "#303030" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
+                {
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }
+              ]}
+              onPress={() => router.push("/me/fablab")}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: "Figtree-SemiBold",
+                  color: isDark ? "#fff" : "#444",
+                }}
+              >
+                Fablab
+              </Text>
+              <View
+                style={{
+                  backgroundColor: isDark ? "#525252" : "#eee",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: isDark ? "#fff" : "#444",
+                  }}
+                >
+                  Uusi!
+                </Text>
+              </View>
+            </Pressable>
+            <View
+              style={{
+                height: 1,
+                backgroundColor: isDark ? "#454545" : "#dddddd50",
+              }}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionContainer,
+                isDark && { backgroundColor: "#303030" },
+                pressed && styles.optionContainerPressed,
+                isDark && pressed && { backgroundColor: "#525252" },
               ]}
               onPress={() => router.push("/me/settings")}
             >
@@ -494,9 +553,14 @@ const Me = () => {
               { width: "90%" },
             ]}
             onPress={() => {
-              supabase.auth.signOut();
-              clearUserCache();
-              router.push("/");
+              signOutGoogleAndSupabase()
+                .catch((error) => {
+                  console.error("Sign-out failed:", error);
+                })
+                .finally(() => {
+                  clearUserCache();
+                  router.push("/");
+                });
             }}
           >
             <Text

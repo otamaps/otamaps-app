@@ -1,4 +1,5 @@
 import { configureGoogleSignIn, isGoogleSignInAvailable, signInWithGoogle } from '@/lib/googleAuth';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -55,22 +56,24 @@ export default function Login() {
         </View>
       
       <View style={styles.buttonContainer}>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.googleButton,
-            pressed && styles.googleButtonPressed
-          ]} 
-          onPress={handleGoogleSignIn}
-          disabled={loading}
-        >
-          <View style={styles.googleButtonContent}>
-            <Image 
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
-              style={styles.googleLogo}
-            />
-            <Text style={styles.googleButtonText}>Jatka Googlella</Text>
-          </View>
-        </Pressable>
+        {googleSignInAvailable ? (
+          <Pressable 
+            style={({ pressed }) => [
+              styles.googleButton,
+              pressed && styles.googleButtonPressed
+            ]} 
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <View style={styles.googleButtonContent}>
+              <Image 
+                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
+                style={styles.googleLogo}
+              />
+              <Text style={styles.googleButtonText}>Jatka Googlella</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
@@ -83,6 +86,8 @@ export default function Login() {
             styles.alternativeButton,
             pressed && styles.alternativeButtonPressed
           ]}
+          onPress={() => router.push('/welcome/emailLogin')}
+          disabled={loading}
         >
           <Text style={styles.alternativeButtonText}>Muu kirjautuminen</Text>
           <Text style={styles.alternativeButtonSubtext}>Minulla ei ole @eduespoo.fi -tiliä</Text>

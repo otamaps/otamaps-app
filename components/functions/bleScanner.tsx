@@ -1,6 +1,7 @@
 import { BLELocationService } from "@/lib/bleLocationService";
 import { getUser } from "@/lib/getUserHandle";
 import { getRoomIdFromBleId } from "@/lib/idTranslation";
+import notifee, { AndroidImportance, AndroidStyle } from "@notifee/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
@@ -41,6 +42,7 @@ class BLEScannerService {
   private readonly UPLOAD_INTERVAL = 30000; // Upload every 30 seconds
   private readonly BEACON_TIMEOUT = 10000; // Consider beacon lost after 10 seconds
   private readonly RSSI_THRESHOLD = -80; // Minimum signal strength to consider
+  private foregroundServiceId: string | null = null; // Track foreground service
 
   // Long-lasting cache for beacon-to-room mappings (30 days)
   private roomIdCache: Map<string, string | null> = new Map();
@@ -51,6 +53,56 @@ class BLEScannerService {
     this.loadCacheFromStorage();
     this.startContinuousScanning();
     this.startPeriodicUpload();
+  }
+
+  // Start foreground service for Android
+  private async startForegroundService() {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      // Create a channel (required for Android 8.0+)
+      const channelId = await notifee.createChannel({
+        id: 'ble_scanner',
+        name: 'BLE Scanner',
+        description: 'Background beacon scanning for room detection',
+        importance: AndroidImportance.LOW,
+      });
+
+      // Display a notification
+      const notificationId = await notifee.displayNotification({
+        title: 'OtaMaps Location Service',
+        body: 'Scanning for room beacons in background',
+        android: {
+          channelId,
+          asForegroundService: true,
+          style: {
+            type: AndroidStyle.BIGTEXT,
+            text: 'OtaMaps is actively scanning for room beacons to provide accurate location services.',
+          },
+          ongoing: true,
+          autoCancel: false,
+          smallIcon: 'ic_launcher',
+        },
+      });
+
+      this.foregroundServiceId = notificationId;
+      console.log('🔔 Foreground service started with notification ID:', notificationId);
+    } catch (error) {
+      console.error('Failed to start foreground service:', error);
+    }
+  }
+
+  // Stop foreground service for Android
+  private async stopForegroundService() {
+    if (Platform.OS !== 'android' || !this.foregroundServiceId) return;
+
+    try {
+      await notifee.cancelNotification(this.foregroundServiceId);
+      this.foregroundServiceId = null;
+      console.log('🔔 Foreground service stopped');
+    } catch (error) {
+      console.error('Failed to stop foreground service:', error);
+    }
   }
 
   // Load cached beacon-to-room mappings from persistent storage
@@ -157,6 +209,11 @@ class BLEScannerService {
 
   private async startContinuousScanning() {
     await this.requestPermissions();
+
+    // Start foreground service for Android to ensure background scanning
+    if (Platform.OS === 'android') {
+      await this.startForegroundService();
+    }
 
     // On Android, scan for all devices since UUID filtering is problematic
     // On iOS, continue using UUID filtering for better performance
@@ -579,6 +636,10 @@ class BLEScannerService {
 
   destroy() {
     manager.stopDeviceScan();
+    // Stop foreground service for Android
+    this.stopForegroundService().catch((err) =>
+      console.warn("Failed to stop foreground service during destroy:", err)
+    );
     // Save cache before destroying
     this.saveCacheToStorage().catch((err) =>
       console.warn("Failed to save cache during destroy:", err)
