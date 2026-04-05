@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -110,21 +110,24 @@ export default function WelcomeScreen() {
               pointerEvents="none"
             />
             <View style={styles.buttonContent}>
-              {/* <FontAwesome name="google" size={26} color="white" /> */}
               <Text style={styles.buttonText}>Kirjaudu sisään</Text>
             </View>
           </Pressable>
-          {/* <Text style={styles.mahdollistanut}>Mahdollistanut</Text>
-          <TouchableOpacity
-            style={styles.logo}
-            onPress={() => Linking.openURL("https://www.streetsmarts.fi/")}
-          >
-            <Image
-              source={require("@/assets/images/streetsmarts.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity> */}
+
+          {googleSignInAvailable ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.alternativeButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <View style={styles.alternativeButtonContent}>
+                <Text style={styles.alternativeButtonText}>Jatka Googlella</Text>
+              </View>
+            </Pressable>
+          ) : null}
 
           <Text style={styles.disclaimer}>
             Kirjautumalla sisään hyväksyt{" "}
@@ -142,33 +145,6 @@ export default function WelcomeScreen() {
               Tietosuojapolitiikan
             </Text>
           </Text>
-
-          {/* <Pressable 
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed
-            ]} 
-            onPress={handleGoogleSignIn}
-            disabled={loading}
-          >
-            <View style={styles.buttonContent}>
-              <FontAwesome name="google" size={26} color="white" />
-              <Text style={styles.buttonText}>Jatka Googlella</Text>
-            </View>
-          </Pressable> */}
-
-          {/* <Pressable 
-            style={({ pressed }) => [
-              styles.alternativeButton,
-              pressed && styles.buttonPressed
-            ]} 
-            onPress={() => router.push('/welcome/emailLogin') /* !! change back !! */}
-          {/* disabled={loading}
-          >
-            <View style={styles.alternativeButtonContent}>
-              <Text style={styles.alternativeButtonText}>Minulla ei ole @eduespoo.fi -tiliä</Text>
-            </View>
-          </Pressable> */}
         </View>
       </View>
     </View>
@@ -243,16 +219,6 @@ const styles = StyleSheet.create({
     height: 100,
     marginBottom: 20,
   },
-  logo: {
-    width: 150,
-    height: 150,
-  },
-  mahdollistanut: {
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-    textAlign: "center",
-    color: "#cbb57f",
-  },
   button: {
     backgroundColor: "#ff0000",
     padding: 15,
@@ -278,12 +244,15 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-SemiBold",
   },
   alternativeButton: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#fff",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
     marginHorizontal: 20,
     width: "90%",
+    borderWidth: 1,
+    borderColor: "#D6D6D6",
+    marginBottom: 10,
   },
   alternativeButtonContent: {
     flexDirection: "row",
@@ -291,8 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   alternativeButtonText: {
-    color: "#3478F5",
-    paddingLeft: 10,
+    color: "#333",
     fontSize: 16,
     fontFamily: "Figtree-SemiBold",
   },

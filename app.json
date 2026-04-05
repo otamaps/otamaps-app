@@ -7,9 +7,7 @@
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "newArchEnabled": false,
       "supportsTablet": true,
       "bundleIdentifier": "fi.otamaps.ios",
       "infoPlist": {
@@ -26,7 +24,6 @@
         "monochromeImage": "./assets/icons/monochromatic.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "fi.otamaps.app",
       "versionCode": 10,
       "permissions": [
@@ -89,7 +86,9 @@
       ],
       "expo-font",
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
