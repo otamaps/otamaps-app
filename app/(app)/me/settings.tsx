@@ -1,4 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import {
+  isBLEBackgroundEnabled,
+  startBLEBackgroundService,
+  stopBLEBackgroundService,
+} from "@/lib/bleBackgroundManager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
@@ -8,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   PermissionsAndroid,
   Platform,
   Pressable,
@@ -31,6 +37,7 @@ const Settings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const [bgScanEnabled, setBgScanEnabled] = useState(true);
 
   const isDark = useColorScheme() === "dark";
 
@@ -42,11 +49,43 @@ const Settings = () => {
     AsyncStorage.getItem("isDebugMode").then((value) => {
       if (value !== null) setIsDebugMode(value === "true");
     });
+    if (Platform.OS === "android") {
+      isBLEBackgroundEnabled().then(setBgScanEnabled);
+    }
   }, []);
 
   const handleDebugModeChange = async (value: boolean) => {
     setIsDebugMode(value);
     await AsyncStorage.setItem("isDebugMode", value.toString());
+  };
+
+  const handleBgScanChange = async (value: boolean) => {
+    if (!value) {
+      setBgScanEnabled(false);
+      await stopBLEBackgroundService();
+      return;
+    }
+
+    setBgScanEnabled(true); // optimistic
+    const result = await startBLEBackgroundService();
+
+    if (!result.success && result.reason === "permission_denied") {
+      setBgScanEnabled(false);
+      Alert.alert(
+        "Ilmoitusoikeus vaaditaan",
+        "Taustaskannaus vaatii ilmoitusoikeuden, jotta Android voi pitää palvelun käynnissä. Voit myöntää sen sovelluksen asetuksista.",
+        [
+          {
+            text: "Avaa asetukset",
+            onPress: () => Linking.openSettings(),
+          },
+          {
+            text: "Pidä pois päältä",
+            style: "cancel",
+          },
+        ]
+      );
+    }
   };
 
   const checkPermissions = async () => {
@@ -340,6 +379,37 @@ const Settings = () => {
               thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
             />
           </View> */}
+
+          {Platform.OS === "android" && (
+            <View
+              style={[
+                styles.settingItem,
+                isDark && { borderBottomColor: "#454545" },
+              ]}
+            >
+              <View style={styles.settingTextContainer}>
+                <Text
+                  style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
+                >
+                  Taustasijainnus
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    isDark && { color: "#737373" },
+                  ]}
+                >
+                  Päivitä sijaintisi taustalla, vaikka sovellus on suljettu
+                </Text>
+              </View>
+              <Switch
+                value={bgScanEnabled}
+                onValueChange={handleBgScanChange}
+                trackColor={{ false: "#767577", true: "#4A89EE" }}
+                thumbColor="#f4f3f4"
+              />
+            </View>
+          )}
 
           <View
             style={[

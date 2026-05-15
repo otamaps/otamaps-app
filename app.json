@@ -2,7 +2,7 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.2.7",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
@@ -25,13 +25,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "fi.otamaps.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.BLUETOOTH_CONNECT"
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
       ],
       "blockedPermissions": [
         "ACTIVITY_RECOGNITION",
@@ -45,6 +49,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withNotifeeAndroid",
       [
         "expo-splash-screen",
         {
@@ -88,7 +93,7 @@
       "expo-notifications",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "expo-image"
+      "expo-image",
     ],
     "experiments": {
       "typedRoutes": true

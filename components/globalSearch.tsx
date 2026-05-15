@@ -353,7 +353,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               { fontFamily: "Figtree-Medium" },
               isDark && { color: "#fff" },
             ]}
-            placeholder="Hae mitä tahansa..."
+            placeholder="Hae huoneita..."
             placeholderTextColor="#B5B5B5"
             value={searchQuery}
             onChangeText={handleSearchChange}
