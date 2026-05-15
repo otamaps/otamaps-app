@@ -48,21 +48,21 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="map"
-          options={{
-            title: "Kartta",
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="map" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="fablab"
           options={{
             title: "Fablab",
             href: isFablabEnabled ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <MaterialIcons name="build" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="map"
+          options={{
+            title: "Kartta",
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="map" size={size} color={color} />
             ),
           }}
         />

@@ -156,7 +156,7 @@ export default function HomeScreen() {
   const { currentRoom, getScannedBeacons, getCurrentLocation } =
     useBLEScanner();
   const scannedBeacons = getScannedBeacons();
-  console.log("Scanned beacons:", scannedBeacons);
+  if (process.env.EXPO_PUBLIC_DEBUG_BLE === 'true') console.log("Scanned beacons:", scannedBeacons);
 
   // Helper function to check if user is in any room
   const isInAnyRoom = () => {
@@ -197,9 +197,16 @@ export default function HomeScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const filteredFriends = useMemo(() => {
-    return friends.filter((friend) =>
-      friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return friends
+      .filter((friend) =>
+        friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (!a.lastSeen && !b.lastSeen) return 0;
+        if (!a.lastSeen) return 1;
+        if (!b.lastSeen) return -1;
+        return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
+      });
   }, [friends, searchQuery]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -272,7 +279,7 @@ export default function HomeScreen() {
       const location = await getCurrentLocation();
       if (location) {
         setLocalUserLocation(location);
-        console.log("📍 Local user location updated:", location);
+        if (process.env.EXPO_PUBLIC_DEBUG_BLE === 'true') console.log("📍 Local user location updated:", location);
       } else {
         setLocalUserLocation(null);
       }
@@ -1535,7 +1542,7 @@ export default function HomeScreen() {
                           }}
                         />
                         <Pressable
-                          onPress={() => router.push("/friends/requests")}
+                          onPress={() => router.push("/friends/add")}
                           style={{
                             marginLeft: 6,
                             backgroundColor: isDark ? "#404040" : "#f5f5f5",
@@ -1565,7 +1572,7 @@ export default function HomeScreen() {
                             </View>
                           )}
                           <MaterialIcons
-                            name="notifications"
+                            name="person-add"
                             size={22}
                             color={isDark ? "#e5e5e5" : "#737373"}
                           />

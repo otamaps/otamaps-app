@@ -38,8 +38,8 @@ let bleServiceInstance: BLEScannerService | null = null;
 class BLEScannerService {
   private scannedBeacons: Map<string, BeaconData> = new Map();
   private currentRoom: string | null = null;
-  private lastUploadTime: number = 0;
-  private readonly UPLOAD_INTERVAL = 30000; // Upload every 30 seconds
+
+  private readonly UPLOAD_INTERVAL = 10000; // Upload every 10 seconds when in foreground
   private readonly BEACON_TIMEOUT = 10000; // Consider beacon lost after 10 seconds
   private readonly RSSI_THRESHOLD = -80; // Minimum signal strength to consider
   private foregroundServiceId: string | null = null; // Track foreground service
@@ -428,18 +428,10 @@ class BLEScannerService {
   }
 
   private startPeriodicUpload() {
-    console.log(
-      `⏰ Starting periodic location uploads every ${
-        this.UPLOAD_INTERVAL / 1000
-      }s`
-    );
     setInterval(() => {
-      const timeSinceLastUpload = Date.now() - this.lastUploadTime;
-      console.log(
-        `⏰ Periodic upload triggered (${Math.round(
-          timeSinceLastUpload / 1000
-        )}s since last upload)`
-      );
+      // Only upload while the app is actively in the foreground.
+      // When backgrounded or killed, the notifee background task takes over.
+      if (AppState.currentState !== 'active') return;
       this.uploadLocationToSupabase();
     }, this.UPLOAD_INTERVAL);
   }
@@ -494,7 +486,7 @@ class BLEScannerService {
         console.log(
           `✅ Location successfully updated in new locations table (took ${uploadTime}ms)`
         );
-        this.lastUploadTime = Date.now();
+
       }
     } catch (error) {
       console.error("💥 Error in uploadLocationToSupabase:", error);

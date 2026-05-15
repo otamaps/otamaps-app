@@ -2,6 +2,9 @@ import { getUser } from "@/lib/getUserHandle";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 
+const BLE_DEBUG = process.env.EXPO_PUBLIC_DEBUG_BLE === 'true';
+const bleLog = BLE_DEBUG ? console.log.bind(console) : () => {};
+
 export interface UserLocationData {
   user_id: string;
   room_id: string | null;
@@ -101,7 +104,7 @@ const getCachedBeacons = async () => {
     );
     const beacons = raw ? JSON.parse(raw) : null;
     const timestamp = timestampRaw ? parseInt(timestampRaw, 10) : null;
-    console.log("Cached beacons:", beacons, "Timestamp:", timestamp);
+    bleLog("Cached beacons:", beacons, "Timestamp:", timestamp);
     return beacons && timestamp ? { beacons, timestamp } : null;
   } catch (err) {
     console.warn("Failed to load cached beacons", err);
@@ -111,7 +114,7 @@ const getCachedBeacons = async () => {
 
 const setCachedBeacons = async (beacons: Beacon[] | null) => {
   try {
-    console.log("Storing beacons in cache:", beacons);
+    bleLog("Storing beacons in cache:", beacons);
     if (beacons) {
       // Ensure ble_id is stored as a string
       const normalizedBeacons = beacons.map((beacon) => ({
@@ -139,7 +142,7 @@ export const clearBeaconsCache = async () => {
   try {
     await AsyncStorage.removeItem(BEACONS_CACHE_KEY);
     await AsyncStorage.removeItem(BEACONS_CACHE_TIMESTAMP_KEY);
-    console.log("Beacons cache cleared");
+    bleLog("Beacons cache cleared");
   } catch (err) {
     console.warn("Failed to clear cached beacons", err);
   }
@@ -154,12 +157,12 @@ export const getBeacons = async ({ forceRefresh = false } = {}): Promise<
       const ONE_DAY = 24 * 60 * 60 * 1000;
       const now = Date.now();
       if (now - cached.timestamp < ONE_DAY) {
-        console.log("Returning cached beacons:", cached.beacons);
+        bleLog("Returning cached beacons:", cached.beacons);
         return cached.beacons;
       }
-      console.log("Cache is stale, fetching from Supabase");
+      bleLog("Cache is stale, fetching from Supabase");
     } else {
-      console.log("No cache found, fetching from Supabase");
+      bleLog("No cache found, fetching from Supabase");
     }
   }
   const beacons = await getBeaconsFromSupabase();
@@ -174,7 +177,7 @@ export class BLELocationService {
     try {
       // Normalize beaconId to avoid mismatches
       const normalizedBeaconId = beaconId.toString().trim();
-      console.log(`Fetching coordinates for beacon: ${normalizedBeaconId}`);
+      bleLog(`Fetching coordinates for beacon: ${normalizedBeaconId}`);
 
       const beacons = await getBeacons();
       if (!beacons || beacons.length === 0) {
@@ -191,7 +194,7 @@ export class BLELocationService {
           );
           return null;
         }
-        console.log(
+        bleLog(
           `Fetched coordinates from Supabase for beacon ${normalizedBeaconId}: [${data.x}, ${data.y}]`
         );
         // Update cache with new beacon
@@ -201,22 +204,18 @@ export class BLELocationService {
         return [data.x, data.y];
       }
 
-      // Log all ble_id values for debugging
-      console.log(
-        "Available beacon IDs:",
-        beacons.map((b) => b.ble_id)
-      );
+      bleLog("Available beacon IDs:", beacons.map((b) => b.ble_id));
       const beacon = beacons.find(
         (b) => String(b.ble_id) === normalizedBeaconId
       );
-      console.log(
+      bleLog(
         `Fetching coordinates for beacon ${normalizedBeaconId}:`,
         beacon ? `(${beacon.x}, ${beacon.y})` : "Not found",
         beacons
       );
 
       if (beacon && beacon.x != null && beacon.y != null) {
-        console.log(
+        bleLog(
           `Found coordinates in cache for beacon ${normalizedBeaconId}: [${beacon.x}, ${beacon.y}]`
         );
         return [beacon.x, beacon.y];
