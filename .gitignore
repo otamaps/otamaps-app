@@ -43,3 +43,5 @@ app-example
 *.ipa
 
 .VSCodeCounter/
+
+decoder.py
