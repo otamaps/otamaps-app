@@ -6,12 +6,21 @@ sources:
   - id: app-config
     type: file
     path: app.json
+  - id: package
+    type: file
+    path: package.json
   - id: eas-config
     type: file
     path: eas.json
   - id: env-example
     type: file
     path: .env.example
+  - id: assets-images
+    type: file
+    path: assets/images/
+  - id: map-route
+    type: file
+    path: app/(tabs)/map.tsx
   - id: supabase-client
     type: file
     path: lib/supabase.ts
@@ -35,6 +44,12 @@ Runtime and build configuration in OtaMaps is split across Expo app config, EAS 
 `app.json` declares the app name, slug, version, portrait orientation, bundle identifiers, Android package and version code, iOS Info.plist permission copy, Android permissions, blocked permissions, plugins, typed routes, and EAS project id [@app-config]. BLE-sensitive native config includes Android foreground-service and connected-device foreground-service permissions, Android Bluetooth scan/connect permissions, iOS Bluetooth usage text, and the `react-native-ble-plx` plugin with background support and `central` mode [@app-config].
 
 The root layout depends on this native configuration because it mounts BLE background lifecycle code, SumUp provider setup, Algolia search, fonts, and the route stack above individual screens [@root-layout]. Changes to app config should therefore be checked against [Expo Router shell](../../architecture/app/expo-router-shell), [BLE background location](../../architecture/location/ble-background-location), and [location, notification, and BLE permissions](../../guides/permissions/location-notification-and-ble).
+
+## Web Static Export Boundary
+
+The Expo web config uses Metro static output and sets `web.favicon` to `./assets/images/icon.png` [@app-config]. The current image directory contains OtaMaps, splash, adaptive-icon, login background, Hallitus, and Streetsmarts images, but not `icon.png`; a web export therefore needs either the config path or the asset set corrected before the favicon check can pass [@app-config] [@assets-images].
+
+The package dependencies include `@rnmapbox/maps` but do not declare `mapbox-gl` [@package]. Because the map tab imports `@rnmapbox/maps` through the app route graph, a static web export can stop on Mapbox web dependency resolution even when Android or native-route changes are unrelated [@map-route] [@package]. Treat that as a web configuration boundary and verify native changes with native-target validation when the change is not meant to make the web build production-ready.
 
 ## Public Environment Variables
 

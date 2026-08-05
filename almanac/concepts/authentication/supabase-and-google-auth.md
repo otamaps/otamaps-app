@@ -41,9 +41,9 @@ Supabase Auth is the session authority for OtaMaps. The shared Supabase client p
 
 ## Session Model
 
-The root `app/index.tsx` route checks `supabase.auth.getSession()`, listens to `onAuthStateChange`, shows the custom splash route briefly, and redirects signed-in users to `/map` while sending unauthenticated users to `/welcome` [@index-route]. The tab route mounts `AuthProvider`, which exposes `{ session, loading }` from the same Supabase session APIs to tab descendants [@auth-context]. This means navigation and child route state both derive from Supabase auth, not from Google local state alone.
+The root `app/index.tsx` route checks `supabase.auth.getSession()`, listens to `onAuthStateChange`, shows the custom splash route briefly, and redirects signed-in users to `/home` while sending unauthenticated users to `/welcome` [@index-route]. The tab route mounts `AuthProvider`, which exposes `{ session, loading }` from the same Supabase session APIs to tab descendants [@auth-context]. This means navigation and child route state both derive from Supabase auth, not from Google local state alone.
 
-The broader shell also listens to Supabase auth events for background BLE behavior; sign-in may start the BLE background service when the user enabled it, and sign-out stops that service [@root-layout]. See the [Expo Router shell](../../architecture/app/expo-router-shell) and [session and identity](../../architecture/auth/session-and-identity) pages for the provider and lifecycle boundaries that sit around this concept.
+The broader shell also listens to Supabase auth events for BLE tracking behavior; sign-in resyncs authenticated tracking against background consent and app state, and sign-out runs the BLE sign-out cleanup path [@root-layout]. See the [Expo Router shell](../../architecture/app/expo-router-shell) and [session and identity](../../architecture/auth/session-and-identity) pages for the provider and lifecycle boundaries that sit around this concept.
 
 ## Wilma Primary Auth
 
