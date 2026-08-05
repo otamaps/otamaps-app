@@ -87,4 +87,4 @@ The user cache is cleared only through `clearUserCache()`, which removes `user` 
 
 Room and feature stores each expose a clear method that removes the matching AsyncStorage key and empties in-memory Zustand state [@room-service]. Beacon coordinate/floor data has its own `clearBeaconsCache()` function, while runtime snapshot and pending-fix cleanup are owned by tracking stop, sign-out, upload success, and consent manager paths rather than by the scanner hook [@ble-location] [@ble-runtime] [@ble-background-manager].
 
-Feature flags store only enabled flags locally. `getEnabledFeatureFlags()` returns an empty array when the key is absent or parsing fails, and `isFeatureEnabled()` returns false on lookup errors [@feature-flags]. This makes missing local feature-flag cache fail closed from the caller's perspective.
+[Feature flags](../../architecture/runtime/feature-flags) store only enabled flags locally. `getEnabledFeatureFlags()` returns an empty array when the key is absent or parsing fails, and `isFeatureEnabled()` returns false on lookup errors [@feature-flags]. This makes missing local feature-flag cache fail closed from the caller's perspective.
