@@ -6,9 +6,15 @@ sources:
   - id: app-dir
     type: file
     path: app/
+  - id: index-route
+    type: file
+    path: app/index.tsx
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
+  - id: tab-icons
+    type: file
+    path: components/navigation/BearTabIcons.tsx
   - id: app-layout
     type: file
     path: app/(app)/_layout.tsx
@@ -26,7 +32,7 @@ The OtaMaps route map is organized by Expo Router groups rather than by a single
 
 ## Primary Tabs
 
-The active tab bar defines four tab names: `home`, `fablab`, `map`, and `me` [@tabs-layout]. Home is titled `Koti`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. The FabLab tab is declared but hidden from the tab bar unless `AsyncStorage` key `fablabEnabled` is set to `"true"` [@tabs-layout]. This makes FabLab a runtime opt-in route surface, not a separate build flavor.
+The active tab bar defines four tab names: `home`, `fablab`, `map`, and `me`, with `home` as the initial route [@tabs-layout]. The visible home tab is titled `Wilma`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. Wilma and FabLab use custom `react-native-svg` bear tab icons from `components/navigation/BearTabIcons.tsx`, while map and profile use Material icons [@tabs-layout] [@tab-icons]. The FabLab tab is declared but hidden from the tab bar unless `AsyncStorage` key `fablabEnabled` is set to `"true"` [@tabs-layout]. This makes FabLab a runtime opt-in route surface, not a separate build flavor.
 
 The `app/` directory also contains disabled tab files, including `app/(tabs)/debug.tsx.dis`, `app/(tabs)/find.tsx.dis`, and `app/(tabs)/wilma.tsx.dis` [@app-dir]. The TypeScript config explicitly includes two disabled tab files, `debug.tsx.dis` and `wilma.tsx.dis`, even though the `.dis` suffix keeps them outside the normal `.tsx` route shape [@tsconfig]. Use [debug and disabled routes](../../reference/routes/debug-and-disabled-routes) before treating those files as active navigation.
 
@@ -38,7 +44,9 @@ This split matters for product work. The active home tab contains the main [Wilm
 
 ## Welcome And Root Redirects
 
-The `welcome` group has its own layout that declares the `(pre)` stack with headers hidden [@welcome-layout]. The route tree includes `welcome/splash.tsx`, post-onboarding screens under `welcome/(post)`, and pre-auth screens under `welcome/(pre)` [@app-dir]. The pre-auth index is also the entrypoint for the [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) flow when Wilma primary auth is enabled. Root navigation should be considered together with the index route described in [Expo Router shell](expo-router-shell), because the route tree alone does not show the session-based redirect from `/` to `/map` or `/welcome`.
+The `welcome` group has its own layout that declares the `(pre)` stack with headers hidden [@welcome-layout]. The route tree includes `welcome/splash.tsx`, post-onboarding screens under `welcome/(post)`, and pre-auth screens under `welcome/(pre)` [@app-dir]. The pre-auth index is also the entrypoint for the [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) flow when Wilma primary auth is enabled. Root navigation should be considered together with the index route described in [Expo Router shell](expo-router-shell), because the route tree alone does not show session-based redirects [@index-route].
+
+The root index route separately handles the first redirect after the custom splash and Supabase session check. Signed-in users are sent to `/home`, the Wilma dashboard tab, and unauthenticated users are sent to `/welcome` [@index-route]. That redirect is not visible from the directory shape alone, so route work should read `app/index.tsx` with the route tree [@index-route] [@app-dir].
 
 ## Placeholder And Debug Surfaces
 
