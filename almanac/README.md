@@ -1,6 +1,6 @@
 ---
 title: CodeAlmanac Wiki
-topics: [concepts]
+topics: [wiki]
 sources: []
 ---
 
@@ -29,6 +29,9 @@ Do not write pages that restate nearby code.
 
 Topics live in `topics.yaml`. Pages are Markdown files directly under
 `almanac/`, including nested folders.
+
+Use [Getting Started](getting-started) as the project entry point before reading
+area-specific pages.
 
 ## Links
 

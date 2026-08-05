@@ -3,3 +3,151 @@ topics:
     title: Concepts
     description: Core vocabulary and mental models for this codebase
     parents: []
+  - slug: architecture
+    title: Architecture
+    description: Runtime boundaries, ownership, and cross-file flows in the app
+    parents: []
+  - slug: guides
+    title: Guides
+    description: Task-oriented procedures for changing or validating the app
+    parents: []
+  - slug: decisions
+    title: Decisions
+    description: Architecture decisions future agents must preserve or revisit deliberately
+    parents: []
+  - slug: reference
+    title: Reference
+    description: Exact lookup material for routes, config, storage, schemas, and validation
+    parents: []
+  - slug: product
+    title: Product
+    description: User-facing product shape and major app neighborhoods
+    parents: [concepts]
+  - slug: mobile
+    title: Mobile
+    description: Native Expo and React Native behavior that changes by platform or build
+    parents: [architecture]
+  - slug: app-shell
+    title: App Shell
+    description: Expo Router root shell, providers, redirects, and app-wide lifecycle wiring
+    parents: [architecture, mobile]
+  - slug: navigation
+    title: Navigation
+    description: Route groups, tabs, stacks, placeholders, and disabled route surfaces
+    parents: [app-shell]
+  - slug: routes
+    title: Routes
+    description: Active, debug, placeholder, and disabled Expo Router surfaces
+    parents: [navigation, reference]
+  - slug: authentication
+    title: Authentication
+    description: Supabase session authority, local identity state, and sign-in boundaries
+    parents: [architecture]
+  - slug: google-sign-in
+    title: Google Sign In
+    description: Google ID-token sign-in and its relationship to Supabase sessions
+    parents: [authentication]
+  - slug: account
+    title: Account
+    description: Profile editing, sign-out, cached user state, and account-facing settings
+    parents: [authentication, guides]
+  - slug: profiles
+    title: Profiles
+    description: Public user rows, friend codes, profile metadata, and realtime profile updates
+    parents: [authentication, social]
+  - slug: integrations
+    title: Integrations
+    description: External service boundaries used by the mobile app
+    parents: [architecture]
+  - slug: wilma
+    title: Wilma
+    description: Wilma primary auth, school-data GraphQL, message, schedule, and session flows
+    parents: [integrations, authentication]
+  - slug: map
+    title: Map
+    description: Indoor map rendering, room and feature data, floor filtering, and map UI state
+    parents: [architecture, product]
+  - slug: maps
+    title: Maps
+    description: Product-level map context for pages that describe the app as a whole
+    parents: [map]
+  - slug: search
+    title: Search
+    description: Room search and Algolia-to-map interaction
+    parents: [map]
+  - slug: location
+    title: Location
+    description: BLE indoor position, live locations, floor state, and shared location overlays
+    parents: [architecture, product]
+  - slug: ble
+    title: BLE
+    description: BLE beacon parsing, scanner runtime ownership, permissions, and background tracking
+    parents: [location, mobile]
+  - slug: permissions
+    title: Permissions
+    description: Native location, Bluetooth, notification, and consent flows
+    parents: [mobile, guides]
+  - slug: social
+    title: Social
+    description: Friend codes, friend relations, reports, blocking, and shared-location consumers
+    parents: [architecture, product]
+  - slug: fablab
+    title: FabLab
+    description: FabLab print-job product flow, storage, realtime status, and payment surfaces
+    parents: [architecture, product]
+  - slug: print-jobs
+    title: Print Jobs
+    description: FabLab print-job records, upload lifecycle, status vocabulary, and detail views
+    parents: [fablab]
+  - slug: payments
+    title: Payments
+    description: Payment provider boundaries and checkout behavior in the app
+    parents: [integrations, fablab]
+  - slug: sumup
+    title: SumUp
+    description: SumUp SDK/provider usage and backend checkout boundary for FabLab jobs
+    parents: [payments]
+  - slug: supabase
+    title: Supabase
+    description: Supabase Auth, data tables, storage, realtime channels, and client contracts
+    parents: [integrations, storage]
+  - slug: realtime
+    title: Realtime
+    description: Supabase realtime subscriptions used by profile and print-job flows
+    parents: [supabase]
+  - slug: storage
+    title: Storage
+    description: Client caches, SecureStore keys, Supabase Storage, and table-backed data
+    parents: [reference]
+  - slug: configuration
+    title: Configuration
+    description: Runtime environment, Expo config, EAS profiles, and native build declarations
+    parents: [reference, mobile]
+  - slug: deployment
+    title: Deployment
+    description: Release and provider-controlled deployment boundaries
+    parents: [configuration]
+  - slug: development
+    title: Development
+    description: Local commands, validation workflow, and development caveats
+    parents: [guides]
+  - slug: testing
+    title: Testing
+    description: Scripted checks, BLE unit coverage, and validation gaps
+    parents: [development, reference]
+  - slug: typescript
+    title: TypeScript
+    description: Type-check command surface and known compiler-status caveats
+    parents: [testing]
+  - slug: runtime
+    title: Runtime
+    description: Client runtime state, caches, and app behavior controlled outside route files
+    parents: [architecture]
+  - slug: feature-flags
+    title: Feature Flags
+    description: Supabase-backed flags, local enabled-flag cache, and gated UI behavior
+    parents: [runtime, supabase]
+  - slug: wiki
+    title: Wiki
+    description: CodeAlmanac wiki maintenance and project entry-point pages
+    parents: []
