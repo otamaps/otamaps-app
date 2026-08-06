@@ -35,6 +35,6 @@ For product context, read [OtaMaps mobile app](concepts/product/otamaps-mobile-a
 
 ## Common Work Areas
 
-Use [local development](guides/development/local-development) for commands and validation caveats. Use [runtime and build config](reference/configuration/runtime-and-build-config) when a change touches Expo plugins, identifiers, public environment variables, native permissions, or hard-coded provider keys.
+Use [local development](guides/development/local-development) for commands and validation caveats. Use [runtime and build config](reference/configuration/runtime-and-build-config) when a change touches Expo plugins, identifiers, public environment variables, native permissions, or hard-coded provider keys. Use [server deployment](guides/deployment/server-deployment) when preparing the Ubuntu/Docker side for Supabase and the OtaMaps Wilma GraphQL API.
 
 Authentication work should start with [Supabase and Google auth](concepts/authentication/supabase-and-google-auth). Route work should start with [Expo Router shell](architecture/app/expo-router-shell), because auth state, BLE background lifecycle, search, fonts, and payment provider setup all sit above individual screens [@root-layout].

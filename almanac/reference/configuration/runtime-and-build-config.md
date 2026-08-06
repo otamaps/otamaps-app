@@ -61,4 +61,4 @@ Other public env keys include Google web and iOS client ids, MapTiler and Mapbox
 
 ## Change Boundary
 
-Configuration changes are not purely local. If a change touches Supabase URL/key, OtaMaps API URL, Wilma primary-auth enablement, native permissions, Expo plugins, or app identifiers, update the relevant architecture or reference page and verify the matching EAS profile rather than assuming local `.env` behavior matches a build [@app-config] [@eas-config] [@env-example].
+Configuration changes are not purely local. If a change touches Supabase URL/key, OtaMaps API URL, Wilma primary-auth enablement, native permissions, Expo plugins, or app identifiers, update the relevant architecture or reference page and verify the matching EAS profile rather than assuming local `.env` behavior matches a build [@app-config] [@eas-config] [@env-example]. Use [server deployment](../../guides/deployment/server-deployment) for the hostname and service-boundary implications of Supabase or OtaMaps API changes.
