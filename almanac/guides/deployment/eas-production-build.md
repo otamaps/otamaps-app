@@ -1,0 +1,76 @@
+---
+title: "EAS Production Build"
+summary: "Use this guide when preparing and uploading native OtaMaps production builds through EAS."
+topics: [guides, deployment, mobile, configuration]
+sources:
+  - id: release-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
+  - id: eas-config
+    type: file
+    path: eas.json
+  - id: app-config
+    type: file
+    path: app.json
+  - id: package
+    type: file
+    path: package.json
+---
+
+# EAS Production Build
+
+Use this guide when preparing an Android or iOS production build for OtaMaps through EAS. Production builds are native release artifacts, so they require more than a successful Metro bundle: inspect the EAS archive, verify the public build-time configuration, run native-target exports with dotenv disabled, upload with the intended EAS profile, and poll the remote build result before calling the release complete [@release-session] [@eas-config]. Server-side readiness is a separate gate covered by [server deployment](server-deployment).
+
+## Archive Before Upload
+
+Start by creating the exact production archive that EAS will upload:
+
+```bash
+node_modules/.bin/eas build:inspect --platform android --stage archive --output /private/tmp/otamaps-eas-archive --profile production --force
+```
+
+The August 2026 release run used `build:inspect` before upload, then scanned the archive for dotenv files, keystores, private keys, provisioning profiles, certificates, and package artifacts [@release-session]. A safe archive may still contain `.env.example`; it must not contain real `.env` files or private signing material [@release-session].
+
+After archive creation, check the archive's `eas.json`, `lib/supabase.ts`, and `.env.example` for the intended public hosts and public variable names [@release-session] [@eas-config]. The production profile currently declares `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_OTAMAPS_API_URL`, `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED`, Google client ids, and map tokens for native builds [@eas-config]. If those names or hosts change, update [runtime and build config](../../reference/configuration/runtime-and-build-config) and confirm the matching server state before building.
+
+## Local Native Bundle Check
+
+Run platform exports with dotenv disabled and explicit public production values:
+
+```bash
+EXPO_NO_DOTENV=1 \
+EXPO_PUBLIC_SUPABASE_URL=<supabase-url> \
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key> \
+EXPO_PUBLIC_OTAMAPS_API_URL=<api-url> \
+EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED=false \
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<google-web-client-id> \
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<google-ios-client-id> \
+node_modules/.bin/expo export --platform android --output-dir /private/tmp/otamaps-export-android --clear
+```
+
+Repeat for iOS with `--platform ios`. In the release run, both Android and iOS exports completed and produced native Hermes bundles before the remote upload step [@release-session]. The same run repeatedly printed the React Native Mapbox warning that `RNMapboxMapsDownloadToken` is deprecated and that the token is written into Gradle properties; `app.json` still configures Mapbox with `RNMapboxMapsDownloadToken`, so treat that warning as a release hygiene item rather than a bundle failure [@release-session] [@app-config].
+
+## EAS Upload
+
+Use the local project EAS CLI entrypoint so the command follows the repository dependency graph:
+
+```bash
+node_modules/.bin/eas build --platform android --profile production --non-interactive --no-wait
+node_modules/.bin/eas build --platform ios --profile production --non-interactive --no-wait
+```
+
+`package.json` pins `eas-cli` as a project dependency, while the release run showed EAS recommending an explicit `cli.version` field in `eas.json` and warning that `cli.appVersionSource` will become required [@package] [@release-session]. Add those fields deliberately when stabilizing the release pipeline; do not hide the warning by switching to an arbitrary global CLI.
+
+EAS loaded the same public variable names from both the remote production environment and the production profile `env` block, then used the profile values when both existed [@release-session] [@eas-config]. That precedence matters: changing a value only in the EAS web environment is not enough if `eas.json` still defines the same key.
+
+## Local EAS Failure Mode
+
+A non-escalated Android upload failed locally after credentials were selected because EAS tried to run `git config core.ignorecase false` and then could not write its cache error log under the user's Library cache [@release-session]. The same upload succeeded after the command was rerun with permission for EAS to update local Git/cache state and upload the archive, producing an Android EAS build URL [@release-session].
+
+When this failure appears, do not debug the build contents first. Re-run the same profile after confirming the archive scan passed, and allow the local EAS CLI to update its cache and Git ignore-case setting [@release-session]. That fix only starts the remote build; it does not prove that Android or iOS finished successfully.
+
+## Completion Criteria
+
+An EAS production build is complete only after both platform jobs reach a successful terminal state and the resulting artifacts are installed or submitted through the intended channel [@release-session]. The transcript ended after starting the iOS production upload command, so it is evidence for the Android upload path and the iOS command shape, not for a completed iOS build [@release-session].
+
+Native build success also does not prove server cutover. Before releasing a build that changes Supabase, Wilma, or OtaMaps API hosts, verify the server-side checklist in [server deployment](server-deployment) and make sure the EAS profile values match that deployed state [@eas-config].
