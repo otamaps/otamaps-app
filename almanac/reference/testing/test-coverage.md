@@ -18,6 +18,12 @@ sources:
   - id: ble-types
     type: file
     path: lib/bleTrackingTypes.ts
+  - id: ble-estimator
+    type: file
+    path: lib/blePositionEstimator.ts
+  - id: ble-catalog
+    type: file
+    path: lib/bleBeaconCatalog.ts
   - id: repo-notes
     type: file
     path: chatgpt.md
@@ -25,7 +31,7 @@ sources:
 
 # Test Coverage
 
-Test coverage for OtaMaps is still narrow, but BLE now has an explicit package script. `package.json` defines Expo start helpers, reset, platform helpers, `lint`, and `test:ble`; it still does not define a generic `test` script or a `typecheck` script [@package-scripts]. The BLE script compiles the tracking core and types into `.expo/ble-test-build` and then runs Node's built-in test runner against the core-selection and native-config tests [@package-scripts] [@ble-core-test] [@ble-config-test]. Repository notes list lint and broad TypeScript checks separately, so agents should keep app-wide type-checking distinct from the BLE test script [@repo-notes].
+Test coverage for OtaMaps is still narrow, but BLE now has an explicit package script. `package.json` defines Expo start helpers, reset, platform helpers, `lint`, and `test:ble`; it still does not define a generic `test` script or a `typecheck` script [@package-scripts]. The BLE script compiles the tracking core, tracking types, position estimator, and catalog cache into `.expo/ble-test-build` and then runs Node's built-in test runner against the core, estimator, cache, and native-config tests [@package-scripts] [@ble-core-test] [@ble-config-test]. Repository notes list lint and broad TypeScript checks separately, so agents should keep app-wide type-checking distinct from the BLE test script [@repo-notes].
 
 ## Scripted Validation
 
@@ -34,7 +40,7 @@ The package script table has these validation-related entries:
 | Script | Command | Coverage meaning |
 | --- | --- | --- |
 | `lint` | `expo lint` | Scripted static lint command [@package-scripts]. |
-| `test:ble` | `tsc lib/bleTrackingCore.ts lib/bleTrackingTypes.ts --outDir .expo/ble-test-build --module commonjs --moduleResolution node --target es2020 --esModuleInterop --skipLibCheck && node --test tests/bleTrackingCore.test.cjs tests/bleConfig.test.mjs` | Compiles the BLE selection/parser code for CommonJS tests, then runs the BLE core and native config tests [@package-scripts]. |
+| `test:ble` | `tsc lib/bleTrackingCore.ts lib/bleTrackingTypes.ts lib/blePositionEstimator.ts lib/bleBeaconCatalog.ts --outDir .expo/ble-test-build --module commonjs --moduleResolution node --target es2020 --esModuleInterop --skipLibCheck && node --test tests/bleTrackingCore.test.cjs tests/bleConfig.test.mjs` | Compiles the BLE selection/parser, estimator, catalog, and type modules for CommonJS tests, then runs the BLE core and native config tests [@package-scripts]. |
 | `test` | not defined | No all-purpose npm test runner is declared [@package-scripts]. |
 | `typecheck` | not defined | Type-checking is documented as `npx tsc --noEmit`, not as an npm script [@repo-notes] [@package-scripts]. |
 
@@ -42,10 +48,10 @@ Use [typecheck status](typecheck-status) for the TypeScript command and known di
 
 ## BLE Tests
 
-`tests/bleTrackingCore.test.cjs` covers the deterministic code exported from the compiled BLE tracking core. It accepts valid OtaMaps advertisements without a device name, allows manufacturer data only when the OtaMaps service UUID is present, rejects weak, empty, `none`, and control-character payloads, prunes stale observations, verifies the 6 dB immediate switch rule, verifies the three-reading smaller-margin switch rule, switches away from stale selections, checks heartbeat upload decisions, and confirms latest-only location-fix coalescing [@ble-core-test] [@ble-core] [@ble-types].
+`tests/bleTrackingCore.test.cjs` covers the deterministic code exported from the compiled BLE modules. It accepts valid OtaMaps advertisements without a device name, allows manufacturer data only when the OtaMaps service UUID is present, rejects weak, empty, `none`, and control-character payloads, prunes stale observations, verifies the 6 dB immediate switch rule, verifies the three-reading smaller-margin switch rule, switches away from stale selections, checks heartbeat and movement upload decisions, confirms latest-only location-fix coalescing, checks single-beacon and weighted-centroid estimates, and verifies single-flight catalog refresh plus batched missing-id lookup [@ble-core-test] [@ble-core] [@ble-types] [@ble-estimator] [@ble-catalog].
 
 `tests/bleConfig.test.mjs` checks native configuration rather than runtime behavior. It reads `app.json`, `eas.json`, and `plugins/withNotifeeAndroid.js`; then it asserts that iOS enables only the Core Bluetooth `central` background role, Android declares a persistent connected-device foreground service with the expected permissions and max-SDK-30 background-location cap, and all EAS build profiles point at the canonical Supabase project [@ble-config-test].
 
 ## Coverage Boundary
 
-`test:ble` is useful evidence for the BLE parser, selection engine, retry coalescing helper, and native configuration. It is not an end-to-end proof that physical BLE scanning, Android foreground-service behavior, iOS restoration, Supabase uploads, or ESP32 beacon hardware work on devices [@package-scripts] [@ble-core-test] [@ble-config-test]. Future test additions should add new package scripts or extend this page so agents can distinguish local unit/config checks from device and deployment validation.
+`test:ble` is useful evidence for the BLE parser, selection engine, estimator math, catalog cache behavior, retry coalescing helper, upload-decision helper, and native configuration. It is not an end-to-end proof that physical BLE scanning, Android foreground-service behavior, iOS restoration, Supabase uploads, or ESP32 beacon hardware work on devices [@package-scripts] [@ble-core-test] [@ble-config-test]. Future test additions should add new package scripts or extend this page so agents can distinguish local unit/config checks from device and deployment validation.

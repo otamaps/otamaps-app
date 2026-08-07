@@ -32,7 +32,7 @@ The package-managed validation commands are `npm run lint` and `npm run test:ble
 npx tsc --noEmit
 ```
 
-That command comes from the repository notes rather than from `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@repo-notes] [@package-scripts]. `npm run test:ble` compiles only `lib/bleTrackingCore.ts` and `lib/bleTrackingTypes.ts` into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
+That command comes from the repository notes rather than from `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@repo-notes] [@package-scripts]. `npm run test:ble` compiles only the named BLE core, type, estimator, and catalog modules into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
 
 ## Compiler Scope
 
@@ -46,4 +46,4 @@ The repository notes state that `npx tsc --noEmit` reports pre-existing errors i
 
 ## BLE Test Caveat
 
-The BLE tests intentionally avoid the full app type-checking scope. `tests/bleTrackingCore.test.cjs` imports the compiled CommonJS output from `.expo/ble-test-build`, and `tests/bleConfig.test.mjs` reads JSON and plugin source files directly [@ble-core-test] [@ble-config-test]. The `test:ble` script therefore type-checks only the compiled BLE core inputs it names, then runs JavaScript tests; app routes, React Native UI files, and disabled `.tsx.dis` routes remain covered only by `npx tsc --noEmit` [@package-scripts] [@typescript-config].
+The BLE tests intentionally avoid the full app type-checking scope. `tests/bleTrackingCore.test.cjs` imports the compiled CommonJS output from `.expo/ble-test-build`, and `tests/bleConfig.test.mjs` reads JSON and plugin source files directly [@ble-core-test] [@ble-config-test]. The `test:ble` script therefore type-checks only the compiled BLE inputs it names, then runs JavaScript tests; app routes, React Native UI files, and disabled `.tsx.dis` routes remain covered only by `npx tsc --noEmit` [@package-scripts] [@typescript-config].

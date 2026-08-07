@@ -18,6 +18,12 @@ sources:
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
+  - id: estimator
+    type: file
+    path: lib/blePositionEstimator.ts
+  - id: catalog-cache
+    type: file
+    path: lib/bleBeaconCatalog.ts
   - id: permissions
     type: file
     path: lib/blePermissions.ts
@@ -69,7 +75,9 @@ The scan filter is platform-specific inside the runtime. iOS scans with the OtaM
 
 Beacon parsing and selection are deterministic and isolated from React. `parseBeaconAdvertisement` accepts advertisements that carry the OtaMaps service UUID or service data, rejects missing or weak RSSI values below `BLE_RSSI_THRESHOLD`, decodes beacon ids from service data or manufacturer data, and rejects empty, `none`, overlong, or control-character payloads [@core] [@types]. `BeaconSelectionEngine` prunes observations after `BLE_BEACON_STALE_MS`, switches immediately when a new beacon is at least 6 dB stronger, and otherwise requires three consecutive readings before switching to a weaker-margin candidate [@core] [@types].
 
-Uploads happen on selected-beacon change, on the first valid selection, or after the two-minute `BLE_HEARTBEAT_MS` interval [@core] [@types]. `BLELocationService.updateLocationFix` refreshes a near-expiry Supabase session before upload, resolves the selected beacon and neighboring observations from the cached or live `beacons` table, calculates a radius, and upserts the live `locations` row on `user_id` [@location-service]. The older `uploadLocation`, history, room, and cleanup helpers still target `user_locations` and related views, but the active tracking runtime uses `updateLocationFix` and the `locations` table [@location-service].
+The runtime now separates local estimate cadence from upload cadence. Every five-second runtime tick prunes stale observations, reselects the anchor, builds a `LocationFix`, estimates local coordinates from the currently cached catalog, and updates the snapshot before deciding whether to upload [@runtime] [@location-service] [@estimator]. Uploads happen on the first valid fix, selected-beacon change, after the two-minute `BLE_HEARTBEAT_MS` interval, or when the estimated coordinate has moved at least eight metres and at least 30 seconds have passed since the last successful upload [@core] [@types] [@runtime].
+
+`BLELocationService.updateLocationFix` refreshes a near-expiry Supabase session before upload, resolves all observed beacon ids through a shared `BeaconCatalogCache`, estimates position from the selected anchor and neighboring observations, and upserts the live `locations` row on `user_id` with blended `x` and `y` coordinates, anchor-derived floor, radius, and contributing beacon metadata [@location-service] [@catalog-cache] [@estimator]. The older `uploadLocation`, history, room, and cleanup helpers still target `user_locations` and related views, but the active tracking runtime uses `updateLocationFix` and the `locations` table [@location-service].
 
 Offline and failed uploads are latest-only. The runtime stores one pending fix under `ble_pending_location_fix_v1`, coalesces queued and pending fixes by `observedAt`, retries after connectivity returns or a short failure backoff expires, and records sanitized diagnostics such as last upload attempt, last success, pending upload state, and last error [@runtime]. The BLE diagnostics route reads the same runtime snapshot and permission snapshot, so debug screens show the actual runtime state instead of creating their own scanner [@debug-screen] [@scanner].
 
@@ -77,7 +85,7 @@ Offline and failed uploads are latest-only. The runtime stores one pending fix u
 
 Background tracking consent is explicit and versioned. `BLE_BACKGROUND_CONSENT_KEY` is `ble_background_consent_v1`; `getBackgroundTrackingConsent()` hydrates it, `setBackgroundTrackingConsent()` writes `"true"` or `"false"`, and `startTrackingRuntime` blocks background modes with `consent_required` when it is absent or false [@runtime]. Settings initialize their background switch to false before reading `isBLEBackgroundEnabled()`, and the manager clears consent when background tracking is stopped or the user signs out [@background-manager].
 
-The runtime also persists `ble_tracking_snapshot_v1` for diagnostics and latest displayed state, while the location service persists the beacon catalog under `ble_beacon_catalog_v2` with a one-day timestamp [@runtime] [@location-service]. The exact cache keys are cataloged in [client caches](../../reference/storage/client-caches).
+The runtime also persists `ble_tracking_snapshot_v1` for diagnostics and latest displayed state, while the location service persists the beacon catalog under `ble_beacon_catalog_v2` with a one-day timestamp [@runtime] [@location-service]. `BeaconCatalogCache` is single-flight for full refreshes and missing-id fetches, so multiple runtime callers can share one catalog refresh instead of issuing duplicate Supabase reads [@catalog-cache]. The exact cache keys are cataloged in [client caches](../../reference/storage/client-caches).
 
 ## Operational Constraints
 
