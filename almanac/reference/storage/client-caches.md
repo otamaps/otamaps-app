@@ -18,6 +18,9 @@ sources:
   - id: ble-location
     type: file
     path: lib/bleLocationService.ts
+  - id: ble-catalog-cache
+    type: file
+    path: lib/bleBeaconCatalog.ts
   - id: feature-flags
     type: file
     path: lib/featureFlagService.ts
@@ -56,7 +59,7 @@ Client caches in OtaMaps are local device stores spread across AsyncStorage and 
 | `user_cache_timestamp` | `lib/getUserHandle.tsx` | Millisecond timestamp for `user` | Removed with `user` by `clearUserCache()` [@user-handle]. |
 | `room_cache` | `lib/roomService.ts` | JSON object `{ data, timestamp }` for Supabase `rooms` rows | Valid for ten minutes, matching the store TTL [@room-service]. |
 | `features_cache` | `lib/roomService.ts` | JSON object `{ data, timestamp }` for Supabase `features` rows | Valid for ten minutes, matching the store TTL [@room-service]. |
-| `ble_beacon_catalog_v2` | `lib/bleLocationService.ts` | JSON array of beacon records with normalized string `ble_id` values, coordinates, floor, room id, and any merged room number | Valid for one day before `getBeacons()` refetches; individual beacon and room-number lookups merge fresh rows into the same catalog [@ble-location]. |
+| `ble_beacon_catalog_v2` | `lib/bleLocationService.ts` through `BeaconCatalogCache` | JSON array of beacon records with normalized string `ble_id` values, coordinates, floor, room id, and any merged room number | Valid for one day before `getBeacons()` refetches; missing beacon ids are batch-fetched with a cache-miss throttle and room-number lookups merge fresh rows into the same catalog [@ble-location] [@ble-catalog-cache]. |
 | `ble_beacon_catalog_timestamp_v2` | `lib/bleLocationService.ts` | Millisecond timestamp for `ble_beacon_catalog_v2` | Removed by `clearBeaconsCache()` with the catalog [@ble-location]. |
 | `ble_tracking_snapshot_v1` | `lib/bleTrackingRuntime.ts` | Last runtime snapshot, including diagnostics, current room, coordinates, floor, radius, active observations, and last update time | Hydrated on runtime startup and persisted with throttling for diagnostics and resumed display state [@ble-runtime]. |
 | `ble_pending_location_fix_v1` | `lib/bleTrackingRuntime.ts` | Latest unsent `LocationFix` selected for offline or failed-upload retry | Coalesced by newest `observedAt`, removed after a successful upload, and optionally cleared on stop/sign-out [@ble-runtime]. |

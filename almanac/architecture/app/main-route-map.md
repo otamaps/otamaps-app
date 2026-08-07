@@ -12,9 +12,6 @@ sources:
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
-  - id: tab-icons
-    type: file
-    path: components/navigation/BearTabIcons.tsx
   - id: app-layout
     type: file
     path: app/(app)/_layout.tsx
@@ -32,7 +29,7 @@ The OtaMaps route map is organized by Expo Router groups rather than by a single
 
 ## Primary Tabs
 
-The active tab bar defines four tab names: `home`, `fablab`, `map`, and `me`, with `home` as the initial route [@tabs-layout]. The visible home tab is titled `Wilma`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. Wilma and FabLab use custom `react-native-svg` bear tab icons from `components/navigation/BearTabIcons.tsx`, while map and profile use Material icons [@tabs-layout] [@tab-icons]. The FabLab tab is declared but hidden from the tab bar unless `AsyncStorage` key `fablabEnabled` is set to `"true"` [@tabs-layout]. This makes FabLab a runtime opt-in route surface, not a separate build flavor.
+The active tab bar defines four tab names: `home`, `fablab`, `map`, and `me`, with `home` as the initial route [@tabs-layout]. The visible home tab is titled `Wilma`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. All four tabs use `MaterialIcons`: Wilma uses `school`, FabLab uses `precision-manufacturing`, map uses `map`, and profile uses `person` [@tabs-layout]. The FabLab tab is declared but hidden from the tab bar unless `AsyncStorage` key `fablabEnabled` is set to `"true"` [@tabs-layout]. This makes FabLab a runtime opt-in route surface, not a separate build flavor.
 
 The `app/` directory also contains disabled tab files, including `app/(tabs)/debug.tsx.dis`, `app/(tabs)/find.tsx.dis`, and `app/(tabs)/wilma.tsx.dis` [@app-dir]. The TypeScript config explicitly includes two disabled tab files, `debug.tsx.dis` and `wilma.tsx.dis`, even though the `.dis` suffix keeps them outside the normal `.tsx` route shape [@tsconfig]. Use [debug and disabled routes](../../reference/routes/debug-and-disabled-routes) before treating those files as active navigation.
 

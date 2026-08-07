@@ -25,7 +25,7 @@ sources:
 
 # Server Deployment
 
-Use this guide when preparing the server side that OtaMaps needs in production. This repository is the Expo mobile client, not the Wilma GraphQL server; the client expects one OtaMaps API origin for Wilma GraphQL and Wilma-to-Supabase account exchange, and a separate Supabase origin for Auth, REST, Realtime, Storage, and Postgres [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client]. The simplest discussed deployment shape is one Ubuntu host running Docker Compose services behind HTTPS, with `api.otamaps.fi` routed to the OtaMaps API and the Supabase URL routed to the self-hosted Supabase stack [@deployment-session].
+Use this guide when preparing the server side that OtaMaps needs in production. This repository is the Expo mobile client, not the Wilma GraphQL server; the client expects one OtaMaps API origin for Wilma GraphQL and Wilma-to-Supabase account exchange, and a separate Supabase origin for Auth, REST, Realtime, Storage, and Postgres [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client]. The first self-hosted deployment was brought up on AWS Lightsail as an interim Ubuntu Docker host with HTTPS `sslip.io` names for API and Supabase while final domain cutover remains separate [@deployment-session].
 
 ## Deployment Boundary
 
@@ -48,6 +48,14 @@ Keep the hostname split explicit:
 
 EAS profiles currently set the canonical hosted Supabase project URL and `https://api.otamaps.fi` for development, preview, and production [@eas-config]. If the deployment moves Supabase from the hosted project to a self-hosted hostname, update and verify the relevant EAS profile values together with [runtime and build config](../../reference/configuration/runtime-and-build-config).
 
+## Interim Lightsail State
+
+The August 7 deployment session verified AWS Lightsail instance `otamaps-prod-1` in `eu-north-1` as running, `https://api.13-62-117-118.sslip.io/health` as returning `{"status":"ok"}`, `https://api.13-62-117-118.sslip.io/graphql` as answering `{ __typename }`, and `https://supabase.13-62-117-118.sslip.io/` as reachable with HTTP `401` because Studio is protected [@deployment-session]. That state proves public process health and routing, not final production cutover.
+
+The same session cloned database schema/data, Auth metadata, RLS, and Storage metadata into the target and verified disposable Auth and Storage create/read/delete flows there [@deployment-session]. Two private Storage object bodies and the Google Auth provider secret were still missing because they are not recoverable through the PostgreSQL connection alone, and the run intentionally stopped at the Supabase dashboard authentication boundary instead of extracting an end-user session or weakening Storage policies [@deployment-session].
+
+Treat this as an operational checkpoint. Resuming the migration should start from Supabase dashboard sign-in, copy the remaining private Storage bytes and Google provider configuration through authorized provider surfaces, verify Google login against the target, run a point-in-time resynchronization, and only then update EAS/profile hostnames or DNS for real client traffic [@deployment-session] [@eas-config].
+
 ## Supabase Installer TLS Failure
 
 During the deployment discussion, the Supabase installer failed with `curl 60 ssl certificate problem unable to get local issuer certificate`, and the direct raw GitHub installer URL failed the same way [@deployment-session]. Treat that symptom as an Ubuntu or network trust-store problem, not as proof that the Supabase installer URL is wrong [@deployment-session].
@@ -56,4 +64,4 @@ Do not use `curl -k` for the installer. First check which `curl` binary and CA b
 
 ## Release Proof
 
-Do not call a server deployment complete from local mobile checks alone. The mobile repo can prove that it points at the expected public URLs, but release proof also needs the OtaMaps API container running, Wilma GraphQL requests succeeding through `/graphql`, Wilma account exchange producing a valid Supabase session, Supabase migrations/data restored or created in the target project, and EAS profile values matching the deployed hostnames [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client] [@eas-config].
+Do not call a server deployment complete from local mobile checks alone. The mobile repo can prove that it points at the expected public URLs, but release proof also needs the OtaMaps API container running, Wilma GraphQL requests succeeding through `/graphql`, Wilma account exchange producing a valid Supabase session, Supabase migrations/data restored or created in the target project, private Storage object contents transferred, Google Auth configured and live-tested, and EAS profile values matching the deployed hostnames [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client] [@eas-config].

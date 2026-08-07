@@ -33,6 +33,9 @@ sources:
   - id: root-layout
     type: file
     path: app/_layout.tsx
+  - id: splash-route
+    type: file
+    path: app/welcome/splash.tsx
 ---
 
 # Runtime And Build Config
@@ -41,7 +44,7 @@ Runtime and build configuration in OtaMaps is split across Expo app config, EAS 
 
 ## Native App Config
 
-`app.json` declares the app name, slug, version, portrait orientation, bundle identifiers, Android package and version code, iOS Info.plist permission copy, Android permissions, blocked permissions, plugins, typed routes, and EAS project id [@app-config]. BLE-sensitive native config includes Android foreground-service and connected-device foreground-service permissions, Android Bluetooth scan/connect permissions, iOS Bluetooth usage text, and the `react-native-ble-plx` plugin with background support and `central` mode [@app-config].
+`app.json` declares the app name, slug, version, portrait orientation, bundle identifiers, Android package and version code, iOS Info.plist permission copy, Android permissions, blocked permissions, plugins, typed routes, and EAS project id [@app-config]. The native `expo-splash-screen` plugin uses `./assets/images/otamaps-logo.png` at width `260` on a white background, and the in-app `welcome/splash.tsx` route uses the same wordmark image before showing the Streetsmarts footer [@app-config] [@splash-route]. BLE-sensitive native config includes Android foreground-service and connected-device foreground-service permissions, Android Bluetooth scan/connect permissions, iOS Bluetooth usage text, and the `react-native-ble-plx` plugin with background support and `central` mode [@app-config].
 
 The root layout depends on this native configuration because it mounts BLE background lifecycle code, SumUp provider setup, Algolia search, fonts, and the route stack above individual screens [@root-layout]. Changes to app config should therefore be checked against [Expo Router shell](../../architecture/app/expo-router-shell), [BLE background location](../../architecture/location/ble-background-location), and [location, notification, and BLE permissions](../../guides/permissions/location-notification-and-ble).
 
