@@ -71,6 +71,10 @@ topics:
     title: Map
     description: Indoor map rendering, room and feature data, floor filtering, and map UI state
     parents: [architecture, product]
+  - slug: queue
+    title: Queue Status
+    description: Ruokalinjasto crowd-status display, anonymous sample aggregation, and admin manual ratings
+    parents: [map, supabase, privacy]
   - slug: search
     title: Search
     description: Room search and Algolia-to-map interaction

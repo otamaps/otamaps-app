@@ -1,7 +1,7 @@
 ---
-title: "Map, Social, Location, And Consent Tables"
-summary: "This reference lists the Supabase tables and views used by OtaMaps map data, social relations, BLE beacon lookup, live locations, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
-topics: [reference, supabase, map, social, location, privacy]
+title: "Map, Social, Location, Queue, And Consent Tables"
+summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, BLE beacon lookup, live locations, queue status, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
+topics: [reference, supabase, map, social, location, queue, privacy]
 sources:
   - id: room-service
     type: file
@@ -36,6 +36,12 @@ sources:
   - id: consent-migration
     type: file
     path: supabase/migrations/20260808114122_enforce_identified_location_consent.sql
+  - id: queue-service
+    type: file
+    path: lib/queueService.ts
+  - id: queue-migration
+    type: file
+    path: supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql
   - id: id-translation
     type: file
     path: lib/idTranslation.ts
@@ -46,7 +52,7 @@ sources:
 
 # Map, Social, And Location Tables
 
-This reference lists Supabase table and view names that appear in the map, social, BLE location, and consent code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@location-service] [@user-preferences]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
+This reference lists Supabase table, view, and RPC names that appear in the map, social, BLE location, queue status, and consent code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, queue status reads aggregate RPC output, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@location-service] [@user-preferences] [@queue-service]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), [queue status](../../architecture/map/queue-status), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
 
 ## Map Data
 
@@ -89,3 +95,15 @@ The active identified live sharing path is `locations`, not `user_locations` [@l
 | `user_consent_events` | `lib/userPreferences.ts`, `supabase/migrations/20260808105737_onboarding_and_consents.sql` | Append-only consent decision history for `friend_location`, `anonymous_crowd_analytics`, and `background_tracking` by policy version [@user-preferences] [@onboarding-migration]. |
 
 `user_preferences_background_requires_purpose` prevents background tracking from being true unless friend location or anonymous analytics is also true [@consent-migration]. This matches the client behavior in [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences): background tracking is a native runtime mode for an enabled tracking purpose, not an independent data use.
+
+## Queue And Admin Data
+
+| Table Or RPC | Owner | Use |
+| --- | --- | --- |
+| `queue_areas` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Database-managed queue locations shown to authenticated users; the initial active row is `ruokalinjasto`, linked to the matching `rooms` row [@queue-migration] [@queue-service]. |
+| `queue_observations` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Append-only manual queue ratings. Authenticated admins can insert only `queue_area_id` and `level`; a trigger sets admin id, server timestamp, and 10-minute anonymous sample count [@queue-migration] [@queue-service]. |
+| `get_queue_statuses()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Authenticated aggregate used by the map. It prefers a manual rating from the last 20 minutes, otherwise derives an automatic level from 10-minute anonymous sample counts [@queue-migration] [@queue-service]. |
+| `get_admin_queue_activity()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Admin aggregate that returns 10-minute sample counts and last sample time without exposing raw anonymous sample rows [@queue-migration] [@queue-service]. |
+| `private.is_admin()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql` | Security-definer role check based on `auth.uid()` and `public.users.role`; it replaces the older public `is_admin(uuid)` helper and is used by admin RLS policies [@queue-migration]. |
+
+The same migration hardens `public.users.role`: ordinary clients can read their role through the profile path but cannot insert or update it, role values are constrained to `user` or `admin`, and the default is `user` [@queue-migration]. New queue admins must therefore be assigned through trusted database access rather than through the mobile app [@queue-migration].

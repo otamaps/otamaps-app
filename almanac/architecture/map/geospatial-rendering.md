@@ -1,7 +1,7 @@
 ---
 title: "Geospatial Rendering"
-summary: "Geospatial rendering turns cached Supabase rooms, features, and locations into Mapbox sources and layers filtered by the selected indoor floor."
-topics: [architecture, map, location]
+summary: "Geospatial rendering turns cached Supabase rooms, features, locations, and queue status into Mapbox sources and layers filtered by the selected indoor floor."
+topics: [architecture, map, location, queue]
 sources:
   - id: map-screen
     type: file
@@ -39,11 +39,13 @@ WC rooms have a second derived source. The map screen classifies a room title or
 
 Structural map features render through `featuresSource`. Before rendering, the map screen filters features to the selected floor and discards records with missing geometry, missing type, missing coordinates, or non-array coordinates [@map-screen]. A `FillExtrusionLayer` uses feature `type` to color walls differently and uses the derived `height` property for extrusion height [@map-screen]. The stairs layer filters the same source to `type === "stairs"` and uses the registered `stairsIcon` image loaded from `assets/icons/stairs.png` [@map-screen] [@stairs-icon].
 
-## Location Overlays
+## Location And Queue Overlays
 
 Friend and local user locations are rendered as point GeoJSON overlays on top of the room and feature layers. Friend locations come from Supabase `locations`, are combined with friend records as `[x, y]`, filtered to the selected floor, grouped by rounded coordinate key, and spread in a small circle when multiple friends share the same coordinate [@map-screen]. The friend source enables Mapbox clustering and draws clustered circles, cluster counts, individual circles, and initial labels [@map-screen].
 
 Local user location is built from BLE scanner state. The renderer emits an empty feature collection unless the location has coordinates, a non-null floor, and a floor matching `selectedFloor`; when present, it draws an accuracy circle and a blue user dot [@map-screen].
+
+Queue status is a polygon overlay, not a point overlay. The map builds `queueGeoJSON` only when the Ruokalinjasto queue status exists and its floor matches `selectedFloor`, then draws a translucent fill plus a `Vilkkaus` label from the same room geometry used by ordinary room rendering [@map-screen]. The data and admin rules for that overlay are described in [queue status](queue-status).
 
 ## UI Coupling
 

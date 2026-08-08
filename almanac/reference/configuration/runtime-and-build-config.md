@@ -36,6 +36,12 @@ sources:
   - id: splash-route
     type: file
     path: app/welcome/splash.tsx
+  - id: sdk57-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/08/rollout-2026-08-08T17-37-34-019fe1ce-cd4f-7ee1-b1a8-46157360f6f8.jsonl
+  - id: dev-apk-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
 ---
 
 # Runtime And Build Config
@@ -44,7 +50,7 @@ Runtime and build configuration in OtaMaps is split across Expo app config, EAS 
 
 ## Native App Config
 
-`app.json` declares the app name, slug, version, portrait orientation, bundle identifiers, Android package and version code, iOS Info.plist permission copy, Android permissions, blocked permissions, plugins, typed routes, and EAS project id [@app-config]. The native `expo-splash-screen` plugin uses `./assets/images/otamaps-logo.png` at width `260` on a white background, and the in-app `welcome/splash.tsx` route uses the same wordmark image before showing the Streetsmarts footer [@app-config] [@splash-route]. BLE-sensitive native config includes Android foreground-service and connected-device foreground-service permissions, Android Bluetooth scan/connect permissions, iOS Bluetooth usage text, and the `react-native-ble-plx` plugin with background support and `central` mode [@app-config].
+`app.json` declares the app name, slug, version, portrait orientation, bundle identifiers, Android package and version code, iOS Info.plist permission copy, Android permissions, blocked permissions, plugins, typed routes, and EAS project id [@app-config]. The current native app version is `0.3.1`, Android `versionCode` is `13`, and `runtimeVersion.policy` follows the app version for Expo Updates [@app-config] [@dev-apk-session]. The native `expo-splash-screen` plugin uses `./assets/images/otamaps-logo.png` at width `260` on a white background, and the in-app `welcome/splash.tsx` route uses the same wordmark image before showing the Streetsmarts footer [@app-config] [@splash-route]. BLE-sensitive native config includes Android foreground-service and connected-device foreground-service permissions, Android Bluetooth scan/connect permissions, iOS Bluetooth usage text, and the `react-native-ble-plx` plugin with background support and `central` mode [@app-config].
 
 The root layout depends on this native configuration because it mounts BLE background lifecycle code, SumUp provider setup, Algolia search, fonts, and the route stack above individual screens [@root-layout]. Changes to app config should therefore be checked against [Expo Router shell](../../architecture/app/expo-router-shell), [BLE background location](../../architecture/location/ble-background-location), and [location, notification, and BLE permissions](../../guides/permissions/location-notification-and-ble).
 
@@ -61,6 +67,12 @@ The Supabase client reads `EXPO_PUBLIC_SUPABASE_URL`, then falls back to `https:
 Wilma and OtaMaps API clients read `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi` [@wilma-client] [@wilma-auth-broker]. `.env.example` describes that API as the host for GraphQL and the Wilma-to-Supabase auth exchange, and all EAS profiles set it to the production API URL [@env-example] [@eas-config]. `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` controls whether the Wilma primary-auth form is visible; the auth broker enables Wilma primary auth unless the value is exactly `"false"`, and the EAS profiles plus `.env.example` set it to `"true"` [@wilma-auth-broker] [@eas-config] [@env-example].
 
 Other public env keys include Google web and iOS client ids, MapTiler and Mapbox tokens, SumUp public and secret key placeholders, SumUp merchant code, and the payment return URL [@env-example] [@eas-config]. The root layout reads `EXPO_PUBLIC_SUMUP_API_KEY` for `SumUpProvider` [@root-layout].
+
+## SDK And EAS Profile State
+
+The current dependency graph is on Expo SDK 57-era packages: `package.json` declares Expo `^57.0.0`, React Native `0.86.2`, React `19.2.3`, TypeScript `~6.0.3`, Reanimated `4.5.1`, `expo-updates`, and `expo-dev-client` [@package]. The SDK 57 upgrade removed deprecated or unused packages including `expo-background-fetch`, local Expo Doctor/EAS CLI dependencies, and `react-native-localization`, and its validation reported Expo Doctor 20/20, clean TypeScript, Android and iOS Hermes exports, clean prebuilds, and an Android SDK 36 arm64 APK build [@sdk57-session].
+
+The `development` EAS profile is intentionally an internal release-mode APK profile, not a development-client profile: it sets `developmentClient` to `false`, Android `buildType` to `apk`, and keeps channel/environment `development` [@eas-config] [@dev-apk-session]. That profile was created after an Android development-client runtime crash during React Native development-tool initialization, so future agents should not switch it back to `developmentClient: true` just to regain local Fast Refresh without retesting the native crash path [@dev-apk-session]. JS and TypeScript-only changes can be delivered to installed development-channel builds with EAS Update, but native dependency, permission, plugin, Expo config, or version-code changes need a new native APK [@dev-apk-session].
 
 ## Change Boundary
 

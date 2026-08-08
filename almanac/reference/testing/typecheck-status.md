@@ -6,9 +6,6 @@ sources:
   - id: package-scripts
     type: file
     path: package.json
-  - id: repo-notes
-    type: file
-    path: chatgpt.md
   - id: typescript-config
     type: file
     path: tsconfig.json
@@ -18,11 +15,14 @@ sources:
   - id: ble-config-test
     type: file
     path: tests/bleConfig.test.mjs
+  - id: sdk57-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/08/rollout-2026-08-08T17-37-34-019fe1ce-cd4f-7ee1-b1a8-46157360f6f8.jsonl
 ---
 
 # Typecheck Status
 
-Typecheck status in this repository is a local reference point, not a green automated test contract. The package scripts define Expo start, platform start, reset, lint, and `test:ble`, but they do not define an npm typecheck script [@package-scripts]. Repository notes name `npx tsc --noEmit` as the TypeScript check and also record known pre-existing errors in debug Supabase screens, map layer typings, welcome route typing, and checkout error types [@repo-notes]. The TypeScript configuration is strict, uses the `@/*` import path alias, and includes both normal TypeScript sources and two disabled tab-route files with `.tsx.dis` suffixes [@typescript-config].
+Typecheck status in this repository is a local reference point, not a green automated test contract. The package scripts define Expo start, platform start, reset, lint, and `test:ble`, but they do not define an npm typecheck script [@package-scripts]. The local TypeScript command is `npx tsc --noEmit`, and the August 2026 SDK 57 upgrade session reported it passing with no errors after dependency and typing fixes [@sdk57-session]. The TypeScript configuration is strict, uses the `@/*` import path alias, and includes both normal TypeScript sources and two disabled tab-route files with `.tsx.dis` suffixes [@typescript-config].
 
 ## Command Surface
 
@@ -32,7 +32,7 @@ The package-managed validation commands are `npm run lint` and `npm run test:ble
 npx tsc --noEmit
 ```
 
-That command comes from the repository notes rather than from `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@repo-notes] [@package-scripts]. `npm run test:ble` compiles only the named BLE core, type, estimator, and catalog modules into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
+That command is not wired into `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@package-scripts]. `npm run test:ble` compiles only the named BLE core, type, estimator, and catalog modules into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
 
 ## Compiler Scope
 
@@ -40,9 +40,9 @@ That command comes from the repository notes rather than from `package.json`, so
 
 The disabled-route includes are a caveat for route work. They mean type-checking can still inspect some route surfaces that are not active `.tsx` files. The route catalog for those files belongs in [debug and disabled routes](../routes/debug-and-disabled-routes).
 
-## Known Status Source
+## Current Status Source
 
-The repository notes state that `npx tsc --noEmit` reports pre-existing errors in four areas: debug Supabase screens, map layer typings, welcome route typing, and checkout error types [@repo-notes]. Treat that statement as project guidance for triage, not as proof that a new change is unrelated to type errors. When a change touches one of those areas, run the command and separate old diagnostics from new ones.
+The older repository notes about pre-existing TypeScript failures are no longer the current status source after the SDK 57 upgrade. The selected upgrade session fixed TypeScript 6 errors across Supabase debug screens, checkout handling, globals, timers, native package typings, RNMapbox map typings, and the BLE test compiler invocation, then reported `npx tsc --noEmit` passing with no errors [@sdk57-session]. If the command fails again, treat the diagnostics as current evidence rather than assuming the old baseline still applies.
 
 ## BLE Test Caveat
 
