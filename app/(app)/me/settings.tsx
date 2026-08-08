@@ -1,23 +1,28 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import {
   isBLEBackgroundEnabled,
-  startBLEBackgroundService,
+  setBLEBackgroundEnabled,
   stopBLEBackgroundService,
 } from "@/lib/bleBackgroundManager";
+import { requestBleTrackingPermissions } from "@/lib/blePermissions";
+import { startForegroundTracking, stopAllTracking } from "@/lib/bleTrackingRuntime";
+import { supabase } from "@/lib/supabase";
+import {
+  getUserPreferences,
+  updateConsentChoices,
+} from "@/lib/userPreferences";
+import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
-import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  PermissionsAndroid,
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -25,539 +30,355 @@ import {
   View,
 } from "react-native";
 
-const Settings = () => {
-  const [locationPermission, setLocationPermission] = useState<boolean | null>(
-    null
-  );
-  const [backgroundLocationPermission, setBackgroundLocationPermission] =
-    useState<boolean | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<
-    boolean | null
-  >(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+export default function Settings() {
+  const [loading, setLoading] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
-  const [bgScanEnabled, setBgScanEnabled] = useState(true);
-
+  const [friendLocation, setFriendLocation] = useState(false);
+  const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
+  const [backgroundTracking, setBackgroundTracking] = useState(false);
+  const [updating, setUpdating] = useState<string | null>(null);
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
-    checkPermissions();
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [preferences, backgroundEnabled, notification, debugMode] =
+          await Promise.all([
+            getUserPreferences({ forceRefresh: true }),
+            isBLEBackgroundEnabled(),
+            Notifications.getPermissionsAsync(),
+            AsyncStorage.getItem("isDebugMode"),
+          ]);
+        if (cancelled) return;
+        setFriendLocation(preferences.friend_location_enabled);
+        setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
+        setBackgroundTracking(
+          preferences.background_tracking_enabled && backgroundEnabled
+        );
+        setNotificationPermission(notification.status === "granted");
+        setIsDebugMode(debugMode === "true");
+      } catch (error) {
+        Alert.alert(
+          "Asetuksia ei voitu ladata",
+          error instanceof Error ? error.message : "Yritä uudelleen."
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.getItem("isDebugMode").then((value) => {
-      if (value !== null) setIsDebugMode(value === "true");
-    });
-    if (Platform.OS === "android") {
-      isBLEBackgroundEnabled().then(setBgScanEnabled);
-    }
-  }, []);
-
-  const handleDebugModeChange = async (value: boolean) => {
-    setIsDebugMode(value);
-    await AsyncStorage.setItem("isDebugMode", value.toString());
+  const ensureForegroundTracking = async () => {
+    const permission = await requestBleTrackingPermissions(false);
+    if (!permission.success) return false;
+    return (await startForegroundTracking()).success;
   };
 
-  const handleBgScanChange = async (value: boolean) => {
-    if (!value) {
-      setBgScanEnabled(false);
-      await stopBLEBackgroundService();
+  const changeFriendLocation = async (enabled: boolean) => {
+    setUpdating("friend");
+    try {
+      const preferences = await updateConsentChoices({
+        friend_location_enabled: enabled,
+      });
+      setFriendLocation(preferences.friend_location_enabled);
+      if (!enabled) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from("locations").delete().eq("user_id", session.user.id);
+        }
+      }
+      if (enabled) await ensureForegroundTracking();
+      if (!enabled && !anonymousAnalytics) await disableAllTracking();
+    } catch (error) {
+      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const changeAnonymousAnalytics = async (enabled: boolean) => {
+    setUpdating("analytics");
+    try {
+      const preferences = await updateConsentChoices({
+        anonymous_analytics_enabled: enabled,
+      });
+      setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
+      if (enabled) await ensureForegroundTracking();
+      if (!enabled && !friendLocation) await disableAllTracking();
+    } catch (error) {
+      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const disableAllTracking = async () => {
+    await updateConsentChoices({ background_tracking_enabled: false });
+    setBackgroundTracking(false);
+    await stopBLEBackgroundService();
+    await stopAllTracking(true);
+  };
+
+  const changeBackgroundTracking = async (enabled: boolean) => {
+    if (!friendLocation && !anonymousAnalytics) return;
+    setUpdating("background");
+    try {
+      if (!enabled) {
+        await setBLEBackgroundEnabled(false);
+        await updateConsentChoices({ background_tracking_enabled: false });
+        setBackgroundTracking(false);
+        return;
+      }
+      const result = await setBLEBackgroundEnabled(true);
+      if (!result?.success) {
+        throw new Error(
+          result?.reason === "bluetooth_off"
+            ? "Kytke Bluetooth päälle ja yritä uudelleen."
+            : "Tarkista Bluetooth- ja sijaintioikeudet laitteen asetuksista."
+        );
+      }
+      await updateConsentChoices({ background_tracking_enabled: true });
+      setBackgroundTracking(true);
+    } catch (error) {
+      setBackgroundTracking(false);
+      await updateConsentChoices({ background_tracking_enabled: false }).catch(
+        () => undefined
+      );
+      Alert.alert("Taustapaikannusta ei voitu ottaa käyttöön", errorMessage(error), [
+        { text: "Avaa asetukset", onPress: () => Linking.openSettings() },
+        { text: "Sulje", style: "cancel" },
+      ]);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const changeNotifications = async (enabled: boolean) => {
+    if (!enabled) {
+      await Linking.openSettings();
       return;
     }
-
-    setBgScanEnabled(true); // optimistic
-    const result = await startBLEBackgroundService();
-
-    if (!result.success && result.reason === "permission_denied") {
-      setBgScanEnabled(false);
-      Alert.alert(
-        "Ilmoitusoikeus vaaditaan",
-        "Taustaskannaus vaatii ilmoitusoikeuden, jotta Android voi pitää palvelun käynnissä. Voit myöntää sen sovelluksen asetuksista.",
-        [
-          {
-            text: "Avaa asetukset",
-            onPress: () => Linking.openSettings(),
-          },
-          {
-            text: "Pidä pois päältä",
-            style: "cancel",
-          },
-        ]
-      );
-    }
+    const result = await Notifications.requestPermissionsAsync();
+    setNotificationPermission(result.status === "granted");
   };
 
-  const checkPermissions = async () => {
-    try {
-      // Check foreground location permission
-      const { status: locationStatus } =
-        await Location.getForegroundPermissionsAsync();
-      setLocationPermission(locationStatus === "granted");
-
-      // Check background location permission
-      if (locationStatus === "granted") {
-        if (Platform.OS === "android") {
-          const androidPermission = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-          );
-          setBackgroundLocationPermission(androidPermission);
-        } else if (Platform.OS === "ios") {
-          const { status: backgroundStatus } =
-            await Location.getBackgroundPermissionsAsync();
-          setBackgroundLocationPermission(backgroundStatus === "granted");
-        }
-      } else {
-        setBackgroundLocationPermission(false);
-      }
-
-      // Check notification permission
-      const { status: notificationStatus } =
-        await Notifications.getPermissionsAsync();
-      setNotificationPermission(notificationStatus === "granted");
-    } catch (error) {
-      console.error("Error checking permissions:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const changeDebugMode = async (enabled: boolean) => {
+    setIsDebugMode(enabled);
+    await AsyncStorage.setItem("isDebugMode", enabled.toString());
   };
 
-  const requestLocationPermission = async () => {
-    try {
-      // First request foreground location
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      const granted = status === "granted";
-      setLocationPermission(granted);
-
-      if (granted && Platform.OS === "android") {
-        // On Android, we need to request background location separately
-        const backgroundGranted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
-          {
-            title: "Taustasijainnin käyttöoikeus",
-            message:
-              "Salli sovelluksen käyttää sijaintia taustalla paremman käyttökokemuksen saamiseksi.",
-            buttonNeutral: "Kysy myöhemmin",
-            buttonNegative: "Hylkää",
-            buttonPositive: "Salli",
-          }
-        );
-        setBackgroundLocationPermission(
-          backgroundGranted === PermissionsAndroid.RESULTS.GRANTED
-        );
-      } else if (granted && Platform.OS === "ios") {
-        // On iOS, request background location
-        const { status: backgroundStatus } =
-          await Location.requestBackgroundPermissionsAsync();
-        setBackgroundLocationPermission(backgroundStatus === "granted");
-      } else {
-        setBackgroundLocationPermission(false);
-      }
-
-      return granted;
-    } catch (error) {
-      console.error("Error requesting location permission:", error);
-      return false;
-    }
-  };
-
-  const requestNotificationPermission = async () => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      setNotificationPermission(status === "granted");
-    } catch (error) {
-      console.error("Error requesting notification permission:", error);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#4A89EE" />
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#3478F5" />
       </View>
     );
   }
 
+  const surface = isDark ? "#252525" : "#FFFFFF";
+  const background = isDark ? "#1E1E1E" : "#F5F7FA";
+  const titleColor = isDark ? "#FFFFFF" : "#101828";
+  const descriptionColor = isDark ? "#B3B3B3" : "#667085";
+
   return (
-    <SafeAreaView
-      style={[
-        styles.container,
-        isDark && { backgroundColor: "#1e1e1e" },
-        { padding: 0 },
-      ]}
-    >
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
       <Stack.Screen
         options={{
           title: "Asetukset",
-          headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
-          },
-          headerTitleStyle: {
-            color: isDark ? "#fff" : "#000",
-          },
+          headerStyle: { backgroundColor: surface },
+          headerTitleStyle: { color: titleColor },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                style={{ marginRight: 8 }}
-                color={isDark ? "#fff" : "#000"}
-              />
+              <MaterialIcons name="arrow-back" size={24} color={titleColor} />
             </Pressable>
           ),
         }}
       />
-      <View
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
-      >
-        <StatusBar style={isDark ? "light" : "dark"} />
-        <View
-          style={[styles.section, isDark && { backgroundColor: "#303030" }]}
-        >
-          <Text style={[styles.sectionTitle, isDark && { color: "white" }]}>
-            Käyttöoikeudet
-          </Text>
-
-          {/* <View
-            style={[
-              styles.settingItem,
-              isDark && { borderBottomColor: "#454545" },
-            ]}
-          >
-            <View style={styles.settingTextContainer}>
-              <Text
-                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-              >
-                Sijainti
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  isDark && { color: "#737373" },
-                ]}
-              >
-                Tarvitaan kartan ja sijainnin näyttämiseen
-              </Text>
-            </View>
-            {locationPermission === null ? (
-              <ActivityIndicator size="small" color="#4A89EE" />
-            ) : (
-              <Pressable
-                style={[
-                  styles.permissionButton,
-                  locationPermission
-                    ? styles.permissionGranted
-                    : styles.permissionDenied,
-                ]}
-                onPress={requestLocationPermission}
-              >
-                <Text style={styles.permissionButtonText}>
-                  {locationPermission ? "Myönnetty" : "Anna oikeudet"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-
-          <View
-            style={[
-              styles.settingItem,
-              isDark && { borderBottomColor: "#454545" },
-            ]}
-          >
-            <View style={styles.settingTextContainer}>
-              <Text
-                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-              >
-                Taustasijainti
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  isDark && { color: "#737373" },
-                ]}
-              >
-                Salli sovelluksen käyttää sijaintia taustalla
-              </Text>
-            </View>
-            {backgroundLocationPermission === null ? (
-              <ActivityIndicator size="small" color="#4A89EE" />
-            ) : (
-              <Pressable
-                style={[
-                  styles.permissionButton,
-                  backgroundLocationPermission
-                    ? styles.permissionGranted
-                    : styles.permissionDenied,
-                ]}
-                onPress={requestLocationPermission}
-                disabled={!locationPermission}
-              >
-                <Text
-                  style={[
-                    styles.permissionButtonText,
-                    !locationPermission && { opacity: 0.5 },
-                  ]}
-                >
-                  {backgroundLocationPermission
-                    ? "Myönnetty"
-                    : locationPermission
-                    ? "Anna oikeudet"
-                    : "Vaaditaan sijainti"}
-                </Text>
-              </Pressable>
-            )}
-          </View> */}
-
-          <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
-            <View style={styles.settingTextContainer}>
-              <Text
-                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-              >
-                Ilmoitukset
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  isDark && { color: "#737373" },
-                ]}
-              >
-                Salli sovelluksen lähettää ilmoituksia
-              </Text>
-            </View>
-            {notificationPermission === null ? (
-              <ActivityIndicator size="small" color="#4A89EE" />
-            ) : (
-              <Pressable
-                style={[
-                  styles.permissionButton,
-                  notificationPermission
-                    ? styles.permissionGranted
-                    : styles.permissionDenied,
-                ]}
-                onPress={requestNotificationPermission}
-              >
-                <Text style={styles.permissionButtonText}>
-                  {notificationPermission ? "Myönnetty" : "Anna oikeudet"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-
-        <View
-          style={[styles.section, isDark && { backgroundColor: "#303030" }]}
-        >
-          <Text style={[styles.sectionTitle, isDark && { color: "white" }]}>
-            Asetukset
-          </Text>
-
-          {/* <View DISABLED FOR NOW
-            style={[
-              styles.settingItem,
-              isDark && { borderBottomColor: "#454545" },
-            ]}
-          >
-            <View style={styles.settingTextContainer}>
-              <Text
-                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-              >
-                Tumma tila
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  isDark && { color: "#737373" },
-                ]}
-              >
-                Vaihda sovelluksen väriteemaa
-              </Text>
-            </View>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: "#767577", true: "#4A89EE" }}
-              thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
-            />
-          </View> */}
-
-          {Platform.OS === "android" && (
-            <View
-              style={[
-                styles.settingItem,
-                isDark && { borderBottomColor: "#454545" },
-              ]}
-            >
-              <View style={styles.settingTextContainer}>
-                <Text
-                  style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-                >
-                  Taustasijainnus
-                </Text>
-                <Text
-                  style={[
-                    styles.settingDescription,
-                    isDark && { color: "#737373" },
-                  ]}
-                >
-                  Päivitä sijaintisi taustalla, vaikka sovellus on suljettu
-                </Text>
-              </View>
-              <Switch
-                value={bgScanEnabled}
-                onValueChange={handleBgScanChange}
-                trackColor={{ false: "#767577", true: "#4A89EE" }}
-                thumbColor="#f4f3f4"
-              />
-            </View>
-          )}
-
-          <View
-            style={[
-              styles.settingItem,
-              isDark && { borderBottomColor: "#454545" },
-            ]}
-          >
-            <View style={styles.settingTextContainer}>
-              <Text
-                style={[styles.settingTitle, isDark && { color: "#e5e5e5" }]}
-              >
-                Debug tila
-              </Text>
-            </View>
-            <Switch
-              value={isDebugMode}
-              onValueChange={handleDebugModeChange}
-              trackColor={{ false: "#767577", true: "#4A89EE" }}
-              thumbColor={isDebugMode ? "#f4f3f4" : "#f4f3f4"}
-            />
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
-          >
-            <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
-              Tietosuoja
-            </Text>
-          </Pressable>
-          <View
-            style={[styles.separator, isDark && { backgroundColor: "#454545" }]}
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>TIETOSUOJA</Text>
+        <View style={[styles.card, { backgroundColor: surface }]}>
+          <SettingSwitch
+            title="Sijainti kavereille"
+            description="Näytä sijaintisi vain hyväksytyille kavereillesi."
+            value={friendLocation}
+            disabled={updating !== null}
+            onValueChange={(value) => void changeFriendLocation(value)}
+            colors={{ titleColor, descriptionColor }}
           />
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              pressed && styles.optionContainerPressed,
-            ]}
-            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
-          >
-            <Text style={[styles.settingTitle, isDark && { color: "white" }]}>
-              Käyttöehdot
-            </Text>
-          </Pressable>
+          <Divider isDark={isDark} />
+          <SettingSwitch
+            title="Anonyymit ruuhka-arviot"
+            description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
+            value={anonymousAnalytics}
+            disabled={updating !== null}
+            onValueChange={(value) => void changeAnonymousAnalytics(value)}
+            colors={{ titleColor, descriptionColor }}
+          />
+          {(Platform.OS === "android" || Platform.OS === "ios") && (
+            <>
+              <Divider isDark={isDark} />
+              <SettingSwitch
+                title="Taustapaikannus"
+                description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
+                value={backgroundTracking}
+                disabled={
+                  updating !== null || (!friendLocation && !anonymousAnalytics)
+                }
+                onValueChange={(value) => void changeBackgroundTracking(value)}
+                colors={{ titleColor, descriptionColor }}
+              />
+            </>
+          )}
         </View>
+
+        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>SOVELLUS</Text>
+        <View style={[styles.card, { backgroundColor: surface }]}>
+          <SettingSwitch
+            title="Ilmoitukset"
+            description="Wilma-viestit, muutokset ja kaveripyynnöt."
+            value={notificationPermission}
+            onValueChange={(value) => void changeNotifications(value)}
+            colors={{ titleColor, descriptionColor }}
+          />
+          <Divider isDark={isDark} />
+          <SettingSwitch
+            title="Debug-tila"
+            description="Näytä kehittäjätoiminnot."
+            value={isDebugMode}
+            onValueChange={(value) => void changeDebugMode(value)}
+            colors={{ titleColor, descriptionColor }}
+          />
+        </View>
+
+        <View style={[styles.card, { backgroundColor: surface }]}>
+          <LinkRow
+            title="Käy onboarding uudelleen"
+            onPress={() => router.push("/welcome/(post)/permissions")}
+            color={titleColor}
+          />
+          <Divider isDark={isDark} />
+          <LinkRow
+            title="Tietosuoja"
+            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+            color={titleColor}
+          />
+          <Divider isDark={isDark} />
+          <LinkRow
+            title="Käyttöehdot"
+            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+            color={titleColor}
+          />
+        </View>
+
         <Pressable
-          style={({ pressed }) => [
-            styles.optionContainer,
-            pressed && styles.optionContainerPressed,
-            {
-              alignItems: "center",
-              marginTop: 24,
-            },
-          ]}
+          style={styles.deleteButton}
           onPress={() => Linking.openURL("https://otamaps.fi/remove-me")}
         >
-          <Text
-            style={[
-              styles.settingTitle,
-              isDark && { color: "#ff637e" },
-              { color: "#ff2056" },
-            ]}
-          >
-            Poista tili
-          </Text>
+          <Text style={styles.deleteText}>Poista tili</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
-};
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen.";
+}
+
+function SettingSwitch({
+  title,
+  description,
+  value,
+  disabled = false,
+  onValueChange,
+  colors,
+}: {
+  title: string;
+  description: string;
+  value: boolean;
+  disabled?: boolean;
+  onValueChange: (value: boolean) => void;
+  colors: { titleColor: string; descriptionColor: string };
+}) {
+  return (
+    <View style={[styles.row, disabled && styles.disabled]}>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, { color: colors.titleColor }]}>{title}</Text>
+        <Text style={[styles.rowDescription, { color: colors.descriptionColor }]}>
+          {description}
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        disabled={disabled}
+        onValueChange={onValueChange}
+        trackColor={{ false: "#D0D5DD", true: "#84ADFF" }}
+        thumbColor={value ? "#3478F5" : "#F2F4F7"}
+      />
+    </View>
+  );
+}
+
+function Divider({ isDark }: { isDark: boolean }) {
+  return <View style={[styles.divider, { backgroundColor: isDark ? "#3A3A3A" : "#EAECF0" }]} />;
+}
+
+function LinkRow({
+  title,
+  onPress,
+  color,
+}: {
+  title: string;
+  onPress: () => void;
+  color: string;
+}) {
+  return (
+    <Pressable style={styles.linkRow} onPress={onPress}>
+      <Text style={[styles.rowTitle, { color }]}>{title}</Text>
+      <MaterialIcons name="chevron-right" size={22} color="#98A2B3" />
+    </Pressable>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-    padding: 16,
-  },
-  section: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Figtree-Bold",
-    color: "#333",
-    paddingVertical: 16,
-  },
-  settingItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  settingTextContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  settingTitle: {
-    fontSize: 16,
+  safeArea: { flex: 1 },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+  content: { padding: 16, paddingBottom: 40 },
+  sectionLabel: {
     fontFamily: "Figtree-SemiBold",
-    color: "#333",
-    marginBottom: 2,
-  },
-  settingDescription: {
-    fontSize: 13,
-    fontFamily: "Figtree-Regular",
-    color: "#666",
-  },
-  permissionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  permissionGranted: {
-    backgroundColor: "#e8f0fe",
-  },
-  permissionDenied: {
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  permissionButtonText: {
-    fontSize: 14,
-    fontFamily: "Figtree-SemiBold",
-  },
-  optionContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-  },
-  optionContainerPressed: {
-    opacity: 0.7,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
+    fontSize: 12,
+    letterSpacing: 0.7,
+    marginBottom: 8,
     marginLeft: 4,
+    marginTop: 10,
   },
+  card: { borderRadius: 14, marginBottom: 18, overflow: "hidden" },
+  row: { alignItems: "center", flexDirection: "row", gap: 14, padding: 16 },
+  rowText: { flex: 1 },
+  rowTitle: { fontFamily: "Figtree-SemiBold", fontSize: 16 },
+  rowDescription: {
+    fontFamily: "Figtree-Regular",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  disabled: { opacity: 0.45 },
+  divider: { height: 1, marginLeft: 16 },
+  linkRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 54,
+    paddingHorizontal: 16,
+  },
+  deleteButton: { alignItems: "center", paddingVertical: 16 },
+  deleteText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
 });
-
-export default Settings;

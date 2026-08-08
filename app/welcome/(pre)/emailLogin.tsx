@@ -1,5 +1,6 @@
-import { generateCode } from "@/components/functions/codeGen";
 import { supabase } from "@/lib/supabase";
+import { completePendingLegacyLink } from "@/lib/wilma/authBroker";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -7,255 +8,189 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EmailLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(true);
-  const [name, setName] = useState("");
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (isSignUp && !name) {
-      Alert.alert("Error", "Please enter your name");
+    if (!email.trim() || !password) {
+      Alert.alert("Puuttuvat tiedot", "Täytä sähköposti ja salasana.");
       return;
     }
 
     setLoading(true);
-
     try {
-      if (isSignUp) {
-        // Sign up with email and password
-        const { data: authData, error: signUpError } =
-          await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: name.trim(),
-                class: "", // Will be set in the profile edit
-                color: "#4A89EE", // Default color
-              },
-            },
-          });
-
-        if (signUpError) throw signUpError;
-
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
-        if (sessionError || !sessionData.session) {
-          throw (
-            sessionError || new Error("No active session found after sign-up.")
-          );
-        }
-
-        // Create user profile in the database
-        const user = sessionData.session.user;
-
-        if (!user) {
-          console.error("No user found in session data");
-        } else {
-          console.log("User ID:", user.id, sessionData.session);
-        }
-
-        // Create user profile in the database
-        if (authData.user) {
-          const { error: profileError } = await supabase.from("users").insert(
-            {
-              id: authData.user.id,
-              email: email.toLowerCase().trim(),
-              name: name.trim(),
-              class: "", // Empty class by default
-              color: "#4A89EE", // Default color
-              code: generateCode(email.toLowerCase().trim()),
-            }
-            // {
-            //   onConflict: "id",
-            // }
-          );
-
-          if (profileError) throw profileError;
-        }
-
-        // Only show success if we have a user (might be null if email confirmation is required)
-        if (authData.user) {
-          // Navigate to home after successful signup
-          router.replace("/(tabs)/me" as any);
-        } else {
-          Alert.alert(
-            "Check your email",
-            "We sent you a confirmation email. Please verify your email to continue."
-          );
-        }
-      } else {
-        // Sign in with email and password
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        // Navigate to home after successful login
-        router.replace("/" as any);
-      }
-    } catch (error: any) {
-      const errorMessage =
-        error.message || "An error occurred during authentication";
-      Alert.alert("Error", errorMessage);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      await completePendingLegacyLink(data.session?.access_token);
+      router.replace("/" as never);
+    } catch (cause) {
+      Alert.alert(
+        "Kirjautuminen epäonnistui",
+        cause instanceof Error ? cause.message : "Yritä hetken kuluttua uudelleen."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Text style={styles.title}>
-          {isSignUp ? "Luo tili" : "Tervetuloa takaisin"}
-        </Text>
-
-        {isSignUp && (
-          <TextInput
-            style={styles.input}
-            placeholder="Käyttäjänimi"
-            placeholderTextColor="#666666"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            editable={!loading}
-          />
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Sähköposti"
-          placeholderTextColor="#666666"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          editable={!loading}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Salasana"
-          placeholderTextColor="#666666"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          editable={!loading}
-          textContentType="oneTimeCode"
-          autoCorrect={false}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleAuth}
-          disabled={loading}
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>
-              {isSignUp ? "Luo tili" : "Kirjaudu sisään"}
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={23} color="#344054" />
+            <Text style={styles.backText}>Takaisin</Text>
+          </Pressable>
+
+          <View style={styles.form}>
+            <Text style={styles.title}>Kirjaudu sähköpostilla</Text>
+            <Text style={styles.subtitle}>
+              Tämä vaihtoehto on vanhaa OtaMaps-tiliä varten.
             </Text>
-          )}
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.switchButton}
-          onPress={() => setIsSignUp(!isSignUp)}
-          disabled={loading}
-        >
-          <Text style={styles.switchText}>
-            {isSignUp
-              ? "Onko sinulla jo tili? Kirjaudu sisään"
-              : "Eikö sinulla ole tiliä? Luo tili"}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <Text style={styles.label}>Sähköposti</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="nimi@esimerkki.fi"
+              placeholderTextColor="#98A2B3"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              editable={!loading}
+            />
+
+            <Text style={styles.label}>Salasana</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Salasana"
+              placeholderTextColor="#98A2B3"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!loading}
+              textContentType="password"
+              autoCorrect={false}
+              onSubmitEditing={() => void handleAuth()}
+            />
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.buttonPressed,
+                loading && styles.buttonDisabled,
+              ]}
+              onPress={() => void handleAuth()}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Kirjaudu sisään</Text>
+              )}
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 32,
-    textAlign: "center",
-    color: "#000000",
-  },
-  input: {
-    backgroundColor: "#f5f5f5",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    color: "#000000",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
+  flex: { flex: 1 },
+  safeArea: { backgroundColor: "#FFFFFF", flex: 1 },
   scrollContainer: {
     flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  backButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    minHeight: 44,
+  },
+  backText: {
+    color: "#344054",
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+  },
+  form: {
+    alignSelf: "center",
     justifyContent: "center",
-    paddingVertical: 20,
+    maxWidth: 500,
+    width: "100%",
+    flex: 1,
+  },
+  title: {
+    color: "#101828",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 25,
+    textAlign: "center",
+  },
+  subtitle: {
+    color: "#667085",
+    fontFamily: "Figtree-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 28,
+    marginTop: 7,
+    textAlign: "center",
+  },
+  label: {
+    color: "#344054",
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+    marginBottom: 7,
+  },
+  input: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E4E7EC",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#101828",
+    fontFamily: "Figtree-Regular",
+    fontSize: 16,
+    marginBottom: 16,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   button: {
-    backgroundColor: "#4A89EE",
-    padding: 16,
-    borderRadius: 12,
     alignItems: "center",
-    marginTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#3478F5",
+    borderRadius: 12,
+    justifyContent: "center",
+    marginTop: 2,
+    minHeight: 50,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
+  buttonPressed: { opacity: 0.84 },
+  buttonDisabled: { opacity: 0.55 },
   buttonText: {
     color: "#FFFFFF",
+    fontFamily: "Figtree-SemiBold",
     fontSize: 16,
-    fontWeight: "600",
-  },
-  switchButton: {
-    marginTop: 24,
-    alignItems: "center",
-    padding: 12,
-  },
-  switchText: {
-    color: "#4A89EE",
-    fontSize: 15,
-    fontWeight: "500",
   },
 });

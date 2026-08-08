@@ -1,10 +1,5 @@
-import React from "react";
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router";
 
-export default function WilmaLoginScreen() {
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <Text>Wilma login placeholder screen.</Text>
-    </View>
-  );
+export default function WilmaLoginRedirect() {
+  return <Redirect href="/me/wilma" />;
 }

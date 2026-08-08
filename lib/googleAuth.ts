@@ -6,6 +6,8 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { clearPendingLegacyLink } from "./wilma/authBroker";
+import { logoutMutation } from "./wilma/graphqlClient";
 
 const DEFAULT_WEB_CLIENT_ID =
   "587558103382-pq3t39bef7jsq7vvr8c1t044gaeqomgh.apps.googleusercontent.com";
@@ -46,7 +48,7 @@ const ensureUserProfile = async (user: User) => {
       color: user.user_metadata?.color || "#4A89EE",
       code: generateCode(normalizedEmail),
     },
-    { onConflict: "id" }
+    { onConflict: "id", ignoreDuplicates: true }
   );
 
   if (error) {
@@ -117,6 +119,8 @@ export const signInWithGoogle = async () => {
 
 export const signOutGoogleAndSupabase = async () => {
   const { error } = await supabase.auth.signOut();
+
+  await Promise.allSettled([logoutMutation(), clearPendingLegacyLink()]);
 
   try {
     await GoogleSignin.signOut();

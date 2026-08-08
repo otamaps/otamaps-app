@@ -1,8 +1,6 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import { Dimensions, Image, StatusBar, StyleSheet, Text, View } from 'react-native';
-
-const { width, height } = Dimensions.get('window');
+import { Image, StatusBar, StyleSheet, Text, View } from 'react-native';
 
 export default function SplashScreen() {
   return (
@@ -11,7 +9,7 @@ export default function SplashScreen() {
       <StatusBar barStyle="dark-content"/>
       <View style={styles.logoContainer}>
         <Image
-          source={require('@/assets/images/otamaps-icon.png')}
+          source={require('@/assets/images/otamaps-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -35,6 +33,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   logoContainer: {
     alignItems: 'center',
@@ -43,7 +42,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: "35%",
+    width: '72%',
+    maxWidth: 360,
+    aspectRatio: 674 / 225,
   },
   footer: {
     position: 'absolute',

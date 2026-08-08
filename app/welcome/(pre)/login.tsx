@@ -1,229 +1,192 @@
-import { configureGoogleSignIn, isGoogleSignInAvailable, signInWithGoogle } from '@/lib/googleAuth';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  configureGoogleSignIn,
+  isGoogleSignInAvailable,
+  signInWithGoogle,
+} from "@/lib/googleAuth";
+import { completePendingLegacyLink } from "@/lib/wilma/authBroker";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
-  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(true);
+  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(false);
 
   useEffect(() => {
-    // Configure Google Sign-In when component mounts
     configureGoogleSignIn();
-    
-    // Check if Google Sign-In is available
-    const checkGoogleSignIn = async () => {
-      const isAvailable = await isGoogleSignInAvailable();
-      setGoogleSignInAvailable(isAvailable);
-    };
-    
-    checkGoogleSignIn();
+    void isGoogleSignInAvailable().then(setGoogleSignInAvailable);
   }, []);
 
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      await signInWithGoogle();
-      // Navigation will be handled by the auth state listener in _layout.tsx
-    } catch (error: any) {
-      console.error('Google Sign-In Error:', error);
-      alert(`Sign in failed: ${error.message}`);
+      const data = await signInWithGoogle();
+      await completePendingLegacyLink(data.session?.access_token);
+      router.replace("/" as never);
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "Yritä hetken kuluttua uudelleen.";
+      alert(`Kirjautuminen epäonnistui: ${message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <StatusBar style="dark" backgroundColor="#fff" />
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color="#4285F4" />
-          <Text style={{ marginTop: 16 }}>Signing in with Google...</Text>
-        </View>
-      </>
-    );
-  }
-
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Tervetuloa takaisin</Text>
-          <Text style={styles.subtitle}>Kirjaudu sisään jatkaaksesi sovellukseen</Text>
-        </View>
-      
-      <View style={styles.buttonContainer}>
-        {googleSignInAvailable ? (
-          <Pressable 
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={23} color="#344054" />
+          <Text style={styles.backText}>Takaisin</Text>
+        </Pressable>
+
+        <View style={styles.content}>
+          <Image
+            source={require("@/assets/images/otamaps-logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Muut kirjautumistavat</Text>
+          <Text style={styles.subtitle}>
+            Google toimii kaikilla sähköpostiosoitteilla. Voit myös käyttää
+            vanhan OtaMaps-tilin sähköpostia ja salasanaa.
+          </Text>
+
+          {googleSignInAvailable ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionButton,
+                pressed && styles.optionButtonPressed,
+                loading && styles.disabled,
+              ]}
+              onPress={() => void handleGoogleSignIn()}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#344054" />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={19} color="#344054" />
+                  <Text style={styles.optionButtonText}>Jatka Googlella</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+
+          <Pressable
             style={({ pressed }) => [
-              styles.googleButton,
-              pressed && styles.googleButtonPressed
-            ]} 
-            onPress={handleGoogleSignIn}
+              styles.optionButton,
+              pressed && styles.optionButtonPressed,
+            ]}
+            onPress={() => router.push("/welcome/emailLogin" as never)}
             disabled={loading}
           >
-            <View style={styles.googleButtonContent}>
-              <Image 
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
-                style={styles.googleLogo}
-              />
-              <Text style={styles.googleButtonText}>Jatka Googlella</Text>
-            </View>
+            <Ionicons name="mail-outline" size={20} color="#344054" />
+            <Text style={styles.optionButtonText}>Sähköposti ja salasana</Text>
           </Pressable>
-        ) : null}
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>tai</Text>
-          <View style={styles.divider} />
         </View>
 
-        <Pressable 
-          style={({ pressed }) => [
-            styles.alternativeButton,
-            pressed && styles.alternativeButtonPressed
-          ]}
-          onPress={() => router.push('/welcome/emailLogin')}
-          disabled={loading}
-        >
-          <Text style={styles.alternativeButtonText}>Muu kirjautuminen</Text>
-          <Text style={styles.alternativeButtonSubtext}>Minulla ei ole @eduespoo.fi -tiliä</Text>
-        </Pressable>
-      </View>
-
-      <Text style={{textAlign: 'center', marginTop: 16, color: '#666'}}>
-        Kirjautumalla sisään hyväksyt{' '}
-        <Text
-          style={{color: 'blue'}}
-          onPress={() => Linking.openURL('https://example.com/terms')}
-        >
-          Käyttöehdot
-        </Text>{' '}
-        ja{' '}
-        <Text
-          style={{color: 'blue'}}
-          onPress={() => Linking.openURL('https://example.com/privacy')}
-        >
-          Tietosuojapolitiikan
+        <Text style={styles.legal}>
+          Kirjautumalla hyväksyt{" "}
+          <Text
+            style={styles.link}
+            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+          >
+            käyttöehdot
+          </Text>{" "}
+          ja{" "}
+          <Text
+            style={styles.link}
+            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+          >
+            tietosuojakäytännön
+          </Text>
+          .
         </Text>
-      </Text>
-
-    </SafeAreaView>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#FFFFFF",
     flex: 1,
-    padding: 24,
-    backgroundColor: '#fff',
-    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  header: {
-    alignItems: 'center',
-    marginTop: 40,
+  backButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    minHeight: 44,
   },
+  backText: {
+    color: "#344054",
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+  },
+  content: {
+    alignSelf: "center",
+    justifyContent: "center",
+    maxWidth: 500,
+    width: "100%",
+    flex: 1,
+  },
+  logo: { alignSelf: "center", height: 76, width: 220 },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: '#1a1a1a',
-    marginBottom: 8,
-    fontFamily: 'System',
+    color: "#101828",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 25,
+    marginTop: 18,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#6b7280',
-    marginBottom: 40,
-    fontFamily: 'System',
-    lineHeight: 24,
-  },
-  buttonContainer: {
-    width: '100%',
-    marginBottom: 40,
-  },
-  googleButton: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  googleButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  googleButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleLogo: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
-  },
-  googleButtonText: {
-    color: '#3c4043',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'System',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    color: '#9ca3af',
-    marginHorizontal: 12,
+    color: "#667085",
+    fontFamily: "Figtree-Regular",
     fontSize: 14,
-    fontFamily: 'System',
+    lineHeight: 21,
+    marginBottom: 28,
+    marginTop: 8,
+    textAlign: "center",
   },
-  alternativeButton: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
+  optionButton: {
+    alignItems: "center",
+    borderColor: "#D0D5DD",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 12,
+    minHeight: 52,
   },
-  alternativeButtonPressed: {
-    backgroundColor: '#f3f4f6',
+  optionButtonPressed: { backgroundColor: "#F9FAFB" },
+  optionButtonText: {
+    color: "#344054",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 15,
   },
-  alternativeButtonText: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'System',
-    marginBottom: 4,
+  legal: {
+    color: "#98A2B3",
+    fontFamily: "Figtree-Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    paddingBottom: 8,
+    textAlign: "center",
   },
-  alternativeButtonSubtext: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontFamily: 'System',
-  },
-  errorText: {
-    color: '#dc2626',
-    textAlign: 'center',
-    marginTop: 16,
-    fontFamily: 'System',
-  },
+  link: { color: "#3478F5" },
+  disabled: { opacity: 0.55 },
 });

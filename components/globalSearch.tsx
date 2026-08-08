@@ -85,10 +85,6 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     }
   }, [propSelectedFloor]);
 
-  if (!fontsLoaded) {
-    return <ActivityIndicator />;
-  }
-
   // Animate search results container when hits or query changes
   useEffect(() => {
     console.log("Hits updated:", {
@@ -329,6 +325,10 @@ const GlobalSearch = forwardRef(function GlobalSearch(
       keyboardDidHideListener.remove();
     };
   }, [isFocused, searchQuery]);
+
+  if (!fontsLoaded) {
+    return <ActivityIndicator />;
+  }
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>

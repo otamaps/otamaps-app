@@ -31,6 +31,9 @@ export function useCheckout() {
       try {
         // Create checkout on backend
         const checkout = await createCheckout(amount);
+        if (!checkout.id) {
+          throw new Error('SumUp did not return a checkout identifier');
+        }
 
         // Initialize the payment sheet
         const { error } = await initPaymentSheet({
@@ -40,15 +43,16 @@ export function useCheckout() {
         });
 
         if (error) {
+          const errorMessage =
+            error.status === 'failure'
+              ? error.message
+              : 'Payment setup was canceled';
           setState({
             isLoading: false,
-            error:
-              error.status === 'failure'
-                ? error.message
-                : 'Failed to initialize payment',
+            error: errorMessage,
             isProcessing: false,
           });
-          Alert.alert('Payment Error', error.message || 'Failed to initialize payment');
+          Alert.alert('Payment Error', errorMessage);
           return false;
         }
 
@@ -78,18 +82,14 @@ export function useCheckout() {
       const { error } = await presentPaymentSheet();
 
       if (error) {
+        const errorMessage =
+          error.status === 'failure' ? error.message : 'Payment was canceled';
         setState((prev) => ({
           ...prev,
           isProcessing: false,
-          error:
-            error.status === 'failure'
-              ? error.message
-              : 'Payment failed',
+          error: errorMessage,
         }));
-        Alert.alert(
-          'Payment Failed',
-          error.message || 'Your payment could not be processed'
-        );
+        Alert.alert('Payment Failed', errorMessage);
         return false;
       }
 

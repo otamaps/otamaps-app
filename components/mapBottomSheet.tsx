@@ -107,6 +107,8 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
   }
 );
 
+MapBottomSheet.displayName = "MapBottomSheet";
+
 export default MapBottomSheet;
 
 const styles = StyleSheet.create({
