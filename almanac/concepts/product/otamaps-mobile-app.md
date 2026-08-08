@@ -1,7 +1,7 @@
 ---
 title: "OtaMaps Mobile App"
-summary: "OtaMaps is the Expo React Native campus app in this repository, centered on indoor maps, school data, social location, and optional FabLab printing."
-topics: [concepts, product, map, location, wilma, fablab]
+summary: "OtaMaps is the Expo React Native campus app in this repository, centered on indoor maps, school data, social location, queue status, and optional FabLab printing."
+topics: [concepts, product, map, queue, location, wilma, fablab]
 sources:
   - id: app-config
     type: file
@@ -33,6 +33,8 @@ OtaMaps is the mobile campus app implemented in this repository. It is an Expo a
 ## Product Neighborhoods
 
 The [campus map model](../map/campus-map-model) is the central product neighborhood. The map tab composes Mapbox rendering, room and feature stores, floor filtering, search, BLE current-location state, friend locations, friend requests, reports, bottom sheets, and room modal behavior in one route [@map-route]. This is why map work usually crosses product, rendering, search, location, and social boundaries rather than staying inside one component.
+
+The map also surfaces [queue status](../../architecture/map/queue-status) for Ruokalinjasto. That feature highlights the queue room polygon and displays a Finnish `Vilkkaus` label based on a Supabase aggregate, so queue work crosses the map renderer, anonymous analytics consent, and admin-only observation storage [@map-route].
 
 The [Wilma](../integrations/wilma) neighborhood is currently surfaced through the home tab. The route imports the Wilma GraphQL client, handles login and logout state, and displays schedule, messages, attendance, and exams with Finnish UI copy [@home-route]. The app also contains disabled or auxiliary Wilma route files, so route work should use the [main route map](../../architecture/app/main-route-map) before assuming every Wilma-looking file is active.
 

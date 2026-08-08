@@ -21,6 +21,12 @@ sources:
   - id: app-config
     type: file
     path: app.json
+  - id: package
+    type: file
+    path: package.json
+  - id: sdk57-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/08/rollout-2026-08-08T17-37-34-019fe1ce-cd4f-7ee1-b1a8-46157360f6f8.jsonl
 ---
 
 # Background BLE Via Notifee
@@ -50,3 +56,5 @@ The first-import rule is a real invariant. Moving the `bleBackgroundTask` import
 Background BLE depends on explicit consent as well as native permissions. The manager refuses to start when `getBackgroundTrackingConsent()` is false, `setBLEBackgroundEnabled(true)` requests the platform-specific tracking permissions before writing consent, and stop or sign-out paths clear that consent [@background-manager]. The settings UI must therefore treat the switch as a consent and service control, not as a passive cached preference.
 
 The platform split remains native-hosting and scan-filtering, not duplicate business logic. Android starts a Notifee connected-device foreground service and scans without a service UUID filter, while iOS uses Core Bluetooth restoration and a UUID-filtered scan; both paths use the same selection and two-minute heartbeat upload logic from the runtime [@background-manager] [@runtime]. `app.json` and the custom Notifee plugin must stay aligned with that behavior, because the app config carries iOS central background BLE settings and Android location, Bluetooth, foreground-service, and connected-device permissions [@app-config] [@notifee-plugin].
+
+The August 2026 SDK 57 upgrade removed `expo-background-fetch`, and the follow-up diagnosis rejected `expo-background-task` as a replacement for continuous BLE scanning because it is a system-scheduled background-job API rather than a foreground-service or Core Bluetooth host [@sdk57-session]. The current package graph still includes `expo-task-manager`, but it does not include `expo-background-fetch` or `expo-background-task` [@package]. Add an Expo background task only for a separate periodic sync job; do not route the BLE scanner runtime through it without revisiting this decision.
