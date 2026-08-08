@@ -7,16 +7,22 @@ import {
   isBLEBackgroundEnabled,
   startBLEBackgroundService,
   stopBLEBackgroundService,
+  stopBLETrackingForSignOut,
 } from "@/lib/bleBackgroundManager";
+import {
+  startForegroundTracking,
+  stopForegroundTracking,
+} from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
+import { getTrackingConsentChoices } from "@/lib/userPreferences";
 import { liteClient as algoliasearch } from "algoliasearch/lite";
 import { useFonts } from "expo-font";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { InstantSearch } from "react-instantsearch-core";
-import { useColorScheme, View } from "react-native";
+import { AppState, useColorScheme, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { SumUpProvider } from "sumup-react-native-alpha";
@@ -42,8 +48,6 @@ function useLoadedAssets() {
 }
 
 function RootLayoutNav() {
-  const segments = useSegments();
-  const router = useRouter();
   const fontsLoaded = useLoadedAssets();
 
   useEffect(() => {
@@ -80,31 +84,74 @@ export default function RootLayout() {
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
-    // Start the service if the user is already signed in on launch
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session && (await isBLEBackgroundEnabled())) {
-        const result = await startBLEBackgroundService();
-        if (!result.success && result.reason === "permission_denied") {
-          console.log("[BLE BG] Auto-start skipped: notification permission denied");
-        }
+    let disposed = false;
+
+    const syncAuthenticatedTracking = async () => {
+      const [backgroundEnabled, consent] = await Promise.all([
+        isBLEBackgroundEnabled(),
+        getTrackingConsentChoices(),
+      ]);
+      if (disposed) return;
+      const trackingPurposeEnabled =
+        consent.friend_location_enabled || consent.anonymous_analytics_enabled;
+      if (!trackingPurposeEnabled) {
+        if (backgroundEnabled) await stopBLEBackgroundService();
+        else await stopForegroundTracking();
+        return;
       }
+      if (AppState.currentState === "active") {
+        if (backgroundEnabled && consent.background_tracking_enabled) {
+          await startBLEBackgroundService();
+        } else {
+          await startForegroundTracking();
+        }
+      } else if (!backgroundEnabled) {
+        await stopForegroundTracking();
+      }
+    };
+
+    const syncTracking = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (disposed) return;
+      if (!session) {
+        await stopForegroundTracking();
+        return;
+      }
+      try {
+        await syncAuthenticatedTracking();
+      } catch (error) {
+        console.warn("Unable to load tracking consent; tracking stays off", error);
+        await stopForegroundTracking();
+      }
+    };
+
+    void syncTracking();
+
+    const appStateSubscription = AppState.addEventListener("change", () => {
+      void syncTracking();
     });
 
     // Start / stop as the user signs in or out
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === "SIGNED_IN" && (await isBLEBackgroundEnabled())) {
-        const result = await startBLEBackgroundService();
-        if (!result.success && result.reason === "permission_denied") {
-          console.log("[BLE BG] Sign-in auto-start skipped: notification permission denied");
-        }
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
+        void syncAuthenticatedTracking().catch(async (error) => {
+          console.warn("Unable to load tracking consent; tracking stays off", error);
+          await stopForegroundTracking();
+        });
       } else if (event === "SIGNED_OUT") {
-        await stopBLEBackgroundService();
+        void stopBLETrackingForSignOut();
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      disposed = true;
+      appStateSubscription.remove();
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (

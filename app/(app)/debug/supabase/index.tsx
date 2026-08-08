@@ -1,11 +1,20 @@
 import { supabase } from '@/lib/supabase';
+import type { AuthError, Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 const SupabaseDebug = () => {
-  const { data: session, error } = supabase.auth.getSession();
+  const [session, setSession] = useState<Session | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      setSession(data.session);
+      setError(sessionError);
+    });
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

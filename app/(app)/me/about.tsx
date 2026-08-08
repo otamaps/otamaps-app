@@ -18,7 +18,7 @@ const About = () => {
   const router = useRouter();
 
   const [logoTapCount, setLogoTapCount] = React.useState(0);
-  const logoTapTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const logoTapTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogoTap = () => {
     setLogoTapCount((prev) => {

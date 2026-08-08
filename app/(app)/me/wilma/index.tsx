@@ -1,222 +1,242 @@
+import { connectWilmaAccount } from "@/lib/wilma/authBroker";
+import { supabase } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/userPreferences";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import React from "react";
+import { router, Stack } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useColorScheme,
   View,
 } from "react-native";
 
-const router = useRouter();
-
-const Wilma = () => {
+export default function WilmaSettings() {
+  const [loading, setLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [name, setName] = useState("");
+  const [userClass, setUserClass] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [connecting, setConnecting] = useState(false);
   const isDark = useColorScheme() === "dark";
+
+  const loadStatus = async () => {
+    const preferences = await getUserPreferences({ forceRefresh: true });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Käyttäjä ei ole kirjautunut sisään.");
+    const { data, error } = await supabase
+      .from("users")
+      .select("name,class")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    setConnected(preferences.profile_source === "wilma");
+    setName(data?.name || "");
+    setUserClass(data?.class || "");
+  };
+
+  useEffect(() => {
+    void loadStatus()
+      .catch((error) => Alert.alert("Wilma-tilaa ei voitu ladata", message(error)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const connect = async () => {
+    if (!username.trim() || !password) {
+      Alert.alert("Puuttuvat tiedot", "Täytä Wilma-käyttäjätunnus ja salasana.");
+      return;
+    }
+    const wasConnected = connected;
+    setConnecting(true);
+    try {
+      await connectWilmaAccount(username, password);
+      await loadStatus();
+      setPassword("");
+      Alert.alert(
+        wasConnected ? "Wilma-yhteys päivitetty" : "Wilma-tili yhdistetty",
+        "Wilma-tiedot ja istunto ovat nyt käytettävissä OtaMapsissa."
+      );
+    } catch (error) {
+      Alert.alert("Wilma-tiliä ei voitu yhdistää", message(error));
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const background = isDark ? "#1E1E1E" : "#F5F7FA";
+  const surface = isDark ? "#292929" : "#FFFFFF";
+  const textColor = isDark ? "#FFFFFF" : "#101828";
+  const mutedColor = isDark ? "#B3B3B3" : "#667085";
+
   return (
-    <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
-    >
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
       <Stack.Screen
         options={{
-          title: "Wilma-integraatio",
-          headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
-          },
-          headerTitleStyle: {
-            color: isDark ? "#fff" : "#000",
-          },
+          title: "Wilma-tili",
+          headerStyle: { backgroundColor: surface },
+          headerTitleStyle: { color: textColor },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color="#4A89EE" />
+              <MaterialIcons name="arrow-back" size={24} color={textColor} />
             </Pressable>
           ),
         }}
       />
-      <ScrollView
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
-        contentContainerStyle={styles.contentContainer}
-      >
-        {/* <View style={styles.header}>
-          <Ionicons
-            name="school"
-            size={32}
-            color={isDark ? "#51a2ff" : "#007AFF"}
-          />
-          <Text style={[styles.title, isDark && { color: "white" }]}>
-            Wilma-integraatio
+      {loading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="#3478F5" />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={[styles.statusCard, { backgroundColor: surface }]}>
+            <View style={[styles.statusIcon, connected && styles.statusIconConnected]}>
+              <Ionicons
+                name={connected ? "checkmark" : "link-outline"}
+                size={24}
+                color={connected ? "#067647" : "#3478F5"}
+              />
+            </View>
+            <View style={styles.statusText}>
+              <Text style={[styles.statusTitle, { color: textColor }]}>
+                {connected ? "Wilma on yhdistetty" : "Wilmaa ei ole yhdistetty"}
+              </Text>
+              <Text style={[styles.statusDescription, { color: mutedColor }]}>
+                {connected
+                  ? `${name}${userClass ? ` · ${userClass}` : ""}`
+                  : "Yhdistä Wilma saadaksesi lukujärjestyksen, viestit ja vahvistetut profiilitiedot."}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.heading, { color: textColor }]}>
+            {connected ? "Päivitä Wilma-kirjautuminen" : "Yhdistä Wilma-tili"}
           </Text>
-        </View> */}
-        <View
-          style={[
-            {
-              height: 250,
-              justifyContent: "center",
-              alignItems: "center",
-              display: "flex",
-              flexDirection: "column",
-            },
-          ]}
-        >
-          <Ionicons
-            name="hourglass"
-            size={64}
-            color={isDark ? "#51a2ff" : "#007AFF"}
+          <Text style={[styles.intro, { color: mutedColor }]}>
+            Tunnukset lähetetään suojatusti Wilmalle ja tallennetaan vain tämän laitteen suojattuun tallennustilaan automaattista uudelleenkirjautumista varten.
+          </Text>
+          <Text style={[styles.label, { color: textColor }]}>Wilma-käyttäjätunnus</Text>
+          <TextInput
+            style={[styles.input, isDark && styles.inputDark]}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!connecting}
           />
-          <Text
-            style={[
-              styles.title,
-              isDark && { color: "white" },
-              {
-                textAlign: "center",
-                width: "100%",
-                fontSize: 24,
-                marginTop: 16,
-              },
-            ]}
+          <Text style={[styles.label, { color: textColor }]}>Salasana</Text>
+          <TextInput
+            style={[styles.input, isDark && styles.inputDark]}
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+            editable={!connecting}
+            onSubmitEditing={() => void connect()}
+          />
+          <Pressable
+            style={[styles.button, connecting && styles.buttonDisabled]}
+            onPress={() => void connect()}
+            disabled={connecting}
           >
-            Tulossa pian...
-          </Text>
-        </View>
-
-        <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
-          <Text style={[styles.cardTitle, isDark && { color: "white" }]}>
-            Miksi yhdistää Wilma-tili?
-          </Text>
-
-          <View style={styles.featureItem}>
-            <Ionicons
-              name="locate"
-              size={24}
-              color={isDark ? "#51a2ff" : "#007AFF"}
-              style={styles.icon}
-            />
-            <View>
-              <Text
-                style={[styles.featureTitle, isDark && { color: "#d4d4d4" }]}
-              >
-                Tarkempi sijaintiseuranta
+            {connecting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {connected ? "Päivitä yhteys" : "Yhdistä Wilma"}
               </Text>
-              <Text
-                style={[styles.featureText, isDark && { color: "#ffffff85" }]}
-              >
-                Pystymme parantamaan sijaintiseurantaa luokkatietojesi
-                perusteella.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featureItem}>
-            <Ionicons
-              name="people"
-              size={24}
-              color={isDark ? "#51a2ff" : "#007AFF"}
-              style={styles.icon}
-            />
-            <View>
-              <Text
-                style={[styles.featureTitle, isDark && { color: "#d4d4d4" }]}
-              >
-                Opettajien sijainnin jakaminen
-              </Text>
-              <Text
-                style={[styles.featureText, isDark && { color: "#ffffff85" }]}
-              >
-                Opettajat voivat jakaa sijaintinsa luokkansa opiskelijoille.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.note, isDark && { backgroundColor: "#303030" }]}>
-          <Ionicons
-            name="information-circle"
-            size={20}
-            color={isDark ? "#ffffff85" : "#666"}
-          />
-          <Text style={[styles.noteText, isDark && { color: "#ffffff85" }]}>
-            Kirjautumalla Wilma-tililläsi hyväksyt, että sovellus käyttää
-            Wilma-tunnuksiasi ainoastaan yllä mainittuihin tarkoituksiin.
-          </Text>
-        </View>
-      </ScrollView>
+            )}
+          </Pressable>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
-};
+}
+
+function message(error: unknown): string {
+  const code = (error as Error & { code?: string })?.code;
+  if (code === "WILMA_AUTH_FAILED") return "Wilma-käyttäjätunnus tai salasana on väärä.";
+  if (code === "WILMA_IDENTITY_CONFLICT") {
+    return "Tämä Wilma-tili on jo yhdistetty toiseen OtaMaps-tiliin.";
+  }
+  return error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen.";
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: "row",
+  safeArea: { flex: 1 },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+  content: { padding: 20, paddingBottom: 40 },
+  statusCard: {
     alignItems: "center",
-    marginBottom: 24,
-    marginTop: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: "Figtree-SemiBold",
-    // marginLeft: 12,
-    color: "#333",
-  },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontFamily: "Figtree-SemiBold",
-    marginBottom: 20,
-    color: "#222",
-  },
-  featureItem: {
+    borderRadius: 14,
     flexDirection: "row",
-    marginBottom: 24,
-    alignItems: "flex-start",
-  },
-  icon: {
-    marginRight: 16,
-    marginTop: 2,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-    marginBottom: 4,
-    color: "#333",
-  },
-  featureText: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-  },
-  note: {
-    flexDirection: "row",
-    backgroundColor: "#f0f7ff",
+    gap: 14,
     padding: 16,
-    borderRadius: 8,
-    alignItems: "flex-start",
   },
-  noteText: {
-    flex: 1,
-    marginLeft: 8,
+  statusIcon: {
+    alignItems: "center",
+    backgroundColor: "#EFF4FF",
+    borderRadius: 22,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  statusIconConnected: { backgroundColor: "#ECFDF3" },
+  statusText: { flex: 1 },
+  statusTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17 },
+  statusDescription: {
+    fontFamily: "Figtree-Regular",
     fontSize: 13,
-    color: "#555",
-    lineHeight: 18,
+    lineHeight: 19,
+    marginTop: 4,
   },
+  heading: {
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 22,
+    marginTop: 30,
+  },
+  intro: {
+    fontFamily: "Figtree-Regular",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 24,
+    marginTop: 7,
+  },
+  label: {
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+    marginBottom: 7,
+  },
+  input: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D0D5DD",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#101828",
+    fontFamily: "Figtree-Regular",
+    fontSize: 16,
+    marginBottom: 16,
+    minHeight: 50,
+    paddingHorizontal: 14,
+  },
+  inputDark: { backgroundColor: "#292929", borderColor: "#444", color: "#FFFFFF" },
+  button: {
+    alignItems: "center",
+    backgroundColor: "#3478F5",
+    borderRadius: 12,
+    justifyContent: "center",
+    minHeight: 52,
+    marginTop: 4,
+  },
+  buttonDisabled: { opacity: 0.55 },
+  buttonText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 16 },
 });
-
-export default Wilma;

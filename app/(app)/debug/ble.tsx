@@ -1,354 +1,213 @@
 import useBLEScanner from "@/components/functions/bleScanner";
-import { getRoomIdFromBleId } from "@/lib/idTranslation";
-import notifee, { AndroidImportance } from "@notifee/react-native";
-import { Buffer } from "buffer";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  isBLEBackgroundEnabled,
+  setBLEBackgroundEnabled,
+} from "@/lib/bleBackgroundManager";
+import { getBlePermissionSnapshot } from "@/lib/blePermissions";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
+import { Stack, router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Button,
-  FlatList,
-  PermissionsAndroid,
-  Platform,
+  Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
-import { BleError, BleManager, Device } from "react-native-ble-plx";
 
-// Your BLE Service UUID
-const SERVICE_UUID = "f47fcfd9-0634-49de-8e99-80d05ae8fcef";
+function formatTime(value: number | null): string {
+  return value ? new Date(value).toLocaleString() : "—";
+}
 
 export default function BLEScreen() {
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [roomMap, setRoomMap] = useState<Record<string, string>>({});
+  const {
+    currentRoom,
+    status,
+    diagnostics,
+    getScannedBeacons,
+    forceUploadLocation,
+  } = useBLEScanner();
+  const [backgroundEnabled, setBackgroundEnabled] = useState(false);
+  const [permissions, setPermissions] = useState<
+    Record<string, string | number | boolean>
+  >({});
+
+  const refresh = useCallback(async () => {
+    const [enabled, permissionState] = await Promise.all([
+      isBLEBackgroundEnabled(),
+      getBlePermissionSnapshot(),
+    ]);
+    setBackgroundEnabled(enabled);
+    setPermissions(permissionState);
+  }, []);
 
   useEffect(() => {
-    const fetchRooms = async () => {
-      const newMap: Record<string, string> = {};
-      for (const device of devices) {
-        const room = await getRoomIdFromBleId(extractRoomNumber(device));
-        console.log("Extracted room number:", extractRoomNumber(device));
-        console.log("Extracted room ID:", room);
-        if (room) {
-          newMap[device.id] = room;
-        }
-      }
-      setRoomMap(newMap);
-    };
+    void refresh();
+  }, [refresh]);
 
-    if (devices.length > 0) {
-      fetchRooms();
+  const toggleBackground = async (enabled: boolean) => {
+    setBackgroundEnabled(enabled);
+    const result = await setBLEBackgroundEnabled(enabled);
+    if (result && !result.success) {
+      setBackgroundEnabled(result.reason === "bluetooth_off");
+      Alert.alert("BLE tracking could not start", result.reason);
     }
-  }, [devices]);
-
-  // Use useMemo to prevent bleManager from changing on every render
-  const bleManager = useMemo(() => new BleManager(), []);
-
-  // Use the continuous BLE scanner
-  const { currentRoom, isInAnyRoom, getScannedBeacons, forceUploadLocation } =
-    useBLEScanner();
-
-  const scannedBeacons = getScannedBeacons();
-
-  const requestPermissions = async () => {
-    if (Platform.OS === "android") {
-      await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-      ]);
-    }
+    await refresh();
   };
 
-  const startForegroundService = async () => {
-    const channelId = await notifee.createChannel({
-      id: "ble-scan",
-      name: "BLE Scanning",
-      importance: AndroidImportance.HIGH,
-    });
-
-    await notifee.displayNotification({
-      title: "Room Scanner Active",
-      body: "Scanning for room devices in the background.",
-      android: {
-        channelId,
-        asForegroundService: true,
-        pressAction: {
-          id: "default",
-        },
-      },
-    });
-  };
-
-  const startScan = useCallback(async () => {
-    if (Platform.OS === "android") {
-      await startForegroundService();
-    }
-
-    setIsScanning(true);
-    setDevices([]);
-
-    bleManager.startDeviceScan(
-      [],
-      { allowDuplicates: true },
-      (error: BleError | null, device: Device | null) => {
-        if (error) {
-          Alert.alert("Scan Error", error.message);
-          setIsScanning(false);
-          return;
-        }
-
-        if (device && isTargetDevice(device)) {
-          setDevices((prevDevices) => {
-            const exists = prevDevices.some((d) => d.id === device.id);
-            return exists
-              ? prevDevices.map((d) => (d.id === device.id ? device : d))
-              : [...prevDevices, device];
-          });
-        }
-      }
-    );
-  }, [bleManager]);
-
-  const stopScan = useCallback(() => {
-    bleManager.stopDeviceScan();
-    setIsScanning(false);
-    notifee.stopForegroundService();
-  }, [bleManager]);
-
-  useEffect(() => {
-    requestPermissions().then(() => startScan());
-
-    return () => {
-      stopScan();
-      bleManager.destroy();
-    };
-  }, [startScan, stopScan, bleManager]);
-
-  const isTargetDevice = (device: Device): boolean => {
-    if (device.serviceUUIDs?.some((uuid) => uuid.includes(SERVICE_UUID)))
-      return true;
-
-    if (device.serviceData) {
-      return Object.keys(device.serviceData).some((key) =>
-        key.includes(SERVICE_UUID)
-      );
-    }
-
-    if (device.manufacturerData) {
-      try {
-        const decoded = Buffer.from(
-          device.manufacturerData,
-          "base64"
-        ).toString();
-        return /^\d{3,5}$/.test(decoded);
-      } catch {}
-    }
-
-    return false;
-  };
-
-  const extractRoomNumber = (device: Device): string => {
-    if (device.serviceData) {
-      for (const data of Object.values(device.serviceData)) {
-        try {
-          return Buffer.from(data, "base64").toString();
-        } catch {}
-      }
-    }
-
-    if (device.manufacturerData) {
-      try {
-        return Buffer.from(device.manufacturerData, "base64").toString();
-      } catch {}
-    }
-
-    return "Unknown";
-  };
+  const beacons = getScannedBeacons();
+  const rows = [
+    ["Status", status],
+    ["Mode", diagnostics.mode],
+    ["Consent", diagnostics.consent ? "enabled" : "disabled"],
+    ["Bluetooth", diagnostics.bluetoothState],
+    ["Service started", formatTime(diagnostics.serviceStartedAt)],
+    ["Current room", currentRoom ?? "—"],
+    [
+      "Last beacon",
+      diagnostics.lastBeaconId
+        ? `${diagnostics.lastBeaconId} (${diagnostics.lastBeaconRssi ?? "?"} dBm)`
+        : "—",
+    ],
+    ["Selected beacon", diagnostics.selectedBeaconId ?? "—"],
+    ["Estimator", diagnostics.estimationMethod ?? "—"],
+    ["Contributing beacons", String(diagnostics.contributingBeaconCount)],
+    ["Last estimate", formatTime(diagnostics.lastEstimateAt)],
+    ["Last scan", formatTime(diagnostics.lastScanAt)],
+    ["Last upload attempt", formatTime(diagnostics.lastUploadAttemptAt)],
+    ["Last successful upload", formatTime(diagnostics.lastUploadSuccessAt)],
+    ["Last upload reason", diagnostics.lastUploadReason ?? "—"],
+    ["Pending retry", diagnostics.pendingUpload ? "yes" : "no"],
+    ["Last error", diagnostics.lastError ?? "—"],
+  ];
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>BLE Debug</Text>
-      <Text style={styles.description}>
-        Bluetooth Low Energy debugging interface
-      </Text>
-
-      {/* Continuous Scanner Status */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>🔄 Continuous Scanner Status</Text>
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>
-            Current Room: {currentRoom || "Not in any room"}
-          </Text>
-          <Text style={styles.statusText}>
-            In Room: {isInAnyRoom() ? "Yes" : "No"}
-          </Text>
-          <Text style={styles.statusText}>
-            Active Beacons: {scannedBeacons.length}
-          </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen
+        options={{
+          title: "BLE diagnostics",
+          headerShown: true,
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()}>
+              <MaterialIcons name="arrow-back" size={24} color="#111827" />
+            </Pressable>
+          ),
+        }}
+      />
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleCopy}>
+              <Text style={styles.title}>Background tracking</Text>
+              <Text style={styles.description}>
+                Continues BLE room detection while OtaMaps is not visible.
+              </Text>
+            </View>
+            <Switch
+              value={backgroundEnabled}
+              onValueChange={(value) => void toggleBackground(value)}
+            />
+          </View>
         </View>
 
-        <Button
-          title="Force Upload Location"
-          onPress={forceUploadLocation}
-          color="#4A89EE"
-        />
-      </View>
-
-      {/* Active Beacons List */}
-      {scannedBeacons.length > 0 && (
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>📡 Active OtaMaps Beacons</Text>
-          {scannedBeacons.map((beacon, index) => (
-            <View key={beacon.id} style={styles.beaconContainer}>
-              <Text style={styles.beaconTitle}>Beacon ID: {beacon.id}</Text>
-              <Text style={styles.beaconDetail}>RSSI: {beacon.rssi} dBm</Text>
-              <Text style={styles.beaconDetail}>
-                Room ID: {beacon.roomId || "Not mapped"}
-              </Text>
-              <Text style={styles.beaconDetail}>
-                Last Seen: {new Date(beacon.timestamp).toLocaleTimeString()}
+        <View style={styles.card}>
+          <Text style={styles.title}>Runtime</Text>
+          {rows.map(([label, value]) => (
+            <View key={label} style={styles.row}>
+              <Text style={styles.label}>{label}</Text>
+              <Text selectable style={styles.value}>
+                {value}
               </Text>
             </View>
           ))}
         </View>
-      )}
 
-      {/* Original Debug Scanner */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>🔍 Manual Scanner</Text>
-        <Button
-          title={isScanning ? "Stop Scanning" : "Start Scanning"}
-          onPress={isScanning ? stopScan : startScan}
-          color={isScanning ? "#f44336" : "#4caf50"}
-        />
+        <View style={styles.card}>
+          <Text style={styles.title}>Permissions</Text>
+          <Text selectable style={styles.code}>
+            {JSON.stringify(permissions, null, 2)}
+          </Text>
+        </View>
 
-        <FlatList
-          data={devices.slice().sort((a, b) => {
-            // Sort by RSSI strength (higher values = stronger signal)
-            const rssiA = a.rssi ?? -999;
-            const rssiB = b.rssi ?? -999;
-            return rssiB - rssiA;
-          })}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.deviceContainer}>
-              <Text style={styles.deviceName}>
-                {item.name || "Unknown Device"}
-              </Text>
-              <Text style={styles.deviceId}>{item.id}</Text>
-              <Text style={styles.deviceId}>RSSI: {item.rssi}</Text>
-              <Text style={styles.deviceRoom}>
-                Room Number: {roomMap[item.id] || "N/A"}
-              </Text>
-            </View>
+        <View style={styles.card}>
+          <Text style={styles.title}>Active beacons ({beacons.length})</Text>
+          {beacons.length === 0 ? (
+            <Text style={styles.description}>No fresh beacon observations.</Text>
+          ) : (
+            beacons.map((beacon) => (
+              <View key={beacon.id} style={styles.row}>
+                <Text selectable style={styles.label}>
+                  {beacon.id}
+                </Text>
+                <Text style={styles.value}>{beacon.rssi} dBm</Text>
+              </View>
+            ))
           )}
-          ListEmptyComponent={
-            <Text style={styles.noDevices}>No devices found</Text>
-          }
-          scrollEnabled={false}
-          style={styles.deviceList}
-        />
-      </View>
-    </ScrollView>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => void forceUploadLocation()}
+          >
+            <Text style={styles.primaryButtonText}>Upload current fix</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => void refresh()}>
+            <Text style={styles.secondaryButtonText}>Refresh status</Text>
+          </Pressable>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => void Linking.openSettings()}
+          >
+            <Text style={styles.secondaryButtonText}>Open app settings</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "#f5f5f5",
+  safeArea: { flex: 1, backgroundColor: "#f3f4f6" },
+  content: { padding: 16, gap: 12 },
+  card: { backgroundColor: "white", borderRadius: 14, padding: 16, gap: 10 },
+  title: { fontSize: 17, fontFamily: "Figtree-SemiBold", color: "#111827" },
+  description: { fontSize: 14, color: "#6b7280", lineHeight: 20 },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  toggleCopy: { flex: 1, gap: 4 },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e5e7eb",
+    paddingTop: 9,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+  label: { flex: 1, color: "#4b5563", fontSize: 13 },
+  value: { flex: 1, color: "#111827", fontSize: 13, textAlign: "right" },
+  code: {
+    fontFamily: "monospace",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#374151",
   },
-  description: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 20,
+  actions: { gap: 10 },
+  primaryButton: {
+    backgroundColor: "#2563eb",
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
   },
-  sectionContainer: {
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e9ecef",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  primaryButtonText: { color: "white", fontFamily: "Figtree-SemiBold" },
+  secondaryButton: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-    color: "#333",
-  },
-  statusContainer: {
-    marginBottom: 12,
-  },
-  statusText: {
-    fontSize: 16,
-    marginBottom: 4,
-    color: "#555",
-  },
-  beaconContainer: {
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#4A89EE",
-  },
-  beaconTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#333",
-  },
-  beaconDetail: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
-  },
-  deviceList: {
-    marginTop: 12,
-    maxHeight: 300,
-  },
-  deviceContainer: {
-    padding: 10,
-    marginVertical: 5,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    width: "100%",
-  },
-  deviceName: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  deviceId: {
-    fontSize: 14,
-    color: "#888",
-  },
-  deviceRoom: {
-    fontSize: 16,
-    color: "#333",
-  },
-  noDevices: {
-    marginTop: 20,
-    fontSize: 16,
-    color: "#888",
-  },
+  secondaryButtonText: { color: "#2563eb", fontFamily: "Figtree-SemiBold" },
 });
