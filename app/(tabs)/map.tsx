@@ -1,5 +1,4 @@
 import { fmstyles } from "@/assets/styles/friendModalStyles";
-import { CustomUserLocation } from "@/components/customUserLocation";
 import useBLEScanner, {
   LocalUserLocation,
 } from "@/components/functions/bleScanner";
@@ -22,6 +21,12 @@ import {
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
 import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
+import {
+  getQueueColor,
+  getQueueLabel,
+  getQueueStatuses,
+  QueueStatus,
+} from "@/lib/queueService";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -33,7 +38,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Camera,
   CircleLayer,
-  CustomLocationProvider,
   FillExtrusionLayer,
   FillLayer,
   Images,
@@ -43,10 +47,9 @@ import {
   ShapeSource,
   SymbolLayer,
 } from "@rnmapbox/maps";
-import { OnPressEvent } from "@rnmapbox/maps/lib/typescript/src/types/OnPressEvent";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { MultiPolygon, Polygon } from "geojson";
+import type { Feature, MultiPolygon, Polygon } from "geojson";
 import React, {
   useCallback,
   useEffect,
@@ -75,6 +78,12 @@ type RoomFeatureProperties = {
   isSelected: boolean;
   color: string;
   rgba: string;
+};
+
+type OnPressEvent = {
+  features: Feature[];
+  coordinates: { latitude: number; longitude: number };
+  point: { x: number; y: number };
 };
 
 // type RoomFeature = MapboxFeature & {
@@ -150,7 +159,6 @@ export default function HomeScreen() {
   const friendModalRef = useRef<FriendModalSheetRef>(null);
   const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
   const roomModalRef = useRef<RoomModalSheetMethods>(null);
-  const customUserLocationRef = useRef<CustomUserLocation>(null);
 
   // BLE Scanner for location tracking
   const { currentRoom, getScannedBeacons, getCurrentLocation } =
@@ -217,6 +225,7 @@ export default function HomeScreen() {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [localUserLocation, setLocalUserLocation] =
     useState<LocalUserLocation | null>(null);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
 
   // Camera state for dynamic positioning
   const [cameraConfig, setCameraConfig] = useState({
@@ -299,7 +308,7 @@ export default function HomeScreen() {
         },
         {
           text: "Ilmoita",
-          onPress: async (reason) => {
+          onPress: async (reason?: string) => {
             if (reason) {
               try {
                 const { error } = await supabase
@@ -345,6 +354,29 @@ export default function HomeScreen() {
       clearInterval(locationUpdateInterval);
     };
   }, [fetchLocalUserLocation]);
+
+  const fetchQueueStatus = useCallback(async () => {
+    try {
+      const statuses = await getQueueStatuses();
+      setQueueStatus(
+        statuses.find((status) => status.slug === "ruokalinjasto") ?? null
+      );
+    } catch (queueError) {
+      console.warn("Unable to refresh queue status:", queueError);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchQueueStatus();
+    const queueRefreshInterval = setInterval(fetchQueueStatus, 30_000);
+    return () => clearInterval(queueRefreshInterval);
+  }, [fetchQueueStatus]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchQueueStatus();
+    }, [fetchQueueStatus])
+  );
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const {
     features,
@@ -679,6 +711,31 @@ export default function HomeScreen() {
     } as any; // Type assertion to fix the TypeScript error with rnmapbox/maps
   }, [filteredRoomsWithGeometry, selectedRoomId]);
 
+  const queueGeoJSON = useMemo(() => {
+    if (!queueStatus || queueStatus.floor !== selectedFloor) {
+      return emptyGeoJSON;
+    }
+    const room = roomsWithGeometry.find(
+      (candidate) => candidate.id === queueStatus.room_id
+    );
+    if (!room) return emptyGeoJSON;
+
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: room.geometry,
+          properties: {
+            id: queueStatus.area_id,
+            color: getQueueColor(queueStatus.status_level),
+            label: `Vilkkaus · ${getQueueLabel(queueStatus.status_level)}`,
+          },
+        },
+      ],
+    } as any;
+  }, [queueStatus, roomsWithGeometry, selectedFloor]);
+
   // Create GeoJSON for WC room symbols
   const wcRoomsGeoJSON = useMemo(() => {
     const wcFeatures = filteredRoomsWithGeometry
@@ -872,7 +929,7 @@ export default function HomeScreen() {
     if (
       !localUserLocation ||
       !localUserLocation.coordinates ||
-      !localUserLocation.floor ||
+      localUserLocation.floor == null ||
       localUserLocation.floor !== selectedFloor
     ) {
       return emptyGeoJSON;
@@ -929,9 +986,44 @@ export default function HomeScreen() {
     [handleFriendOpen]
   );
 
-  useEffect(() => {
-    customUserLocationRef.current?.setCustomLocation(24.81851, 60.18394);
-  }, []);
+  const focusQueueArea = useCallback(() => {
+    if (!queueStatus) return;
+    setSelectedFloor(queueStatus.floor);
+    const room = roomsWithGeometry.find(
+      (candidate) => candidate.id === queueStatus.room_id
+    );
+    const firstRing = room?.geometry.coordinates?.[0];
+    if (!Array.isArray(firstRing)) return;
+
+    const points = firstRing.filter(
+      (point): point is [number, number] =>
+        Array.isArray(point) &&
+        typeof point[0] === "number" &&
+        typeof point[1] === "number"
+    );
+    if (points.length === 0) return;
+    const center = points.reduce(
+      (sum, point) => [sum[0] + point[0], sum[1] + point[1]] as [number, number],
+      [0, 0] as [number, number]
+    );
+    setCameraConfig({
+      centerCoordinate: [center[0] / points.length, center[1] / points.length],
+      zoomLevel: 19.5,
+      animationDuration: 700,
+    });
+  }, [queueStatus, roomsWithGeometry]);
+
+  const recenterOnUser = useCallback(() => {
+    if (!localUserLocation?.coordinates) return;
+    if (localUserLocation.floor != null) {
+      setSelectedFloor(localUserLocation.floor);
+    }
+    setCameraConfig({
+      centerCoordinate: localUserLocation.coordinates,
+      zoomLevel: 20,
+      animationDuration: 700,
+    });
+  }, [localUserLocation]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -981,13 +1073,13 @@ export default function HomeScreen() {
               >
                 <SymbolLayer
                   id="room-numbers"
-                  minZoomLevel={19}
+                  minZoomLevel={18.5}
                   style={{
                     textField: ["get", "roomNumber"],
                     textSize: 18,
                     textAnchor: "center",
-                    textAllowOverlap: true,
-                    textIgnorePlacement: true,
+                    textAllowOverlap: false,
+                    textIgnorePlacement: false,
                     textOpacity: 0.9,
                     textColor: isDark ? "#ffffffff" : "#424853ff",
                     textHaloColor: "white",
@@ -997,13 +1089,13 @@ export default function HomeScreen() {
                 />
                 <SymbolLayer
                   id="room-symbols"
-                  minZoomLevel={19}
+                  minZoomLevel={20}
                   style={{
                     textField: ["get", "title"],
                     textSize: 12,
                     textAnchor: "center",
-                    textAllowOverlap: true,
-                    textIgnorePlacement: true,
+                    textAllowOverlap: false,
+                    textIgnorePlacement: false,
                     textOpacity: 1,
                     textColor: isDark ? "#ffffffff" : "#606875",
                     textHaloColor: "white",
@@ -1024,6 +1116,33 @@ export default function HomeScreen() {
                     ],
                     fillOpacity: 0.8,
                     fillOutlineColor: "#fff",
+                  }}
+                />
+              </ShapeSource>
+            )}
+
+            {queueGeoJSON.features.length > 0 && (
+              <ShapeSource id="queueStatusSource" shape={queueGeoJSON}>
+                <FillLayer
+                  id="queue-status-fill"
+                  style={{
+                    fillColor: ["get", "color"],
+                    fillOpacity: 0.34,
+                    fillOutlineColor: ["get", "color"],
+                  }}
+                />
+                <SymbolLayer
+                  id="queue-status-label"
+                  minZoomLevel={16}
+                  style={{
+                    textField: ["get", "label"],
+                    textSize: 13,
+                    textAnchor: "center",
+                    textAllowOverlap: false,
+                    textIgnorePlacement: false,
+                    textColor: isDark ? "#FFFFFF" : "#20242A",
+                    textHaloColor: isDark ? "#20242A" : "#FFFFFF",
+                    textHaloWidth: 1.5,
                   }}
                 />
               </ShapeSource>
@@ -1115,13 +1234,6 @@ export default function HomeScreen() {
               </ShapeSource>
             )}
 
-            <CustomLocationProvider
-              coordinate={[24.81851, 60.18394]}
-              heading={0}
-            />
-
-            <CustomUserLocation ref={customUserLocationRef} />
-
             <RasterLayer
               id="buildingImageLayer"
               sourceID="buildingImage"
@@ -1141,9 +1253,8 @@ export default function HomeScreen() {
                 onPress={handleFriendFeaturePress}
                 cluster={true}
                 clusterRadius={40}
-                clusterMaxZoom={16}
+                clusterMaxZoomLevel={16}
               >
-                {/* Clustered friend markers: show gray circle with count, else show friend circle/initial */}
                 <CircleLayer
                   id="friend-cluster-circles"
                   filter={["has", "point_count"]}
@@ -1177,7 +1288,7 @@ export default function HomeScreen() {
                 />
                 <CircleLayer
                   id="friend-circles"
-                  filter={["!has", "point_count"]}
+                  filter={["!", ["has", "point_count"]]}
                   style={{
                     circleRadius: [
                       "interpolate",
@@ -1196,7 +1307,7 @@ export default function HomeScreen() {
                 />
                 <SymbolLayer
                   id="friend-labels"
-                  filter={["!has", "point_count"]}
+                  filter={["!", ["has", "point_count"]]}
                   style={{
                     textField: ["get", "initial"],
                     textSize: 15,
@@ -1289,6 +1400,73 @@ export default function HomeScreen() {
               </ShapeSource>
             )}
           </MapView>
+
+          <View style={styles.mapControls} pointerEvents="box-none">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Näytä Ruokalinjaston vilkkaus kartalla"
+              disabled={!queueStatus}
+              onPress={focusQueueArea}
+              style={({ pressed }) => [
+                styles.queuePill,
+                { backgroundColor: isDark ? "#252525F2" : "#FFFFFFF2" },
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.queuePillDot,
+                  {
+                    backgroundColor: getQueueColor(
+                      queueStatus?.status_level ?? null
+                    ),
+                  },
+                ]}
+              />
+              <View style={styles.queuePillTextContainer}>
+                <Text
+                  style={[styles.queuePillTitle, isDark && { color: "#FFF" }]}
+                >
+                  Ruokalinjasto
+                </Text>
+                <Text
+                  style={[
+                    styles.queuePillSubtitle,
+                    isDark && { color: "#BFC5CE" },
+                  ]}
+                >
+                  Vilkkaus · {queueStatus
+                    ? getQueueLabel(queueStatus.status_level)
+                    : "Ladataan…"}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Keskitä kartta omaan sijaintiin"
+              disabled={!localUserLocation?.coordinates}
+              onPress={recenterOnUser}
+              style={({ pressed }) => [
+                styles.recenterButton,
+                { backgroundColor: isDark ? "#252525F2" : "#FFFFFFF2" },
+                !localUserLocation?.coordinates && styles.recenterDisabled,
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <MaterialIcons
+                name="my-location"
+                size={21}
+                color={
+                  localUserLocation?.coordinates
+                    ? isDark
+                      ? "#FFFFFF"
+                      : "#276CE5"
+                    : "#969DA7"
+                }
+              />
+            </Pressable>
+          </View>
 
           <GlobalSearch
             roomModalRef={
@@ -1810,6 +1988,59 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  mapControls: {
+    position: "absolute",
+    top: 108,
+    right: 14,
+    alignItems: "flex-end",
+    gap: 9,
+  },
+  queuePill: {
+    minWidth: 190,
+    maxWidth: 230,
+    minHeight: 54,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  queuePillDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  queuePillTextContainer: { flex: 1 },
+  queuePillTitle: {
+    color: "#20242A",
+    fontSize: 14,
+    fontFamily: "Figtree-SemiBold",
+  },
+  queuePillSubtitle: {
+    marginTop: 2,
+    color: "#68717D",
+    fontSize: 12,
+    fontFamily: "Figtree-Medium",
+  },
+  recenterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  recenterDisabled: { opacity: 0.5 },
   fab: {
     position: "absolute",
     right: 20,

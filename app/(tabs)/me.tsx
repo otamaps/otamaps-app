@@ -1,10 +1,10 @@
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/userPreferences";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
@@ -24,6 +24,7 @@ type UserProfile = {
   color: string;
   email?: string;
   code?: string;
+  role?: "user" | "admin";
 };
 
 const copyToClipboard = async (value: string | undefined) => {
@@ -38,6 +39,8 @@ const Me = () => {
   const [isLoading, setIsLoading] = useState(true);
   const isDark = useColorScheme() === "dark";
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const [isWilmaProfile, setIsWilmaProfile] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const params = useLocalSearchParams();
 
   useEffect(() => {
@@ -67,6 +70,8 @@ const Me = () => {
         console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
 
         if (!user) throw new Error("No user found");
+        const preferences = await getUserPreferences({ forceRefresh: true });
+        setIsWilmaProfile(preferences.profile_source === "wilma");
 
         // Get user metadata from auth
         const userData = {
@@ -82,11 +87,12 @@ const Me = () => {
         // Try to get additional data from users table
         const { data: profileData, error: profileError } = await supabase
           .from("users")
-          .select("name, class, color, code")
+          .select("name, class, color, code, role")
           .eq("id", user.id)
           .single();
 
         if (!profileError && profileData) {
+          setIsAdmin(profileData.role === "admin");
           setProfile({
             ...userData,
             ...profileData,
@@ -125,6 +131,9 @@ const Me = () => {
               class: payload.new.class || prev?.class,
               color: payload.new.color || prev?.color,
             }));
+            if (typeof payload.new.role === "string") {
+              setIsAdmin(payload.new.role === "admin");
+            }
           }
         }
       )
@@ -150,6 +159,8 @@ const Me = () => {
           console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
 
           if (!user) throw new Error("No user found");
+          const preferences = await getUserPreferences({ forceRefresh: true });
+          setIsWilmaProfile(preferences.profile_source === "wilma");
 
           // Get user metadata from auth
           const userData = {
@@ -165,11 +176,12 @@ const Me = () => {
           // Try to get additional data from users table
           const { data: profileData, error: profileError } = await supabase
             .from("users")
-            .select("name, class, color, code")
+            .select("name, class, color, code, role")
             .eq("id", user.id)
             .single();
 
           if (!profileError && profileData) {
+            setIsAdmin(profileData.role === "admin");
             setProfile({
               ...userData,
               ...profileData,
@@ -356,6 +368,45 @@ const Me = () => {
                 backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
+            {isAdmin && (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optionContainer,
+                    isDark && { backgroundColor: "#303030" },
+                    pressed && styles.optionContainerPressed,
+                    isDark && pressed && { backgroundColor: "#525252" },
+                    {
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    },
+                  ]}
+                  onPress={() => router.push("/me/admin/queue")}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: "Figtree-SemiBold",
+                      color: isDark ? "#fff" : "#444",
+                    }}
+                  >
+                    Jonotilanteen hallinta
+                  </Text>
+                  <MaterialIcons
+                    name="admin-panel-settings"
+                    size={20}
+                    color={isDark ? "#AFC8FF" : "#276CE5"}
+                  />
+                </Pressable>
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: isDark ? "#454545" : "#dddddd50",
+                  }}
+                />
+              </>
+            )}
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
@@ -377,7 +428,7 @@ const Me = () => {
                   color: isDark ? "#fff" : "#444",
                 }}
               >
-                Yhdistä Wilma-tili
+                {isWilmaProfile ? "Wilma-tili" : "Yhdistä Wilma-tili"}
               </Text>
               <View
                 style={{
@@ -393,7 +444,7 @@ const Me = () => {
                     color: isDark ? "#fff" : "#444",
                   }}
                 >
-                  Tulossa pian
+                  {isWilmaProfile ? "Yhdistetty" : "Yhdistä"}
                 </Text>
               </View>
             </Pressable>

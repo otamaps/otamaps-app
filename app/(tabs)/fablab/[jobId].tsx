@@ -198,7 +198,12 @@ export default function PrintJobScreen() {
       }
       const { checkoutId } = await res.json();
 
-      const { error: initErr } = await initPaymentSheet({ checkoutId });
+      const { error: initErr } = await initPaymentSheet({
+        checkoutId,
+        // SumUp's current React Native SDK supports English and Swedish only.
+        // Supplying a language avoids its optional, unmaintained native locale module.
+        language: 'en',
+      });
       if (initErr) throw new Error(initErr.status === 'failure' ? initErr.message : 'Failed to prepare payment');
 
       const { error: presentErr } = await presentPaymentSheet();

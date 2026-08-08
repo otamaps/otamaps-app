@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isOnboardingComplete } from "@/lib/userPreferences";
 import { Session } from "@supabase/supabase-js";
 import { Buffer } from "buffer";
 import { Stack, useRouter } from "expo-router";
@@ -6,8 +7,12 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, useColorScheme, View } from "react-native";
 import SplashScreen from "./welcome/splash";
 
-if (typeof global.Buffer === "undefined") {
-  global.Buffer = Buffer;
+const runtimeGlobal = globalThis as typeof globalThis & {
+  Buffer?: typeof Buffer;
+};
+
+if (typeof runtimeGlobal.Buffer === "undefined") {
+  runtimeGlobal.Buffer = Buffer;
 }
 
 export default function Index() {
@@ -57,16 +62,30 @@ export default function Index() {
 
   useEffect(() => {
     // Only handle navigation after splash screen is hidden and auth check is complete
+    let cancelled = false;
     if (!isLoading && !showSplash) {
       if (session) {
-        // User is signed in, redirect to map
-        router.replace("/map");
+        void isOnboardingComplete()
+          .then((complete) => {
+            if (!cancelled) {
+              router.replace(
+                complete ? "/home" : "/welcome/(post)/permissions"
+              );
+            }
+          })
+          .catch((error) => {
+            console.warn("Unable to load onboarding state", error);
+            if (!cancelled) router.replace("/welcome/(post)/permissions");
+          });
       } else {
         // No user is signed in, redirect to welcome
         router.replace("/welcome");
       }
     }
-  }, [session, isLoading, showSplash]);
+    return () => {
+      cancelled = true;
+    };
+  }, [session, isLoading, showSplash, router]);
 
   // Show splash screen first
   if (showSplash) {

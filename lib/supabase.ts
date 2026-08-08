@@ -3,8 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 import { AppState } from 'react-native'
 import 'react-native-url-polyfill/auto'
 
-const supabaseUrl = "https://egfcsciazchixyvgqmvf.supabase.co" 
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnZmNzY2lhemNoaXh5dmdxbXZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4MjE0MDgsImV4cCI6MjA2MDM5NzQwOH0.nxX2w_wa9_JcVlGAUUC4kWi_RB019N7iBk1NO-Rahb4"
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  "https://db.otamaps.fi"
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_KEY ||
+  "sb_publishable_uCmYsYm1XBz2H-DkGp5KOt_kH5qdBrg"
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

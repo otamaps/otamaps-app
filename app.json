@@ -2,20 +2,25 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fi.otamaps.ios",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "OtaMaps uses your GPS and Bluetooth-based location to show your position on the school map. Your location is sent to our server and shared with friends you have added.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps uses your location in the background to detect nearby BLE beacons and keep your position updated. Your location is sent to our server and shared with friends you have added.",
-        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect BLE beacons installed in school rooms to determine your location. This location is sent to our server and shared with friends you have added to help show your position on the school map.",
-        "NSBluetoothPeripheralUsageDescription": "OtaMaps scans for BLE beacons in classrooms and other areas to estimate your current room. This data is sent to our server and shared with friends you have added."
+        "NSLocationWhenInUseUsageDescription": "OtaMaps uses GPS and nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps uses nearby school beacons in the background only if you opt in to background tracking for an enabled location feature.",
+        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in."
       }
     },
     "android": {
@@ -25,7 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "fi.otamaps.app",
-      "versionCode": 11,
+      "versionCode": 12,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -53,8 +58,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/otamaps-logo.png",
+          "imageWidth": 260,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
@@ -76,10 +81,9 @@
         {
           "isBackgroundEnabled": true,
           "modes": [
-            "peripheral",
             "central"
           ],
-          "bluetoothAlwaysPermission": "OtaMaps uses your location in the background to detect nearby BLE beacons and keep your position updated. Your location is sent to our server and shared with friends you have added."
+          "bluetoothAlwaysPermission": "OtaMaps uses nearby school beacons only for the location features you choose. Identified or anonymous data is sent only after you opt in."
         }
       ],
       [
@@ -94,6 +98,7 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

@@ -2,8 +2,15 @@ import { supabase } from '@/lib/supabase';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+type FloorRow = {
+  id: string;
+  number: number | string;
+  building_id: string;
+  room_ids: string[];
+};
+
 const Floors = () => {
-  const [floors, setFloors] = useState([]);
+  const [floors, setFloors] = useState<FloorRow[]>([]);
 
   React.useEffect(() => {
     const fetchFloors = async () => {
@@ -14,7 +21,7 @@ const Floors = () => {
       if (error) {
         console.error('Error fetching buildings:', error);
       } else {
-        setFloors(data);
+        setFloors((data ?? []) as FloorRow[]);
       }
     };
 
