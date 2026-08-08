@@ -1,7 +1,7 @@
 ---
 title: "Location, Notification, And BLE Permissions"
 summary: "Use this guide when checking or changing the OtaMaps permission flow for notifications, foreground location, Android BLE permissions, Android background-location compatibility, iOS Core Bluetooth, and background BLE consent."
-topics: [guides, permissions, location, ble, mobile]
+topics: [guides, permissions, onboarding, privacy, location, ble, mobile]
 sources:
   - id: onboarding-permissions
     type: file
@@ -21,6 +21,9 @@ sources:
   - id: background-manager
     type: file
     path: lib/bleBackgroundManager.ts
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: app-config
     type: file
     path: app.json
@@ -31,11 +34,11 @@ sources:
 
 # Location, Notification, And BLE Permissions
 
-Use this guide when you need to verify or change the OtaMaps permission path for [BLE background location](../../architecture/location/ble-background-location). A successful change keeps four surfaces aligned: onboarding can request background tracking through the manager, settings can turn explicit consent on or off, `lib/blePermissions.ts` owns API-specific permission checks, and app configuration declares the native permissions and background modes needed by Android and iOS [@onboarding-permissions] [@settings] [@permissions] [@app-config]. The [background BLE via Notifee](../../decisions/mobile/background-ble-via-notifee) decision explains why Android notification and foreground-service configuration belongs to location behavior.
+Use this guide when you need to verify or change the OtaMaps permission path for [BLE background location](../../architecture/location/ble-background-location). A successful change keeps four surfaces aligned: onboarding can request background tracking through the manager, settings can turn explicit consent on or off, `lib/userPreferences.ts` owns persisted privacy choices, `lib/blePermissions.ts` owns API-specific permission checks, and app configuration declares the native permissions and background modes needed by Android and iOS [@onboarding-permissions] [@settings] [@user-preferences] [@permissions] [@app-config]. The [background BLE via Notifee](../../decisions/mobile/background-ble-via-notifee) decision explains why Android notification and foreground-service configuration belongs to location behavior, and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences) explains the Supabase preference row behind these controls.
 
 ## Know The Permission Surfaces
 
-The shared runtime blocks background modes unless `ble_background_consent_v1` is true, a Supabase session exists, and `hasBleTrackingPermissions(true)` succeeds [@runtime] [@permissions]. `setBLEBackgroundEnabled(true)` is the normal user-facing path: it requests tracking permissions, writes consent, and starts the platform background service; failure clears consent except for the `bluetooth_off` case, where the service may resume when Bluetooth returns [@background-manager].
+The shared runtime blocks background modes unless `ble_background_consent_v1` is true, a Supabase session exists, and `hasBleTrackingPermissions(true)` succeeds [@runtime] [@permissions]. Root-layout startup also requires at least one tracking purpose from `getTrackingConsentChoices()`: friend location or anonymous analytics must be enabled before foreground or background BLE tracking starts for an authenticated user [@user-preferences]. `setBLEBackgroundEnabled(true)` is the normal user-facing path: it requests tracking permissions, writes consent, and starts the platform background service; failure clears consent except for the `bluetooth_off` case, where the service may resume when Bluetooth returns [@background-manager].
 
 Android permission checks are version-specific. Foreground tracking needs fine location, and Android 12+ also needs `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`; background tracking adds `ACCESS_BACKGROUND_LOCATION` only for Android 10 and 11 because Android 12+ uses Nearby Devices for this check [@permissions]. `requestBleTrackingPermissions` refuses to request permissions while the app is not active, so any UI that starts background tracking must run from a visible screen [@permissions].
 

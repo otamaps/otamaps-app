@@ -35,6 +35,10 @@ topics:
     title: Navigation
     description: Route groups, tabs, stacks, placeholders, and disabled route surfaces
     parents: [app-shell]
+  - slug: onboarding
+    title: Onboarding
+    description: Post-login completion, profile review, and first-run privacy choices
+    parents: [app-shell, authentication, permissions]
   - slug: routes
     title: Routes
     description: Active, debug, placeholder, and disabled Expo Router surfaces
@@ -67,10 +71,6 @@ topics:
     title: Map
     description: Indoor map rendering, room and feature data, floor filtering, and map UI state
     parents: [architecture, product]
-  - slug: maps
-    title: Maps
-    description: Product-level map context for pages that describe the app as a whole
-    parents: [map]
   - slug: search
     title: Search
     description: Room search and Algolia-to-map interaction
@@ -87,6 +87,10 @@ topics:
     title: Permissions
     description: Native location, Bluetooth, notification, and consent flows
     parents: [mobile, guides]
+  - slug: privacy
+    title: Privacy And Consent
+    description: Friend location, anonymous analytics, consent history, and gated tracking writes
+    parents: [permissions, location]
   - slug: social
     title: Social
     description: Friend codes, friend relations, reports, blocking, and shared-location consumers

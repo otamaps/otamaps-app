@@ -1,7 +1,7 @@
 ---
 title: "Live Location Overlays"
 summary: "Live location overlays convert local BLE estimates and friend location rows into floor-filtered Mapbox points, map interactions, and bottom-sheet social UI."
-topics: [architecture, location, map, social]
+topics: [architecture, location, map, social, privacy]
 sources:
   - id: map-screen
     type: file
@@ -21,6 +21,9 @@ sources:
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: friends-handler
     type: file
     path: lib/friendsHandler.ts
@@ -28,7 +31,7 @@ sources:
 
 # Live Location Overlays
 
-Live location overlays are the map-layer and bottom-sheet behavior that make OtaMaps' indoor location social. The map tab reads local BLE estimates from `useBLEScanner`, fetches friend rows from Supabase `locations`, filters both by the selected floor, and renders point overlays on top of the same Mapbox map that draws rooms and features [@map-screen]. This architecture depends on the [BLE beacon](../../concepts/location/ble-beacons-and-location) estimate for the local user, the social relation model in [friends and shared location](../../concepts/social/friends-and-shared-location), and the base [geospatial rendering](../map/geospatial-rendering) stack.
+Live location overlays are the map-layer and bottom-sheet behavior that make OtaMaps' indoor location social. The map tab reads local BLE estimates from `useBLEScanner`, fetches friend rows from Supabase `locations`, filters both by the selected floor, and renders point overlays on top of the same Mapbox map that draws rooms and features [@map-screen]. Identified live rows exist only when the user has enabled the friend-location purpose, so this architecture depends on the [BLE beacon](../../concepts/location/ble-beacons-and-location) estimate, the social relation model in [friends and shared location](../../concepts/social/friends-and-shared-location), [onboarding and consent preferences](../auth/onboarding-and-consent-preferences), and the base [geospatial rendering](../map/geospatial-rendering) stack [@location-service] [@user-preferences].
 
 ## Local User Overlay
 
@@ -52,6 +55,6 @@ The friend modal header shows the selected friend's name, user-friendly location
 
 ## Storage And Reference Boundary
 
-The active overlay table is `locations`. `BLELocationService.updateLocation` upserts live user position rows to `locations`, `getCurrentLocation` reads the current user's row from `locations`, `getFriendsLocations` reads friend ids and selects matching rows from `locations`, and realtime subscriptions watch the `locations` table [@location-service]. The map screen also performs its own `locations` fetch for friend overlays [@map-screen].
+The active overlay table is `locations`. `BLELocationService.updateLocation` delegates to `updateLocationFix`, which writes an identified live user position row to `locations` only when `friend_location_enabled` is true [@location-service] [@user-preferences]. `getCurrentLocation` reads the current user's row from `locations`, `getFriendsLocations` reads friend ids and selects matching rows from `locations`, and realtime subscriptions watch the `locations` table [@location-service]. The map screen also performs its own `locations` fetch for friend overlays [@map-screen].
 
-Older history APIs in the same service still reference `user_locations`, so maintainers should avoid assuming one location table covers all code paths [@location-service]. The table and view details belong in [map, social, and location tables](../../reference/supabase/map-social-and-location-tables); this page records how the active overlay code consumes the live records.
+Older history APIs in the same service still reference `user_locations`, and anonymous analytics uses `anonymous_crowd_samples`, so maintainers should avoid assuming one location table covers all code paths [@location-service]. The table and view details belong in [map, social, location, and consent tables](../../reference/supabase/map-social-and-location-tables); this page records how the active overlay code consumes the identified live records.

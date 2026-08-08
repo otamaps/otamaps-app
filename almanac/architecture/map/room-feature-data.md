@@ -52,4 +52,4 @@ The floor field must stay numeric. The room list, room polygons, feature extrusi
 
 ## Relationship To References
 
-Use the Supabase table reference for exact table names and related social/location tables once that page is written: [map social and location tables](../../reference/supabase/map-social-and-location-tables). Use [client caches](../../reference/storage/client-caches) for the full list of AsyncStorage and SecureStore keys. This page stays focused on the runtime ownership and flow for room and feature data.
+Use the Supabase table reference for exact table names and related social/location tables: [map social and location tables](../../reference/supabase/map-social-and-location-tables). Use [client caches](../../reference/storage/client-caches) for the full list of AsyncStorage and SecureStore keys. This page stays focused on the runtime ownership and flow for room and feature data.

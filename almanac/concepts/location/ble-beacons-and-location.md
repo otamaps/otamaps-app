@@ -15,6 +15,9 @@ sources:
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: estimator
     type: file
     path: lib/blePositionEstimator.ts
@@ -52,10 +55,10 @@ Floor selection comes from the anchor beacon record, not from room-number parsin
 
 ## Live Table Split
 
-There are two location storage models in the repository. Current live sharing uses the `locations` table: `updateLocation` upserts one row per user with `floor`, `x`, `y`, `radius`, beacon details, and `updated_at`, and friend lookups read other users from the same table [@location-service]. Older history-oriented methods still write or read `user_locations`, including `uploadLocation`, `getLocationHistory`, `getUsersInRoom`, and cleanup helpers [@location-service].
+There are two identified location storage models in the repository, plus a separate anonymous crowd-sample path. Current friend live sharing uses the `locations` table only when `friend_location_enabled` is true: `updateLocationFix` can upsert one row per user with `floor`, `x`, `y`, `radius`, beacon details, and `updated_at`, and friend lookups read other users from the same table [@location-service] [@user-preferences]. When `anonymous_analytics_enabled` is true, the same location fix can insert `anonymous_crowd_samples` with room, floor, and observed time instead of identified coordinates [@location-service]. Older history-oriented methods still write or read `user_locations`, including `uploadLocation`, `getLocationHistory`, `getUsersInRoom`, and cleanup helpers [@location-service].
 
 The committed migration creates `user_locations`, indexes it by user, timestamp, room, and beacon, enables row level security, and defines a `latest_user_locations` view [@location-migration]. The documentation also describes `user_locations` as the BLE database schema [@ble-doc]. Future work should treat code as the source of current live behavior: map sharing depends on `locations`, while the migration and older methods document a separate or unfinished history table. The exact Supabase table contracts are collected in [map, social, and location tables](../../reference/supabase/map-social-and-location-tables).
 
 ## Why This Matters
 
-The beacon concept explains why OtaMaps location differs from ordinary GPS. Beacons give indoor coordinates, floor, room signal, contributing-beacon diagnostics, and confidence radius that can be rendered on the campus map, while the shared runtime, background workers, and permission flows exist to keep that estimate fresh [@runtime] [@background-task] [@estimator]. The [background BLE via Notifee](../../decisions/mobile/background-ble-via-notifee) decision records why Android uses a foreground service for this work, and [live location overlays](../../architecture/location/live-location-overlays) explains how the estimate becomes visible in the map UI.
+The beacon concept explains why OtaMaps location differs from ordinary GPS. Beacons give indoor coordinates, floor, room signal, contributing-beacon diagnostics, and confidence radius that can be rendered on the campus map, while the shared runtime, background workers, and permission flows exist to keep that estimate fresh [@runtime] [@background-task] [@estimator]. The [background BLE via Notifee](../../decisions/mobile/background-ble-via-notifee) decision records why Android uses a foreground service for this work, [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences) explains which writes the estimate may produce, and [live location overlays](../../architecture/location/live-location-overlays) explains how identified live rows become visible in the map UI.

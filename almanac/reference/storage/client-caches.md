@@ -1,11 +1,14 @@
 ---
 title: "Client Caches"
-summary: "This reference catalogs the AsyncStorage and SecureStore keys used by OtaMaps client-side session, map, BLE, social, feature-flag, FabLab, and Wilma flows."
-topics: [reference, storage, authentication, map, location, wilma]
+summary: "This reference catalogs the AsyncStorage and SecureStore keys used by OtaMaps client-side session, onboarding, map, BLE, social, feature-flag, FabLab, and Wilma flows."
+topics: [reference, storage, authentication, onboarding, privacy, map, location, wilma]
 sources:
   - id: user-handle
     type: file
     path: lib/getUserHandle.tsx
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: room-service
     type: file
     path: lib/roomService.ts
@@ -49,7 +52,7 @@ sources:
 
 # Client Caches
 
-Client caches in OtaMaps are local device stores spread across AsyncStorage and SecureStore. They cover the app's custom user cache, Supabase-backed map data, BLE tracking snapshots and beacon lookups, friend list results, feature flags, FabLab tab opt-in, BLE background consent, and Wilma credentials or response data [@user-handle] [@room-service] [@ble-runtime] [@ble-location] [@friends-handler] [@wilma-graphql]. This reference lists the exact keys visible in the assigned source files and links those keys back to the architecture pages that use them.
+Client caches in OtaMaps are local device stores spread across AsyncStorage and SecureStore. They cover the app's custom user cache, onboarding and privacy preferences, Supabase-backed map data, BLE tracking snapshots and beacon lookups, friend list results, feature flags, FabLab tab opt-in, BLE background consent, and Wilma credentials or response data [@user-handle] [@user-preferences] [@room-service] [@ble-runtime] [@ble-location] [@friends-handler] [@wilma-graphql]. This reference lists the exact keys visible in the assigned source files and links those keys back to the architecture pages that use them.
 
 ## AsyncStorage Keys
 
@@ -57,6 +60,7 @@ Client caches in OtaMaps are local device stores spread across AsyncStorage and 
 | --- | --- | --- | --- |
 | `user` | `lib/getUserHandle.tsx` | JSON Supabase Auth user returned by `supabase.auth.getUser()` | Used for up to one hour unless `getUser({ forceRefresh: true })` is called [@user-handle]. |
 | `user_cache_timestamp` | `lib/getUserHandle.tsx` | Millisecond timestamp for `user` | Removed with `user` by `clearUserCache()` [@user-handle]. |
+| `user_preferences_v1:<user_id>` | `lib/userPreferences.ts` | JSON `UserPreferences` row for the signed-in user, including onboarding version, profile source, privacy choices, and consent policy version | Returned unless a caller forces refresh; rewritten after onboarding or settings updates, and removed for the current session by `clearCurrentUserPreferencesCache()` [@user-preferences]. |
 | `room_cache` | `lib/roomService.ts` | JSON object `{ data, timestamp }` for Supabase `rooms` rows | Valid for ten minutes, matching the store TTL [@room-service]. |
 | `features_cache` | `lib/roomService.ts` | JSON object `{ data, timestamp }` for Supabase `features` rows | Valid for ten minutes, matching the store TTL [@room-service]. |
 | `ble_beacon_catalog_v2` | `lib/bleLocationService.ts` through `BeaconCatalogCache` | JSON array of beacon records with normalized string `ble_id` values, coordinates, floor, room id, and any merged room number | Valid for one day before `getBeacons()` refetches; missing beacon ids are batch-fetched with a cache-miss throttle and room-number lookups merge fresh rows into the same catalog [@ble-location] [@ble-catalog-cache]. |
@@ -67,7 +71,7 @@ Client caches in OtaMaps are local device stores spread across AsyncStorage and 
 | `cached_friends` | `lib/friendsHandler.ts` | JSON array of friend records joined with location/status data | Returned by `getFriends()` unless a force refresh is requested; no TTL is enforced in this helper [@friends-handler]. |
 | `@feature_flags` | `lib/featureFlagService.ts` | JSON array of enabled feature flag records | Replaced when `fetchAndStoreFeatureFlags()` fetches all flags from Supabase and stores only enabled ones [@feature-flags]. |
 | `fablabEnabled` | `app/(app)/me/fablab.tsx` | String `"true"` or `"false"` for local FabLab tab opt-in | Read on focus and written when the FabLab settings switch changes [@fablab-settings]. |
-The `user` keys belong to [session and identity](../../architecture/auth/session-and-identity). The room and feature keys belong to [room feature data](../../architecture/map/room-feature-data), while the BLE keys belong to [BLE background location](../../architecture/location/ble-background-location). `useBLEScanner` no longer owns AsyncStorage cache keys directly; it reads the shared runtime snapshot instead [@ble-scanner] [@ble-runtime].
+The `user` keys belong to [session and identity](../../architecture/auth/session-and-identity), and the `user_preferences_v1:<user_id>` key belongs to [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences). The room and feature keys belong to [room feature data](../../architecture/map/room-feature-data), while the BLE keys belong to [BLE background location](../../architecture/location/ble-background-location). `useBLEScanner` no longer owns AsyncStorage cache keys directly; it reads the shared runtime snapshot instead [@ble-scanner] [@ble-runtime].
 
 ## SecureStore Keys
 

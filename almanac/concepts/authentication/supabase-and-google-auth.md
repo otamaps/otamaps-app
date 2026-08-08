@@ -1,7 +1,7 @@
 ---
-title: "Supabase And Google Auth"
-summary: "OtaMaps uses Supabase Auth as the session authority, with Wilma primary auth, Google ID-token legacy sign-in, email/password legacy sign-in, and profile-row creation in the public users table."
-topics: [authentication, supabase, google-sign-in, profiles]
+title: "Supabase Session Authority"
+summary: "OtaMaps uses Supabase Auth as the session authority, with Wilma primary auth, Google ID-token legacy sign-in, email/password legacy sign-in, onboarding preference gates, and profile-row creation in the public users table."
+topics: [concepts, authentication, supabase, wilma, google-sign-in, profiles]
 sources:
   - id: supabase-client
     type: file
@@ -35,13 +35,13 @@ sources:
     path: components/functions/codeGen.tsx
 ---
 
-# Supabase And Google Auth
+# Supabase Session Authority
 
 Supabase Auth is the session authority for OtaMaps. The shared Supabase client persists auth state in `AsyncStorage`, refreshes tokens automatically, disables URL session detection, and starts or stops Supabase auto-refresh when the React Native app enters or leaves the foreground [@supabase-client]. Wilma primary auth is an identity input into that Supabase session model: the welcome screen can send Wilma credentials through the OtaMaps API auth broker, and the broker accepts the Supabase session only after verifying that the returned user id matches the expected Wilma-authenticated account [@welcome-index] [@wilma-auth-broker]. Google and email/password remain legacy sign-in paths for existing OtaMaps accounts [@login-route] [@email-route].
 
 ## Session Model
 
-The root `app/index.tsx` route checks `supabase.auth.getSession()`, listens to `onAuthStateChange`, shows the custom splash route briefly, and redirects signed-in users to `/home` while sending unauthenticated users to `/welcome` [@index-route]. The tab route mounts `AuthProvider`, which exposes `{ session, loading }` from the same Supabase session APIs to tab descendants [@auth-context]. This means navigation and child route state both derive from Supabase auth, not from Google local state alone.
+The root `app/index.tsx` route checks `supabase.auth.getSession()`, listens to `onAuthStateChange`, shows the custom splash route briefly, sends completed signed-in users to `/home`, sends incomplete signed-in users to `/welcome/(post)/permissions`, and sends unauthenticated users to `/welcome` [@index-route]. The tab route mounts `AuthProvider`, which exposes `{ session, loading }` from the same Supabase session APIs to tab descendants [@auth-context]. This means navigation and child route state derive from Supabase auth plus the [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences) gate, not from Google local state alone.
 
 The broader shell also listens to Supabase auth events for BLE tracking behavior; sign-in resyncs authenticated tracking against background consent and app state, and sign-out runs the BLE sign-out cleanup path [@root-layout]. See the [Expo Router shell](../../architecture/app/expo-router-shell) and [session and identity](../../architecture/auth/session-and-identity) pages for the provider and lifecycle boundaries that sit around this concept.
 

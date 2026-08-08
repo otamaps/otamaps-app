@@ -21,7 +21,10 @@ sources:
   - id: me-screen
     type: file
     path: app/(tabs)/me.tsx
-  - id: placeholder-wilma-login
+  - id: wilma-account
+    type: file
+    path: app/(app)/me/wilma/index.tsx
+  - id: wilma-login-redirect
     type: file
     path: app/(app)/me/wilma/login.tsx
 ---
@@ -42,4 +45,4 @@ The active app directory includes debug routes under `(app)`, including BLE diag
 
 ## Placeholder Surfaces
 
-`app/(app)/me/wilma/login.tsx` is a placeholder route whose body is static text [@placeholder-wilma-login]. It should not be treated as the active Wilma login implementation. The current Wilma primary auth entrypoint is the welcome pre-auth index when enabled, and the current Wilma dashboard entrypoint is the home tab; both are described by [Wilma](../../concepts/integrations/wilma).
+`app/(app)/me/wilma/login.tsx` is now a compatibility redirect to `/me/wilma`, and `app/(app)/me/wilma/index.tsx` is an active Wilma account connection/settings screen [@wilma-login-redirect] [@wilma-account]. It should not be treated as the primary onboarding login implementation. The current Wilma primary auth entrypoint is the welcome pre-auth index when enabled, and the current Wilma dashboard entrypoint is the home tab; both are described by [Wilma](../../concepts/integrations/wilma).

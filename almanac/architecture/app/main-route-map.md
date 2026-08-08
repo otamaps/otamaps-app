@@ -1,7 +1,7 @@
 ---
 title: "Main Route Map"
 summary: "The main route map explains how OtaMaps separates root redirects, tabs, authenticated auxiliary stacks, welcome flows, debug surfaces, and disabled route files."
-topics: [architecture, routes, navigation]
+topics: [architecture, routes, navigation, onboarding]
 sources:
   - id: app-dir
     type: file
@@ -9,6 +9,9 @@ sources:
   - id: index-route
     type: file
     path: app/index.tsx
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
@@ -35,7 +38,7 @@ The `app/` directory also contains disabled tab files, including `app/(tabs)/deb
 
 ## Auxiliary Authenticated Stack
 
-The `(app)` group is a headerless stack [@app-layout]. Its route neighborhood includes debug screens, Supabase debug screens, friend add/request screens, profile auxiliary screens, a FabLab enablement screen under `me`, placeholder Wilma login/account screens under `me/wilma`, and active Wilma schedule, message, reply, compose, teacher-directory, news, and past-exam screens under `wilma` [@app-dir]. These routes are not tabs, but they still inherit the root shell providers and can be pushed from tab surfaces.
+The `(app)` group is a headerless stack [@app-layout]. Its route neighborhood includes debug screens, Supabase debug screens, friend add/request screens, profile auxiliary screens, a FabLab enablement screen under `me`, an active Wilma account connection screen under `me/wilma`, a redirecting compatibility login route under `me/wilma/login`, and active Wilma schedule, message, reply, compose, teacher-directory, news, and past-exam screens under `wilma` [@app-dir]. These routes are not tabs, but they still inherit the root shell providers and can be pushed from tab surfaces.
 
 This split matters for product work. The active home tab contains the main [Wilma](../../concepts/integrations/wilma) dashboard, while auxiliary Wilma routes live under `(app)/wilma` and `(app)/me/wilma` [@app-dir]. FabLab similarly has a visible tab neighborhood for [print jobs](../../concepts/fablab/print-jobs) plus a separate `me/fablab` enablement route [@app-dir].
 
@@ -43,7 +46,7 @@ This split matters for product work. The active home tab contains the main [Wilm
 
 The `welcome` group has its own layout that declares the `(pre)` stack with headers hidden [@welcome-layout]. The route tree includes `welcome/splash.tsx`, post-onboarding screens under `welcome/(post)`, and pre-auth screens under `welcome/(pre)` [@app-dir]. The pre-auth index is also the entrypoint for the [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) flow when Wilma primary auth is enabled. Root navigation should be considered together with the index route described in [Expo Router shell](expo-router-shell), because the route tree alone does not show session-based redirects [@index-route].
 
-The root index route separately handles the first redirect after the custom splash and Supabase session check. Signed-in users are sent to `/home`, the Wilma dashboard tab, and unauthenticated users are sent to `/welcome` [@index-route]. That redirect is not visible from the directory shape alone, so route work should read `app/index.tsx` with the route tree [@index-route] [@app-dir].
+The root index route separately handles the first redirect after the custom splash and Supabase session check. Signed-in users are sent to `/home`, the Wilma dashboard tab, only when `isOnboardingComplete()` returns true; otherwise they are sent to `/welcome/(post)/permissions`, and unauthenticated users are sent to `/welcome` [@index-route] [@user-preferences]. That redirect is not visible from the directory shape alone, so route work should read `app/index.tsx` with the route tree and the [onboarding and consent preferences](../auth/onboarding-and-consent-preferences) boundary [@index-route] [@app-dir].
 
 ## Placeholder And Debug Surfaces
 
