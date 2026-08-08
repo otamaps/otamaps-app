@@ -35,9 +35,9 @@ Live location overlays are the map-layer and bottom-sheet behavior that make Ota
 
 ## Local User Overlay
 
-The local user overlay is intentionally local-first. The map screen calls `getCurrentLocation` from the BLE scanner every two seconds and stores the result as `localUserLocation` [@map-screen]. That value comes from the foreground scanner's current active beacon set, not from a Supabase read, so the blue dot can update more often than the live upload cadence [@scanner].
+The local user overlay is intentionally local-first. The map screen calls `getCurrentLocation` from the BLE scanner adapter every two seconds and stores the result as `localUserLocation` [@map-screen]. That adapter reads the shared BLE tracking runtime snapshot rather than Supabase state, so the blue dot can update more often than the live upload cadence [@scanner].
 
-The map only renders the local user when the estimate has coordinates, has a truthy floor, and the estimate floor matches `selectedFloor` [@map-screen]. When those guards pass, the screen builds a single-point GeoJSON feature with the user's coordinates, radius, floor, current room, and beacon count [@map-screen]. The renderer draws an accuracy circle scaled by zoom and a blue user dot with a light or dark stroke [@map-screen].
+The map only renders the local user when the estimate has coordinates, has a non-null floor, and the estimate floor matches `selectedFloor` [@map-screen]. When those guards pass, the screen builds a single-point GeoJSON feature with the user's coordinates, radius, floor, current room, and beacon count [@map-screen]. The renderer draws an accuracy circle scaled by zoom and a blue user dot with a light or dark stroke [@map-screen].
 
 `CustomUserLocation` subclasses Mapbox `UserLocation`, keeps custom coordinates in component state, subscribes to heading updates through Expo Location, and exposes `setCustomLocation(lng, lat)` [@custom-location]. The map currently mounts both a `CustomLocationProvider` with a fixed coordinate and this custom user location component, while the explicit live BLE overlay is drawn by the `localUserLocationSource` GeoJSON path [@map-screen].
 

@@ -48,7 +48,7 @@ This reference lists the exact Wilma endpoint constants, SecureStore keys, and o
 | --- | --- | --- | --- |
 | `EXPO_PUBLIC_OTAMAPS_API_URL` | `lib/wilma/graphqlClient.ts`, `lib/wilma/authBroker.ts` | Active Wilma GraphQL screens and Wilma primary-auth flow | Base URL for GraphQL and Wilma-to-Supabase auth exchange [@graphql-client] [@auth-broker]. |
 | `https://api.otamaps.fi` | `lib/wilma/graphqlClient.ts`, `lib/wilma/authBroker.ts`, `.env.example`, `eas.json` | Default and committed EAS profile value | Production API default after trimming any trailing slash [@graphql-client] [@auth-broker] [@env-example] [@eas-config]. |
-| `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` | `lib/wilma/authBroker.ts`, `app/welcome/(pre)/index.tsx` | Welcome screen Wilma login visibility | Enables the Wilma username/password primary-auth form when the value is `"true"` [@auth-broker] [@welcome-index]. |
+| `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` | `lib/wilma/authBroker.ts`, `app/welcome/(pre)/index.tsx` | Welcome screen Wilma login visibility | Enables the Wilma username/password primary-auth form unless the value is exactly `"false"` [@auth-broker] [@welcome-index]. |
 
 The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTAMAPS_API_URL || "https://api.otamaps.fi").replace(/\/$/, "")}/graphql` [@graphql-client]. The auth broker uses the same API-base expression for `/v1/auth/wilma/start`, `/v1/auth/wilma/create`, and `/v1/auth/wilma/link-legacy` [@auth-broker].
 

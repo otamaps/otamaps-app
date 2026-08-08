@@ -33,7 +33,7 @@ The mobile app builds its Wilma GraphQL endpoint by taking `EXPO_PUBLIC_OTAMAPS_
 
 The same OtaMaps API origin owns the Wilma account exchange endpoints. The client posts to `/v1/auth/wilma/start`, `/v1/auth/wilma/create`, and `/v1/auth/wilma/link-legacy`; the link endpoint requires the current Supabase access token in the `Authorization` header [@wilma-auth-broker]. These endpoints are custom OtaMaps API routes, not Supabase's database GraphQL API [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker].
 
-Supabase remains the mobile session and data authority. The client reads `EXPO_PUBLIC_SUPABASE_URL`, then falls back to the committed hosted Supabase project URL, and reads `EXPO_PUBLIC_SUPABASE_ANON_KEY` or `EXPO_PUBLIC_SUPABASE_KEY` for the public key [@supabase-client]. `.env.example` documents the split as `EXPO_PUBLIC_SUPABASE_URL` for authentication, beacons, and location sharing, and `EXPO_PUBLIC_OTAMAPS_API_URL` for GraphQL plus the Wilma-to-Supabase auth exchange [@env-example].
+Supabase remains the mobile session and data authority. The client reads `EXPO_PUBLIC_SUPABASE_URL`, then falls back to `https://db.otamaps.fi`; for the public client key it reads `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, then legacy `EXPO_PUBLIC_SUPABASE_ANON_KEY` or `EXPO_PUBLIC_SUPABASE_KEY` [@supabase-client]. `.env.example` documents the split as `EXPO_PUBLIC_SUPABASE_URL` for authentication, beacons, and location sharing, and `EXPO_PUBLIC_OTAMAPS_API_URL` for GraphQL plus the Wilma-to-Supabase auth exchange [@env-example].
 
 ## Server Shape
 
@@ -46,7 +46,7 @@ Keep the hostname split explicit:
 | `api.otamaps.fi` | OtaMaps API container that implements `/graphql` and `/v1/auth/wilma/*` [@wilma-graphql-client] [@wilma-auth-broker]. |
 | Supabase URL | Supabase Auth, REST, Realtime, Storage, and Postgres, matching `EXPO_PUBLIC_SUPABASE_URL` in mobile builds [@supabase-client] [@env-example] [@eas-config]. |
 
-EAS profiles currently set the canonical hosted Supabase project URL and `https://api.otamaps.fi` for development, preview, and production [@eas-config]. If the deployment moves Supabase from the hosted project to a self-hosted hostname, update and verify the relevant EAS profile values together with [runtime and build config](../../reference/configuration/runtime-and-build-config).
+EAS profiles currently set `https://db.otamaps.fi` for Supabase and `https://api.otamaps.fi` for the OtaMaps API in development, preview, and production [@eas-config]. If the deployment moves either service to a different hostname, update and verify the relevant EAS profile values together with [runtime and build config](../../reference/configuration/runtime-and-build-config).
 
 ## Interim Lightsail State
 

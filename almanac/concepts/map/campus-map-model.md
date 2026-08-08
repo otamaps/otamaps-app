@@ -40,7 +40,7 @@ The distinction between rooms and features matters because rooms are selectable 
 
 Floors are numeric throughout the active map flow. The map screen initializes `selectedFloor` to `1`, room and feature filtering compares numeric `floor` fields directly, and the search component exposes floor buttons for `4`, `3`, `2`, `1`, and `0` [@map-screen] [@global-search]. The bottom-sheet room list also filters by the numeric selected floor before rendering rooms [@map-screen].
 
-Floor `0` has one current gotcha: the local user location GeoJSON guard checks `!localUserLocation.floor`, so a location on floor `0` is treated as absent even though the floor switcher can select floor `0` [@map-screen]. Future changes to live location rendering should preserve numeric floors while fixing that falsey-floor check.
+Floor `0` is part of the same numeric floor model as the upper floors. The local user location GeoJSON guard checks `localUserLocation.floor == null`, so floor `0` remains renderable while absent floor values are still rejected [@map-screen]. Future live-location changes should preserve numeric floor comparisons instead of converting floor state to a truthy/falsy test.
 
 ## Coordinates
 

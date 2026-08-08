@@ -35,7 +35,7 @@ Session and identity in OtaMaps is a layered architecture. Supabase Auth owns th
 
 ## Session Authority
 
-`lib/supabase.ts` creates the single Supabase client with a committed project URL and anon key, configures Supabase Auth to use React Native AsyncStorage, enables `autoRefreshToken` and `persistSession`, and disables URL session detection [@supabase-client]. The same file listens for React Native `AppState` changes and starts Supabase auto-refresh when the app is active while stopping it outside the foreground [@supabase-client].
+`lib/supabase.ts` creates the single Supabase client with the configured or fallback Supabase URL and public client key, configures Supabase Auth to use React Native AsyncStorage, enables `autoRefreshToken` and `persistSession`, and disables URL session detection [@supabase-client]. The same file listens for React Native `AppState` changes and starts Supabase auto-refresh when the app is active while stopping it outside the foreground [@supabase-client].
 
 `AuthProvider` is a small context wrapper around that session source. On mount, it reads `supabase.auth.getSession()`, stores the session in React state, clears the loading flag, and subscribes to `onAuthStateChange` so descendants see later session changes [@auth-context]. This context is useful for UI state, but it does not replace direct Supabase calls in the rest of the codebase.
 

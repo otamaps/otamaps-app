@@ -42,7 +42,7 @@ EXPO_NO_DOTENV=1 \
 EXPO_PUBLIC_SUPABASE_URL=<supabase-url> \
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key> \
 EXPO_PUBLIC_OTAMAPS_API_URL=<api-url> \
-EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED=false \
+EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED=true \
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<google-web-client-id> \
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<google-ios-client-id> \
 node_modules/.bin/expo export --platform android --output-dir /private/tmp/otamaps-export-android --clear
