@@ -709,6 +709,46 @@ function Dashboard({
         <SectionCard title="Lisää Wilmasta" isDark={isDark}>
           <Pressable
             style={styles.moreWilmaRow}
+            onPress={() => router.push("/wilma/coursework" as never)}
+          >
+            <MaterialIcons
+              name="assignment"
+              size={22}
+              color={isDark ? "#51a2ff" : "#4A89EE"}
+            />
+            <View style={styles.moreWilmaText}>
+              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssit ja tehtävät</Text>
+              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kotitehtävät, tuntipäiväkirja ja kurssikokeet</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+          </Pressable>
+          <Divider isDark={isDark} />
+          <Pressable
+            style={styles.moreWilmaRow}
+            onPress={() => router.push("/wilma/course-selections" as never)}
+          >
+            <MaterialIcons name="view-week" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <View style={styles.moreWilmaText}>
+              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssivalinnat</Text>
+              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Omat valinnat ja tarjottimet vain luku -tilassa</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+          </Pressable>
+          <Divider isDark={isDark} />
+          <Pressable
+            style={styles.moreWilmaRow}
+            onPress={() => router.push("/wilma/rooms" as never)}
+          >
+            <MaterialIcons name="meeting-room" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <View style={styles.moreWilmaText}>
+              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Tilojen lukujärjestykset</Text>
+              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Katso milloin luokkahuone on käytössä</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+          </Pressable>
+          <Divider isDark={isDark} />
+          <Pressable
+            style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/teachers" as never)}
           >
             <MaterialIcons
@@ -741,7 +781,7 @@ function Dashboard({
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/past-exams" as never)}
+            onPress={() => router.push("/wilma/grades" as never)}
           >
             <MaterialIcons
               name="fact-check"
@@ -750,7 +790,7 @@ function Dashboard({
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Arvosanat</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Viimeisen vuoden kokeet ja arvioinnit</Text>
+              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kurssisuoritukset, kokeet ja yo-tulokset</Text>
             </View>
             <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
           </Pressable>
