@@ -1,282 +1,446 @@
 import {
+  createWilmaAccount,
+  completePendingLegacyLink,
+  finishWilmaSupabaseExchange,
+  savePendingLegacyLink,
+  startWilmaAuthentication,
+  WILMA_PRIMARY_AUTH_ENABLED,
+} from "@/lib/wilma/authBroker";
+import {
   configureGoogleSignIn,
   isGoogleSignInAvailable,
   signInWithGoogle,
 } from "@/lib/googleAuth";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
+  Alert,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-
-const { height } = Dimensions.get("window");
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [wilmaLoading, setWilmaLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(false);
+  const [error, setError] = useState("");
+
+  const anyLoading = wilmaLoading || googleLoading;
 
   useEffect(() => {
-    // Configure Google Sign-In when component mounts
     configureGoogleSignIn();
-
-    // Check if Google Sign-In is available
-    const checkGoogleSignIn = async () => {
-      const isAvailable = await isGoogleSignInAvailable();
-      setGoogleSignInAvailable(isAvailable);
-    };
-
-    checkGoogleSignIn();
+    void isGoogleSignInAvailable().then(setGoogleSignInAvailable);
   }, []);
 
-  const handleGoogleSignIn = async () => {
+  const finishNewAccount = async (attemptToken: string) => {
+    setWilmaLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      await signInWithGoogle();
-      // Navigation will be handled by the auth state listener in _layout.tsx
-    } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
-      alert(`Sign in failed: ${error.message}`);
+      const exchange = await createWilmaAccount(attemptToken);
+      await finishWilmaSupabaseExchange(exchange, username.trim(), password);
+      router.replace("/" as never);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "OtaMaps-tilin luominen epäonnistui."
+      );
     } finally {
-      setLoading(false);
+      setWilmaLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color="#4285F4" />
-        <Text style={{ marginTop: 16 }}>Kirjaudutaan sisään...</Text>
-      </View>
-    );
-  }
+  const handleWilmaLogin = async () => {
+    if (!username.trim() || !password) {
+      setError("Täytä Wilma-käyttäjätunnus ja salasana.");
+      return;
+    }
+
+    setWilmaLoading(true);
+    setError("");
+    try {
+      const result = await startWilmaAuthentication(username.trim(), password);
+      if (result.kind === "session") {
+        await finishWilmaSupabaseExchange(
+          result,
+          username.trim(),
+          password
+        );
+        router.replace("/" as never);
+        return;
+      }
+
+      Alert.alert(
+        "Löysimme mahdollisen vanhan tilin",
+        "Wilmassa vahvistettu nimi vastaa olemassa olevaa OtaMaps-tiliä. Voit kirjautua vanhalle tilille ja yhdistää Wilman siihen. Nimitieto yksin ei koskaan yhdistä tilejä.",
+        [
+          { text: "Peruuta", style: "cancel" },
+          {
+            text: "Luo uusi tili",
+            onPress: () => void finishNewAccount(result.attemptToken),
+          },
+          {
+            text: "Käytä vanhaa tiliä",
+            onPress: () => {
+              void savePendingLegacyLink(
+                result.attemptToken,
+                username.trim(),
+                password
+              )
+                .then(() => router.push("/welcome/login" as never))
+                .catch((cause) => {
+                  setError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "Tilin yhdistämisen aloittaminen epäonnistui."
+                  );
+                });
+            },
+          },
+        ]
+      );
+    } catch (cause) {
+      const code = (cause as Error & { code?: string })?.code;
+      setError(
+        code === "WILMA_AUTH_FAILED"
+          ? "Wilma-käyttäjätunnus tai salasana on väärä."
+          : cause instanceof Error
+            ? cause.message
+            : "Kirjautuminen epäonnistui."
+      );
+    } finally {
+      setWilmaLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const data = await signInWithGoogle();
+      await completePendingLegacyLink(data.session?.access_token);
+      router.replace("/" as never);
+    } catch (cause) {
+      Alert.alert(
+        "Google-kirjautuminen epäonnistui",
+        cause instanceof Error ? cause.message : "Yritä hetken kuluttua uudelleen."
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.backgroundContainer}>
-        <ImageBackground
-          source={require("@/assets/images/login-bg.png")}
-          style={styles.backgroundImage}
+    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
         >
-          <LinearGradient
-            colors={["rgba(255,255,255,1)", "rgba(255,255,255,0.2)"]}
-            style={styles.topGradient}
-            pointerEvents="none"
-          />
-
-          <LinearGradient
-            colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,1)"]}
-            style={styles.bottomGradient}
-            pointerEvents="none"
-          />
-        </ImageBackground>
-      </View>
-      <View style={styles.overlay}>
-        <View style={styles.topContainer}>
-          <Text style={styles.tervetuloa}>Tervetuloa!</Text>
-          <Image
-            source={require("@/assets/images/otamaps-logo.png")}
-            style={styles.omLogo}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View style={styles.logoContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => router.push("/welcome/emailLogin")}
-            disabled={loading}
+          <ImageBackground
+            source={require("@/assets/images/login-bg.png")}
+            style={styles.hero}
+            imageStyle={styles.heroImage}
           >
             <LinearGradient
-              colors={["#518EEC", "#3478F5"]}
-              style={styles.buttonGradient}
+              colors={["rgba(255,255,255,0.24)", "#FFFFFF"]}
+              locations={[0, 1]}
+              style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
-            <View style={styles.buttonContent}>
-              <Text style={styles.buttonText}>Kirjaudu sisään</Text>
+            <View style={styles.heroContent}>
+              <Text style={styles.welcome}>Tervetuloa</Text>
+              <Image
+                source={require("@/assets/images/otamaps-logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
-          </Pressable>
+          </ImageBackground>
 
-          {googleSignInAvailable ? (
+          <View style={styles.formSection}>
+            <Text style={styles.title}>
+              {WILMA_PRIMARY_AUTH_ENABLED
+                ? "Kirjaudu Wilmalla"
+                : "Kirjaudu OtaMapsiin"}
+            </Text>
+            <Text style={styles.subtitle}>
+              {WILMA_PRIMARY_AUTH_ENABLED
+                ? "Käytä tavallista Wilma-käyttäjätunnustasi."
+                : "Valitse kirjautumistapa."}
+            </Text>
+
+            {WILMA_PRIMARY_AUTH_ENABLED ? (
+              <>
+                <Text style={styles.label}>Wilma-käyttäjätunnus</Text>
+                <TextInput
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="etunimi.sukunimi"
+                  placeholderTextColor="#98A2B3"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="username"
+                  editable={!anyLoading}
+                />
+
+                <Text style={styles.label}>Salasana</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Wilma-salasana"
+                  placeholderTextColor="#98A2B3"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  textContentType="password"
+                  editable={!anyLoading}
+                  onSubmitEditing={() => void handleWilmaLogin()}
+                />
+
+                {!!error && <Text style={styles.error}>{error}</Text>}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.buttonPressed,
+                    anyLoading && styles.buttonDisabled,
+                  ]}
+                  disabled={anyLoading}
+                  onPress={() => void handleWilmaLogin()}
+                >
+                  {wilmaLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Jatka Wilmalla</Text>
+                  )}
+                </Pressable>
+              </>
+            ) : null}
+
+            <View style={styles.dividerRow}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>Muut kirjautumistavat</Text>
+              <View style={styles.divider} />
+            </View>
+
+            {googleSignInAvailable ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.secondaryButtonPressed,
+                  anyLoading && styles.buttonDisabled,
+                ]}
+                disabled={anyLoading}
+                onPress={() => void handleGoogleSignIn()}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#344054" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={19} color="#344054" />
+                    <Text style={styles.secondaryButtonText}>Jatka Googlella</Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
+
             <Pressable
               style={({ pressed }) => [
-                styles.alternativeButton,
-                pressed && styles.buttonPressed,
+                styles.emailButton,
+                pressed && styles.emailButtonPressed,
               ]}
-              onPress={handleGoogleSignIn}
-              disabled={loading}
+              disabled={anyLoading}
+              onPress={() => router.push("/welcome/emailLogin" as never)}
             >
-              <View style={styles.alternativeButtonContent}>
-                <Text style={styles.alternativeButtonText}>Jatka Googlella</Text>
-              </View>
+              <Text style={styles.emailButtonText}>
+                Kirjaudu sähköpostilla ja salasanalla
+              </Text>
             </Pressable>
-          ) : null}
 
-          <Text style={styles.disclaimer}>
-            Kirjautumalla sisään hyväksyt{" "}
-            <Text
-              style={{ color: "blue" }}
-              onPress={() => Linking.openURL("https://otamaps.fi/terms")}
-            >
-              Käyttöehdot
-            </Text>{" "}
-            ja{" "}
-            <Text
-              style={{ color: "blue" }}
-              onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
-            >
-              Tietosuojapolitiikan
+            <Text style={styles.credentialNotice}>
+              Wilma-tunnukset välitetään suojatusti Wilmalle. Ne säilytetään vain
+              tämän laitteen suojatussa tallennustilassa automaattista
+              uudelleenkirjautumista varten.
             </Text>
-          </Text>
-        </View>
-      </View>
-    </View>
+
+            <Text style={styles.legal}>
+              Jatkamalla hyväksyt{" "}
+              <Text
+                style={styles.link}
+                onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+              >
+                käyttöehdot
+              </Text>{" "}
+              ja{" "}
+              <Text
+                style={styles.link}
+                onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+              >
+                tietosuojakäytännön
+              </Text>
+              .
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: "relative",
-  },
-  backgroundContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  backgroundImage: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    flex: 1,
-    paddingTop: 50,
-    paddingBottom: 0,
-    width: "100%",
-    height: "100%",
-    paddingHorizontal: 20,
-    backgroundColor: "transparent",
-    position: "relative",
-    zIndex: 2,
-  },
-  topGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "50%",
-  },
-  bottomGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "50%",
-  },
-  topContainer: {
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginTop: height * 0.05,
-    width: "100%",
-    flex: 1,
-  },
-  tervetuloa: {
-    fontSize: 28,
-    fontFamily: "Figtree-SemiBold",
-    textAlign: "center",
-    color: "#555",
-  },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: height * 0.2,
-    width: "100%",
-    flex: 1,
+  flex: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
+  content: { flexGrow: 1, backgroundColor: "#FFFFFF" },
+  hero: {
+    minHeight: 240,
     justifyContent: "flex-end",
-    marginBottom: 30,
+    paddingHorizontal: 24,
+    paddingBottom: 18,
+    overflow: "hidden",
   },
-  omLogo: {
-    width: 250,
-    height: 100,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#ff0000",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginHorizontal: 20,
-    width: "90%",
-    marginBottom: 10,
-  },
-  buttonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    // paddingLeft: 10,
+  heroImage: { resizeMode: "cover" },
+  heroContent: { alignItems: "center" },
+  welcome: {
+    color: "#475467",
+    fontFamily: "Figtree-Medium",
     fontSize: 18,
+    letterSpacing: 0.2,
+  },
+  logo: { width: 230, height: 78, marginTop: 2 },
+  formSection: {
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  title: {
+    color: "#101828",
     fontFamily: "Figtree-SemiBold",
-  },
-  alternativeButton: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginHorizontal: 20,
-    width: "90%",
-    borderWidth: 1,
-    borderColor: "#D6D6D6",
-    marginBottom: 10,
-  },
-  alternativeButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  alternativeButtonText: {
-    color: "#333",
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-  },
-  disclaimer: {
-    fontSize: 12,
-    fontFamily: "Figtree-Regular",
+    fontSize: 25,
     textAlign: "center",
-    color: "#666",
-    marginTop: 32,
   },
-  buttonGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "250%",
-    borderRadius: 10,
+  subtitle: {
+    color: "#667085",
+    fontFamily: "Figtree-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 5,
+    marginBottom: 24,
+    textAlign: "center",
   },
+  label: {
+    color: "#344054",
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+    marginBottom: 7,
+  },
+  input: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E4E7EC",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#101828",
+    fontFamily: "Figtree-Regular",
+    fontSize: 16,
+    marginBottom: 16,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  error: {
+    color: "#B42318",
+    fontFamily: "Figtree-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: "#3478F5",
+    borderRadius: 12,
+    justifyContent: "center",
+    minHeight: 50,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 16,
+  },
+  dividerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginVertical: 22,
+  },
+  divider: { backgroundColor: "#EAECF0", flex: 1, height: 1 },
+  dividerText: {
+    color: "#98A2B3",
+    fontFamily: "Figtree-Regular",
+    fontSize: 12,
+    marginHorizontal: 12,
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: "#D0D5DD",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    minHeight: 50,
+  },
+  secondaryButtonPressed: { backgroundColor: "#F9FAFB" },
+  secondaryButtonText: {
+    color: "#344054",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 15,
+  },
+  emailButton: { alignItems: "center", paddingVertical: 15 },
+  emailButtonPressed: { opacity: 0.6 },
+  emailButtonText: {
+    color: "#3478F5",
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+  },
+  credentialNotice: {
+    color: "#667085",
+    fontFamily: "Figtree-Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  legal: {
+    color: "#98A2B3",
+    fontFamily: "Figtree-Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 14,
+    textAlign: "center",
+  },
+  link: { color: "#3478F5" },
+  buttonPressed: { opacity: 0.84 },
+  buttonDisabled: { opacity: 0.55 },
 });

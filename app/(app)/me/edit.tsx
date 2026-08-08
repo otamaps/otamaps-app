@@ -2,6 +2,7 @@ import { generateCode } from "@/components/functions/codeGen";
 import { useUser } from "@/context/UserContext";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
+import { getUserPreferences } from "@/lib/userPreferences";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -36,7 +37,8 @@ const Edit = () => {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
-  const { user, setUser } = useUser();
+  const [isWilmaProfile, setIsWilmaProfile] = useState(false);
+  const { setUser } = useUser();
 
   const isDark = useColorScheme() === "dark";
 
@@ -68,12 +70,28 @@ const Edit = () => {
   useEffect(() => {
     // Load current user data
     const loadUserData = async () => {
-      const user = await await getUser();
+      const user = await getUser();
       console.log(`👤 Authenticated user: ${user?.id || "None"} in edit.tsx`);
       if (user) {
-        setName(user.user_metadata?.full_name || "");
-        setUserClass(user.user_metadata?.class || "");
-        setSelectedColor(user.user_metadata?.color || COLORS[0]);
+        const [preferences, profileResult] = await Promise.all([
+          getUserPreferences({ forceRefresh: true }),
+          supabase
+            .from("users")
+            .select("name,class,color")
+            .eq("id", user.id)
+            .maybeSingle(),
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        setIsWilmaProfile(preferences.profile_source === "wilma");
+        setName(
+          profileResult.data?.name || user.user_metadata?.full_name || ""
+        );
+        setUserClass(
+          profileResult.data?.class || user.user_metadata?.class || ""
+        );
+        setSelectedColor(
+          profileResult.data?.color || user.user_metadata?.color || COLORS[0]
+        );
       }
     };
 
@@ -87,6 +105,7 @@ const Edit = () => {
     }
 
     if (
+      !isWilmaProfile &&
       userClass &&
       userClass.length === 3 &&
       !/^\d{2}[A-Za-z]$/.test(userClass)
@@ -104,31 +123,35 @@ const Edit = () => {
 
       // Update user metadata in auth
       const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          full_name: name.trim(),
-          class: userClass.trim(),
-          color: selectedColor,
-          code: generateCode(user.email as string),
-        },
+        data: isWilmaProfile
+          ? { color: selectedColor }
+          : {
+              full_name: name.trim(),
+              class: userClass.trim(),
+              color: selectedColor,
+              code: generateCode(user.email as string),
+            },
       });
 
       if (updateError) throw updateError;
 
       // Update users table
 
-      // Get user's email
-      const email = user.email;
-      const code = generateCode(email as string);
-
       const { error: dbError } = await supabase
         .from("users")
-        .update({
-          id: user.id,
-          name: name.trim(),
-          class: userClass.trim(),
-          color: selectedColor,
-          updated_at: new Date().toISOString(),
-        })
+        .update(
+          isWilmaProfile
+            ? {
+                color: selectedColor,
+                updated_at: new Date().toISOString(),
+              }
+            : {
+                name: name.trim(),
+                class: userClass.trim(),
+                color: selectedColor,
+                updated_at: new Date().toISOString(),
+              }
+        )
         .eq("id", user.id);
 
       if (dbError) throw dbError;
@@ -202,9 +225,13 @@ const Edit = () => {
             ]}
             value={name}
             onChangeText={setName}
+            editable={!isWilmaProfile}
             placeholder="Kirjoita nimesi"
             placeholderTextColor="#999"
           />
+          {isWilmaProfile && (
+            <Text style={styles.lockedText}>Wilman vahvistama tieto</Text>
+          )}
         </View>
 
         <View
@@ -225,11 +252,15 @@ const Edit = () => {
             ]}
             value={userClass}
             onChangeText={validateClass}
+            editable={!isWilmaProfile}
             placeholder="Esimerkiksi 24Q"
             placeholderTextColor="#999"
             maxLength={3}
             autoCapitalize="characters"
           />
+          {isWilmaProfile && (
+            <Text style={styles.lockedText}>Wilman vahvistama tieto</Text>
+          )}
           {classError ? (
             <Text style={styles.errorText}>{classError}</Text>
           ) : null}
@@ -338,6 +369,12 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-Regular",
     backgroundColor: "#f9f9f9",
     color: "#000",
+  },
+  lockedText: {
+    color: "#067647",
+    fontFamily: "Figtree-Medium",
+    fontSize: 12,
+    marginTop: 6,
   },
   colorsContainer: {
     flexDirection: "row",

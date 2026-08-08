@@ -19,9 +19,9 @@ export async function geoJsonPicker() {
 }
 
 export async function loadGeoJSON(uri: string) {
-  const { readAsStringAsync } = await import('expo-file-system');
+  const { File } = await import('expo-file-system');
   // Read the file’s contents as text
-  const text = await readAsStringAsync(uri);
+  const text = await new File(uri).text();
   // Parse into a JS object
   const geojson = JSON.parse(text);
   return geojson;

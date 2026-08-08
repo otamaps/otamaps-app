@@ -1,4 +1,3 @@
-import useBLEScanner from "@/components/functions/bleScanner";
 import { AuthProvider } from "@/context/AuthContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,8 +11,6 @@ export default function TabLayout() {
   const isDark = useColorScheme() === "dark";
   const [isFablabEnabled, setIsFablabEnabled] = useState(false);
   const segments = useSegments();
-  useBLEScanner();
-
   useEffect(() => {
     const loadFablabFlag = async () => {
       try {
@@ -30,6 +27,7 @@ export default function TabLayout() {
   return (
     <AuthProvider>
       <Tabs
+        initialRouteName="home"
         screenOptions={{
           headerShown: false,
           tabBarStyle: Platform.select({
@@ -48,12 +46,25 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
+          name="home"
+          options={{
+            title: "Wilma",
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="school" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="fablab"
           options={{
-            title: "Fablab",
+            title: "FabLab",
             href: isFablabEnabled ? undefined : null,
             tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="build" size={size} color={color} />
+              <MaterialIcons
+                name="precision-manufacturing"
+                size={size}
+                color={color}
+              />
             ),
           }}
         />

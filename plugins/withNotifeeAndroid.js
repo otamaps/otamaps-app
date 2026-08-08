@@ -23,12 +23,14 @@ const withNotifeeAndroid = (config) => {
     if (existing) {
       existing.$['android:foregroundServiceType'] = 'connectedDevice';
       existing.$['android:exported'] = 'false';
+      existing.$['android:stopWithTask'] = 'false';
     } else {
       mainApp.service.push({
         $: {
           'android:name': 'app.notifee.core.ForegroundService',
           'android:foregroundServiceType': 'connectedDevice',
           'android:exported': 'false',
+          'android:stopWithTask': 'false',
         },
       });
     }
@@ -39,11 +41,29 @@ const withNotifeeAndroid = (config) => {
       { 'android:name': 'android.permission.FOREGROUND_SERVICE' },
       { 'android:name': 'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE' },
       { 'android:name': 'android.permission.BLUETOOTH_SCAN' },
-      { 'android:name': 'android.permission.ACCESS_BACKGROUND_LOCATION' },
+      {
+        'android:name': 'android.permission.ACCESS_BACKGROUND_LOCATION',
+        'android:maxSdkVersion': '30',
+      },
     ];
     for (const attr of needed) {
-      if (!perms.some((p) => p.$?.['android:name'] === attr['android:name'])) {
+      const existingPermission = perms.find(
+        (p) => p.$?.['android:name'] === attr['android:name']
+      );
+      if (existingPermission) {
+        Object.assign(existingPermission.$, attr);
+      } else {
         perms.push({ $: attr });
+      }
+    }
+
+    // Legacy Bluetooth permissions should not be granted on Android 12+.
+    for (const permission of perms) {
+      if (
+        permission.$?.['android:name'] === 'android.permission.BLUETOOTH' ||
+        permission.$?.['android:name'] === 'android.permission.BLUETOOTH_ADMIN'
+      ) {
+        permission.$['android:maxSdkVersion'] = '30';
       }
     }
     manifest.manifest['uses-permission'] = perms;

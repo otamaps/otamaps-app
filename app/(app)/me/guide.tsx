@@ -108,7 +108,7 @@ const Guide = () => {
         </Text>
         <Text style={[styles.tipText, isDark && { color: "#bedbff" }]}>
           Jos et löydä haluamaasi tilaa, kokeile hakea sen numerolla.
-          Esimerkiksi "1315"
+          Esimerkiksi &quot;1315&quot;
         </Text>
       </View>
 
