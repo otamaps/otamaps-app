@@ -43,7 +43,7 @@ Structural map features render through `featuresSource`. Before rendering, the m
 
 Friend and local user locations are rendered as point GeoJSON overlays on top of the room and feature layers. Friend locations come from Supabase `locations`, are combined with friend records as `[x, y]`, filtered to the selected floor, grouped by rounded coordinate key, and spread in a small circle when multiple friends share the same coordinate [@map-screen]. The friend source enables Mapbox clustering and draws clustered circles, cluster counts, individual circles, and initial labels [@map-screen].
 
-Local user location is built from BLE scanner state. The renderer emits an empty feature collection unless the location has coordinates, a truthy floor, and a floor matching `selectedFloor`; when present, it draws an accuracy circle and a blue user dot [@map-screen]. Because that guard treats floor `0` as absent, rendering floor-zero user locations requires a code change to test for `null` or `undefined` rather than truthiness [@map-screen].
+Local user location is built from BLE scanner state. The renderer emits an empty feature collection unless the location has coordinates, a non-null floor, and a floor matching `selectedFloor`; when present, it draws an accuracy circle and a blue user dot [@map-screen].
 
 ## UI Coupling
 

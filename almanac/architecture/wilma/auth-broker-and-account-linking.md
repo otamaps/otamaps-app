@@ -37,7 +37,7 @@ The Wilma auth broker is the client-side boundary for using Wilma as an OtaMaps 
 
 The broker builds its API base from `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi`, and uses JSON POST requests with a 15-second timeout [@auth-broker]. `.env.example` describes that URL as the OtaMaps API hosting GraphQL and the Wilma-to-Supabase auth exchange, and EAS build profiles set the same API URL for development, preview, and production [@env-example] [@eas-config].
 
-Wilma primary auth is gated by `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` [@auth-broker]. The welcome screen shows the Wilma username/password form only when that flag is true; otherwise the same screen tells the user that Wilma login is not enabled in this version and still offers legacy OtaMaps login [@welcome-index]. The committed EAS profiles enable Wilma primary auth in development and disable it in preview and production, so build-profile configuration changes the visible onboarding path [@eas-config] [@welcome-index].
+Wilma primary auth is gated by `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` [@auth-broker]. The auth broker treats Wilma primary auth as enabled unless the value is exactly `"false"`, and the welcome screen shows the Wilma username/password form when the exported broker constant is enabled [@auth-broker] [@welcome-index]. The committed EAS profiles set the flag to `"true"` for development, preview, and production; setting it to `"false"` is therefore an explicit rollback path that changes the visible onboarding route to legacy OtaMaps login [@eas-config] [@welcome-index].
 
 ## New Account Flow
 

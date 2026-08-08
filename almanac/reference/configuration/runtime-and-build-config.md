@@ -56,9 +56,9 @@ The package dependencies include `@rnmapbox/maps` but do not declare `mapbox-gl`
 
 ## Public Environment Variables
 
-The Supabase client reads `EXPO_PUBLIC_SUPABASE_URL`, then falls back to the committed `egfc...` Supabase project URL; it reads `EXPO_PUBLIC_SUPABASE_ANON_KEY` or `EXPO_PUBLIC_SUPABASE_KEY`, then falls back to the committed anon key [@supabase-client]. EAS development, preview, and production profiles all set the same canonical Supabase URL and public key [@eas-config].
+The Supabase client reads `EXPO_PUBLIC_SUPABASE_URL`, then falls back to `https://db.otamaps.fi`; it reads `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, then legacy `EXPO_PUBLIC_SUPABASE_ANON_KEY` or `EXPO_PUBLIC_SUPABASE_KEY`, then falls back to the committed publishable key [@supabase-client]. EAS development, preview, and production profiles all set the same canonical Supabase URL and publishable key [@eas-config].
 
-Wilma and OtaMaps API clients read `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi` [@wilma-client] [@wilma-auth-broker]. `.env.example` describes that API as the host for GraphQL and the Wilma-to-Supabase auth exchange, and all EAS profiles set it to the production API URL [@env-example] [@eas-config]. `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` controls whether the Wilma primary-auth form is visible; EAS enables it for development and disables it for preview and production [@eas-config] [@wilma-auth-broker].
+Wilma and OtaMaps API clients read `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi` [@wilma-client] [@wilma-auth-broker]. `.env.example` describes that API as the host for GraphQL and the Wilma-to-Supabase auth exchange, and all EAS profiles set it to the production API URL [@env-example] [@eas-config]. `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` controls whether the Wilma primary-auth form is visible; the auth broker enables Wilma primary auth unless the value is exactly `"false"`, and the EAS profiles plus `.env.example` set it to `"true"` [@wilma-auth-broker] [@eas-config] [@env-example].
 
 Other public env keys include Google web and iOS client ids, MapTiler and Mapbox tokens, SumUp public and secret key placeholders, SumUp merchant code, and the payment return URL [@env-example] [@eas-config]. The root layout reads `EXPO_PUBLIC_SUMUP_API_KEY` for `SumUpProvider` [@root-layout].
 

@@ -47,7 +47,7 @@ The broader shell also listens to Supabase auth events for BLE tracking behavior
 
 ## Wilma Primary Auth
 
-The welcome index route shows the Wilma username/password form only when `WILMA_PRIMARY_AUTH_ENABLED` is true [@welcome-index] [@wilma-auth-broker]. That flow calls `startWilmaAuthentication`; a successful session exchange is finished with `supabase.auth.verifyOtp`, and a possible legacy-account match is handled by either creating a new Wilma-backed account or saving a pending link before sending the user to old-account login [@welcome-index] [@wilma-auth-broker].
+The welcome index route shows the Wilma username/password form when `WILMA_PRIMARY_AUTH_ENABLED` is enabled; the broker enables it unless `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` is exactly `"false"` [@welcome-index] [@wilma-auth-broker]. That flow calls `startWilmaAuthentication`; a successful session exchange is finished with `supabase.auth.verifyOtp`, and a possible legacy-account match is handled by either creating a new Wilma-backed account or saving a pending link before sending the user to old-account login [@welcome-index] [@wilma-auth-broker].
 
 The broker is the reason Wilma auth still respects Supabase session authority. It signs out if the Supabase user returned by `verifyOtp` does not match the expected user id, and it clears Supabase plus Wilma local state if legacy-link completion fails [@wilma-auth-broker]. See [Wilma auth broker and account linking](../../architecture/wilma/auth-broker-and-account-linking) for the full flow.
 
