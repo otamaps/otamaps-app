@@ -21,6 +21,9 @@ sources:
   - id: fablab-route
     type: file
     path: app/(tabs)/fablab/index.tsx
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
 ---
 
 # Getting Started
@@ -35,6 +38,8 @@ For product context, read [OtaMaps mobile app](concepts/product/otamaps-mobile-a
 
 ## Common Work Areas
 
+For feature work, start with the cluster that owns the user-facing behavior: [campus map model](concepts/map/campus-map-model) for room and floor behavior, [Wilma](concepts/integrations/wilma) for school-data and account flows, [BLE background location](architecture/location/ble-background-location) for indoor tracking, [friends and shared location](concepts/social/friends-and-shared-location) for social location, and [print jobs](concepts/fablab/print-jobs) for FabLab.
+
 Use [local development](guides/development/local-development) for commands and validation caveats. Use [runtime and build config](reference/configuration/runtime-and-build-config) when a change touches Expo plugins, identifiers, public environment variables, native permissions, or hard-coded provider keys. Use [server deployment](guides/deployment/server-deployment) when preparing the Ubuntu/Docker side for Supabase and the OtaMaps Wilma GraphQL API, and [EAS production build](guides/deployment/eas-production-build) when preparing native production artifacts.
 
-Authentication work should start with [Supabase and Google auth](concepts/authentication/supabase-and-google-auth). Route work should start with [Expo Router shell](architecture/app/expo-router-shell), because auth state, BLE background lifecycle, search, fonts, and payment provider setup all sit above individual screens [@root-layout].
+Authentication work should start with [Supabase session authority](concepts/authentication/supabase-and-google-auth). Route work should start with [Expo Router shell](architecture/app/expo-router-shell), because auth state, onboarding completion, BLE background lifecycle, search, fonts, and payment provider setup all sit above individual screens [@root-layout] [@user-preferences]. When a change touches privacy choices, post-login routing, or location writes, read [onboarding and consent preferences](architecture/auth/onboarding-and-consent-preferences) before changing the BLE or settings flows.

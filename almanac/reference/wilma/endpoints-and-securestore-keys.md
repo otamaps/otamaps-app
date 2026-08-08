@@ -1,6 +1,6 @@
 ---
 title: "Wilma Endpoints And SecureStore Keys"
-summary: "This reference lists the active OtaMaps API Wilma endpoints, GraphQL operations, SecureStore keys, direct Otawilma REST leftovers, and inactive route evidence."
+summary: "This reference lists the active OtaMaps API Wilma endpoints, GraphQL operations, SecureStore keys, account connection route, direct Otawilma REST leftovers, and disabled route evidence."
 topics: [reference, wilma, integrations, storage]
 sources:
   - id: graphql-client
@@ -24,6 +24,9 @@ sources:
   - id: placeholder-login
     type: file
     path: app/(app)/me/wilma/login.tsx
+  - id: account-route
+    type: file
+    path: app/(app)/me/wilma/index.tsx
   - id: disabled-tab
     type: file
     path: app/(tabs)/wilma.tsx.dis
@@ -57,6 +60,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `/v1/auth/wilma/start` | POST | `lib/wilma/authBroker.ts` | Starts Wilma credential verification and returns either a Supabase session exchange or a legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/create` | POST | `lib/wilma/authBroker.ts` | Creates a new OtaMaps account from a Wilma-authenticated legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/link-legacy` | POST with Supabase bearer token | `lib/wilma/authBroker.ts` | Links a pending Wilma attempt to an already signed-in legacy Supabase account [@auth-broker]. |
+| `/v1/auth/wilma/connect` | POST with Supabase bearer token | `lib/wilma/authBroker.ts`, `app/(app)/me/wilma/index.tsx` | Connects or refreshes Wilma credentials for the currently signed-in Supabase user, then saves the GraphQL session and credentials after verifying the expected user id [@auth-broker] [@account-route]. |
 
 ## Active SecureStore Keys
 
@@ -105,8 +109,8 @@ Every active GraphQL helper uses the same timeout-aware POST path through the cl
 
 These direct keys are separate from the active GraphQL keys. The direct helpers do not write `wilma_graphql_session`, `wilma_graphql_credentials`, or `wilma_legacy_link_attempt`, and the GraphQL client does not read `wilma_token` [@graphql-client] [@auth-broker] [@direct-login].
 
-## Placeholder And Disabled Route Evidence
+## Account, Redirect, And Disabled Route Evidence
 
-`app/(app)/me/wilma/login.tsx` is a placeholder route that renders only the text `Wilma login placeholder screen.` [@placeholder-login]. It does not import the GraphQL client, auth broker, direct REST helpers, or any storage helper [@placeholder-login].
+`app/(app)/me/wilma/index.tsx` is an active Wilma account connection route. It reads `profile_source` through user preferences, shows whether Wilma is connected, and calls `connectWilmaAccount` to connect or update the current user's Wilma session material [@account-route] [@auth-broker]. `app/(app)/me/wilma/login.tsx` is only a redirect to `/me/wilma` [@placeholder-login].
 
 `app/(tabs)/wilma.tsx.dis` imports the direct REST login and message helpers, stores `wilma_saved_credentials` in AsyncStorage, handles direct 401 relogin, displays direct message rows, and includes debug-mode BLE location display [@disabled-tab]. Because the file extension is `.tsx.dis`, it should be treated as disabled route evidence rather than the active Wilma tab implementation. The active Wilma dashboard lives in `app/(tabs)/home.tsx`, and Wilma primary auth begins in `app/welcome/(pre)/index.tsx` when enabled [@home-route] [@welcome-index].

@@ -12,6 +12,9 @@ sources:
   - id: index-route
     type: file
     path: app/index.tsx
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
@@ -32,7 +35,7 @@ The same file creates an Algolia lite client and wraps the app in `InstantSearch
 
 ## Navigation Shape
 
-The root stack declares `(tabs)`, `(app)/me`, `welcome`, and `+not-found` screens with headers disabled for the main app groups [@root-layout]. The index route is the first redirector: it checks the Supabase session, waits for a short custom splash, and replaces the route with `/home` for signed-in users or `/welcome` for unauthenticated users [@index-route]. The detailed route inventory is in [main route map](main-route-map).
+The root stack declares `(tabs)`, `(app)/me`, `welcome`, and `+not-found` screens with headers disabled for the main app groups [@root-layout]. The index route is the first redirector: it checks the Supabase session, waits for a short custom splash, sends completed signed-in users to `/home`, sends incomplete signed-in users or preference-load failures to `/welcome/(post)/permissions`, and sends unauthenticated users to `/welcome` [@index-route] [@user-preferences]. The detailed route inventory is in [main route map](main-route-map), and the preference gate is explained in [onboarding and consent preferences](../auth/onboarding-and-consent-preferences).
 
 The tab layout nests another provider boundary. It wraps tabs with `AuthProvider`, sets `home` as the initial tab, labels that tab `Wilma`, defines FabLab, map, and me tabs, and hides the FabLab tab unless `AsyncStorage` key `fablabEnabled` is `"true"` [@tabs-layout]. The authenticated auxiliary stack under `(app)` is a simple headerless `Stack`, so nested account, friends, Wilma, and debug screens inherit the root providers rather than defining their own app shell [@app-layout].
 
@@ -40,4 +43,4 @@ The tab layout nests another provider boundary. It wraps tabs with `AuthProvider
 
 The first import in the root layout is `@/lib/bleBackgroundTask`, with a comment stating it must run before any Notifee foreground-service notification is displayed [@root-layout]. After mount, the root asks Supabase for the current session and syncs tracking against both session state and `AppState` [@root-layout]. If a session exists and background tracking is enabled while the app is active, it starts the BLE background service; if background tracking is disabled while active, it starts foreground tracking; and if the app is not active without background tracking, it stops foreground tracking [@root-layout]. The root also listens for `SIGNED_IN` and `SIGNED_OUT`: sign-in resyncs authenticated tracking, and sign-out stops BLE tracking through the sign-out cleanup path [@root-layout].
 
-This lifecycle links the shell to both [Supabase and Google auth](../../concepts/authentication/supabase-and-google-auth) and [BLE background location](../location/ble-background-location). Future auth changes should account for this coupling because a session transition can affect background location, not just navigation.
+This lifecycle links the shell to both [Supabase session authority](../../concepts/authentication/supabase-and-google-auth) and [BLE background location](../location/ble-background-location). Future auth changes should account for this coupling because a session transition can affect background location, not just navigation.

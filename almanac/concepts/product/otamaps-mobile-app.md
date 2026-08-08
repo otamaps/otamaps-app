@@ -1,7 +1,7 @@
 ---
 title: "OtaMaps Mobile App"
 summary: "OtaMaps is the Expo React Native campus app in this repository, centered on indoor maps, school data, social location, and optional FabLab printing."
-topics: [product, maps, location, wilma, fablab]
+topics: [concepts, product, map, location, wilma, fablab]
 sources:
   - id: app-config
     type: file

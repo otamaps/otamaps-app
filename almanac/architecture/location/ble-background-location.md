@@ -18,6 +18,9 @@ sources:
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
+  - id: user-preferences
+    type: file
+    path: lib/userPreferences.ts
   - id: estimator
     type: file
     path: lib/blePositionEstimator.ts
@@ -77,7 +80,7 @@ Beacon parsing and selection are deterministic and isolated from React. `parseBe
 
 The runtime now separates local estimate cadence from upload cadence. Every five-second runtime tick prunes stale observations, reselects the anchor, builds a `LocationFix`, estimates local coordinates from the currently cached catalog, and updates the snapshot before deciding whether to upload [@runtime] [@location-service] [@estimator]. Uploads happen on the first valid fix, selected-beacon change, after the two-minute `BLE_HEARTBEAT_MS` interval, or when the estimated coordinate has moved at least eight metres and at least 30 seconds have passed since the last successful upload [@core] [@types] [@runtime].
 
-`BLELocationService.updateLocationFix` refreshes a near-expiry Supabase session before upload, resolves all observed beacon ids through a shared `BeaconCatalogCache`, estimates position from the selected anchor and neighboring observations, and upserts the live `locations` row on `user_id` with blended `x` and `y` coordinates, anchor-derived floor, radius, and contributing beacon metadata [@location-service] [@catalog-cache] [@estimator]. The older `uploadLocation`, history, room, and cleanup helpers still target `user_locations` and related views, but the active tracking runtime uses `updateLocationFix` and the `locations` table [@location-service].
+`BLELocationService.updateLocationFix` refreshes a near-expiry Supabase session before upload, resolves all observed beacon ids through a shared `BeaconCatalogCache`, estimates position from the selected anchor and neighboring observations, and then chooses writes from the saved privacy purposes [@location-service] [@catalog-cache] [@estimator] [@user-preferences]. Friend-location consent upserts the identified live `locations` row on `user_id` with blended `x` and `y` coordinates, anchor-derived floor, radius, and contributing beacon metadata; anonymous-analytics consent inserts a coarse `anonymous_crowd_samples` row without user id, exact coordinates, class, or beacon ids [@location-service]. The older `uploadLocation`, history, room, and cleanup helpers still target `user_locations` and related views, but the active tracking runtime uses `updateLocationFix` and the consent-gated live/crowd write path [@location-service].
 
 Offline and failed uploads are latest-only. The runtime stores one pending fix under `ble_pending_location_fix_v1`, coalesces queued and pending fixes by `observedAt`, retries after connectivity returns or a short failure backoff expires, and records sanitized diagnostics such as last upload attempt, last success, pending upload state, and last error [@runtime]. The BLE diagnostics route reads the same runtime snapshot and permission snapshot, so debug screens show the actual runtime state instead of creating their own scanner [@debug-screen] [@scanner].
 

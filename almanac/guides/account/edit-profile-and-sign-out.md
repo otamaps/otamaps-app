@@ -48,7 +48,7 @@ If a debug row does not appear after toggling the switch, leave and re-enter the
 
 Use the `Kirjaudu ulos` button on the Me tab for the normal sign-out flow [@me-screen]. The handler calls `signOutGoogleAndSupabase()`, logs any sign-out failure, then calls `clearUserCache()` and routes to `/` in a `finally` block [@me-screen]. `clearUserCache()` removes both `user` and `user_cache_timestamp` from AsyncStorage [@user-handle].
 
-`signOutGoogleAndSupabase()` signs out of Supabase first, then attempts local Google sign-out and only throws if Supabase returned an error [@google-auth]. A Google local sign-out failure is logged as a warning and does not by itself prevent the Supabase sign-out from completing [@google-auth]. This boundary is part of [session and identity](../../architecture/auth/session-and-identity) and the broader [Supabase and Google auth](../../concepts/authentication/supabase-and-google-auth) concept.
+`signOutGoogleAndSupabase()` signs out of Supabase first, then attempts local Google sign-out and only throws if Supabase returned an error [@google-auth]. A Google local sign-out failure is logged as a warning and does not by itself prevent the Supabase sign-out from completing [@google-auth]. This boundary is part of [session and identity](../../architecture/auth/session-and-identity) and the broader [Supabase session authority](../../concepts/authentication/supabase-and-google-auth) concept.
 
 ## Recovery Notes
 
