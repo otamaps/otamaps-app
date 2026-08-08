@@ -77,7 +77,15 @@ export default function WilmaNewsScreen() {
           }
           ListEmptyComponent={<Text style={[styles.emptyText, isDark && styles.textMuted]}>Ei tiedotteita.</Text>}
           renderItem={({ item }) => (
-            <View style={[styles.card, isDark && styles.cardDark]}>
+            <Pressable
+              style={[styles.card, isDark && styles.cardDark]}
+              onPress={() =>
+                router.push({
+                  pathname: "/wilma/news-item" as never,
+                  params: { id: String(item.id), title: item.title },
+                })
+              }
+            >
               <View style={styles.metaRow}>
                 <Text style={[styles.date, isDark && styles.textMuted]}>{item.date}</Text>
                 {item.isPermanent ? (
@@ -94,7 +102,7 @@ export default function WilmaNewsScreen() {
               {!!item.teacherName && (
                 <Text style={[styles.author, isDark && styles.textMuted]}>{item.teacherName}</Text>
               )}
-            </View>
+            </Pressable>
           )}
         />
       )}

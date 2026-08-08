@@ -144,6 +144,8 @@ export default function MessageScreen() {
       {!loading && !error && (
         <WebView
           source={{ html: buildHtml(detail?.htmlBody ?? null, isDark) }}
+          javaScriptEnabled={false}
+          domStorageEnabled={false}
           style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "#fff" }}
           scrollEnabled
           showsVerticalScrollIndicator={false}

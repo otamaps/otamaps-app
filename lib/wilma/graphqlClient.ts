@@ -259,6 +259,38 @@ export type ScheduleData = {
   exams: Exam[];
 };
 
+export type WilmaCourse = {
+  id: number;
+  courseId: number;
+  courseName: string;
+  courseCode: string;
+  name: string;
+  caption: string;
+  startDate: string;
+  endDate: string;
+  committed: boolean;
+  teachers: { teacherId: number; teacherName: string; teacherCode: string }[];
+  homework: { rowNumber: number; date: string; homework: string }[];
+  diary: {
+    rowNumber: number;
+    date: string;
+    lesson: string;
+    note: string;
+    teacherName: string;
+    teacherCode: string;
+  }[];
+  exams: {
+    id: number;
+    date: string;
+    name: string | null;
+    caption: string | null;
+    timeStart: string | null;
+    timeEnd: string | null;
+    topic: string | null;
+    info: string | null;
+  }[];
+};
+
 export async function fetchSchedule(date?: string): Promise<ScheduleData> {
   const data = await gqlFetch<{ schedule: ScheduleData }>(
     `query Schedule($date: String) {
@@ -282,6 +314,25 @@ export async function fetchSchedule(date?: string): Promise<ScheduleData> {
   return data.schedule;
 }
 
+export async function fetchCoursework(date?: string): Promise<WilmaCourse[]> {
+  const data = await gqlFetch<{ schedule: { courses: WilmaCourse[] } }>(
+    `query Coursework($date: String) {
+      schedule(date: $date) {
+        courses {
+          id courseId courseName courseCode name caption
+          startDate endDate committed
+          teachers { teacherId teacherName teacherCode }
+          homework { rowNumber date homework }
+          diary { rowNumber date lesson note teacherName teacherCode }
+          exams { id date name caption timeStart timeEnd topic info }
+        }
+      }
+    }`,
+    date ? { date } : {}
+  );
+  return data.schedule.courses;
+}
+
 // ── Messages ──────────────────────────────────────────────────────────────────
 
 export type WilmaMessage = {
@@ -291,19 +342,30 @@ export type WilmaMessage = {
   folder: string;
   sender: string;
   senders: { name: string; href: string }[];
+  recipient: string;
+  recipients: { name: string; href: string }[];
+  isUnread: boolean;
   isEvent: boolean;
   replies: number;
   applying: { status: string; extraInfo: string } | null;
 };
 
-export async function fetchMessages(): Promise<WilmaMessage[]> {
+export type WilmaMessageFolder = "INBOX" | "OUTBOX" | "APPOINTMENTS";
+
+export async function fetchMessages(
+  folder: WilmaMessageFolder = "INBOX"
+): Promise<WilmaMessage[]> {
   const data = await gqlFetch<{ messages: { messages: WilmaMessage[] } }>(
-    `{ messages { messages {
-        id subject timestamp folder sender
+    `query Messages($folder: MessageFolder!) {
+      messages(folder: $folder) { messages {
+        id subject timestamp folder sender recipient isUnread
         senders { name href }
+        recipients { name href }
         isEvent replies
         applying { status extraInfo }
-    } } }`
+      } }
+    }`,
+    { folder }
   );
   return data.messages.messages;
 }
@@ -427,6 +489,22 @@ export async function fetchNews(): Promise<WilmaNewsItem[]> {
   return data.news;
 }
 
+export type WilmaNewsDetail = {
+  id: number;
+  title: string;
+  htmlBody: string;
+};
+
+export async function fetchNewsItem(id: number): Promise<WilmaNewsDetail> {
+  const data = await gqlFetch<{ newsItem: WilmaNewsDetail }>(
+    `query NewsItem($id: Int!) {
+      newsItem(id: $id) { id title htmlBody }
+    }`,
+    { id }
+  );
+  return data.newsItem;
+}
+
 // ── Past exams and grades ─────────────────────────────────────────────────────
 
 export type WilmaPastExam = {
@@ -446,4 +524,124 @@ export async function fetchPastExams(): Promise<WilmaPastExam[]> {
     } }`
   );
   return data.pastExams;
+}
+
+export type WilmaGradeCourse = {
+  code: string;
+  name: string;
+  grade: string;
+  credits: string;
+  completedOn: string;
+  teacher: string;
+};
+
+export type WilmaGradeSubject = {
+  name: string;
+  grade: string;
+  credits: string;
+  courses: WilmaGradeCourse[];
+};
+
+export type WilmaGradebook = {
+  summary: { label: string; value: string }[];
+  subjects: WilmaGradeSubject[];
+};
+
+export type WilmaMatriculationResult = {
+  subject: string;
+  completedOn: string;
+  compulsory: string;
+  grade: string;
+  rejectedReason: string;
+  points: string;
+};
+
+export async function fetchGradebook(): Promise<WilmaGradebook> {
+  const data = await gqlFetch<{ gradebook: WilmaGradebook }>(
+    `{ gradebook {
+      summary { label value }
+      subjects {
+        name grade credits
+        courses { code name grade credits completedOn teacher }
+      }
+    } }`
+  );
+  return data.gradebook;
+}
+
+export async function fetchMatriculationResults(): Promise<WilmaMatriculationResult[]> {
+  const data = await gqlFetch<{ matriculationResults: WilmaMatriculationResult[] }>(
+    `{ matriculationResults {
+      subject completedOn compulsory grade rejectedReason points
+    } }`
+  );
+  return data.matriculationResults;
+}
+
+export type WilmaRoomProfile = { id: number; code: string; name: string };
+export type WilmaRoomSchedule = {
+  room: WilmaRoomProfile;
+  lessons: {
+    day: number;
+    start: string;
+    end: string;
+    groups: {
+      code: string;
+      name: string;
+      teachers: { id: number; code: string; name: string }[];
+    }[];
+  }[];
+};
+
+export async function fetchWilmaRooms(): Promise<WilmaRoomProfile[]> {
+  const data = await gqlFetch<{ rooms: WilmaRoomProfile[] }>(`{ rooms { id code name } }`);
+  return data.rooms;
+}
+
+export async function fetchWilmaRoomSchedule(
+  roomId: number,
+  date?: string
+): Promise<WilmaRoomSchedule> {
+  const data = await gqlFetch<{ roomSchedule: WilmaRoomSchedule }>(
+    `query RoomSchedule($roomId: Int!, $date: String) {
+      roomSchedule(roomId: $roomId, date: $date) {
+        room { id code name }
+        lessons {
+          day start end
+          groups { code name teachers { id code name } }
+        }
+      }
+    }`,
+    date ? { roomId, date } : { roomId }
+  );
+  return data.roomSchedule;
+}
+
+export type WilmaSelectedCourse = {
+  groupCode: string;
+  period: string;
+  bar: string;
+  tray: string;
+};
+
+export type WilmaCourseTray = {
+  id: string;
+  category: string;
+  name: string;
+  status: string;
+  closed: boolean;
+};
+
+export async function fetchSelectedCourses(): Promise<WilmaSelectedCourse[]> {
+  const data = await gqlFetch<{ selectedCourses: WilmaSelectedCourse[] }>(
+    `{ selectedCourses { groupCode period bar tray } }`
+  );
+  return data.selectedCourses;
+}
+
+export async function fetchCourseTrays(): Promise<WilmaCourseTray[]> {
+  const data = await gqlFetch<{ courseTrays: WilmaCourseTray[] }>(
+    `{ courseTrays { id category name status closed } }`
+  );
+  return data.courseTrays;
 }
