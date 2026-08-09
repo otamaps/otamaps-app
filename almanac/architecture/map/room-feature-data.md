@@ -9,6 +9,9 @@ sources:
   - id: map-screen
     type: file
     path: app/(tabs)/map.tsx
+  - id: null-room-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
   - id: room-modal
     type: file
     path: components/sheets/roomModalSheet.tsx
@@ -47,6 +50,8 @@ The Supabase debug route for rooms queries `rooms` directly and renders id, room
 ## Failure Modes And Invariants
 
 The stores do not validate database shape beyond TypeScript declarations. If Supabase returns malformed room geometry, the room path may still reach rendering because room geometry is only checked for existence before becoming GeoJSON [@map-screen]. Feature rendering is stricter: malformed feature geometries are logged and skipped before the `featuresSource` is built [@map-screen].
+
+Display fields need the same caution. `Room` currently types `room_number` and `title` as strings, but `fetchRooms` stores raw `select('*')` results without normalization, and a map-screen crash showed a live room with `room_number: null` reaching label sizing [@room-service] [@null-room-session]. Rendering code should normalize room numbers and titles at the consumer boundary instead of assuming those TypeScript declarations describe every live row [@map-screen].
 
 The floor field must stay numeric. The room list, room polygons, feature extrusions, friend overlays, local user overlay, and search floor switching all compare floor values against `selectedFloor` as a number [@map-screen]. If future migrations change floor representation, update the store types, map filters, search hits, and room modal display together rather than fixing only the renderer.
 
