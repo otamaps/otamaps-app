@@ -6,6 +6,9 @@ sources:
   - id: map-screen
     type: file
     path: app/(tabs)/map.tsx
+  - id: map-ui-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
   - id: map-bottom-sheet
     type: file
     path: components/mapBottomSheet.tsx
@@ -23,13 +26,13 @@ Geospatial rendering in OtaMaps is owned by the map tab screen. It takes rooms, 
 
 ## Map Container And Camera
 
-The map screen renders an `@rnmapbox/maps` `MapView` with dark and light MapTiler style URLs, bounded camera movement around the Otaniemi campus area, zoom limits from `14` to `21`, heading `180`, and pitch `5` [@map-screen]. Camera state is stored in `cameraConfig`, initially centered at `[24.818510511790645, 60.18394233125424]`, and room selection updates that state when the selected room has geometry [@map-screen].
+The map screen renders an `@rnmapbox/maps` `MapView` with dark and light MapTiler style URLs, bounded camera movement around the Otaniemi campus area, zoom limits from `13.5` to `21`, heading `180`, and pitch `5` [@map-screen]. The `MapView` explicitly enables zoom, scroll, rotate, pinch pan, pinch zoom, double-touch zoom-out, simultaneous rotate-and-pinch zoom, and `requestDisallowInterceptTouchEvent` because the map sits inside a gesture-heavy React Native screen and a reported zoom-out failure was fixed by giving the native map stronger ownership of two-finger gestures [@map-screen] [@map-ui-session]. Camera state is stored in `cameraConfig`, initially centered at `[24.818510511790645, 60.18394233125424]`, and room selection updates that state when the selected room has geometry [@map-screen].
 
 Room camera focus computes a centroid by averaging the first coordinate ring in `room.geometry.coordinates[0]` [@map-screen]. This is a practical fit for simple polygons, but it is also a constraint: the code imports both `Polygon` and `MultiPolygon`, yet the centroid calculation assumes the first ring shape. Future support for complex MultiPolygons should replace that centroid logic rather than only changing the type.
 
 ## Room Layers
 
-Rooms render through a `roomsSource` `ShapeSource` only when the selected floor has room geometries [@map-screen]. The room source contains one feature per filtered room, with properties for id, room number, title, selection state, fill color, WC status, and precomputed unselected RGBA fill [@map-screen]. Three layers draw the room source: room numbers at high zoom, room titles at high zoom, and a fill layer that highlights the selected room, colors WC rooms, and otherwise uses the precomputed fill [@map-screen].
+Rooms render through a `roomsSource` `ShapeSource` only when the selected floor has room geometries [@map-screen]. The room source contains one feature per filtered room, with properties for id, room number, room-number maximum text size, title, selection state, fill color, WC status, and precomputed unselected RGBA fill [@map-screen]. `getRoomNumberMaxTextSize` walks both `Polygon` and `MultiPolygon` coordinate arrays, estimates the geometry's bounding width and height in pixels at zoom `21`, and caps each room number between `1` and `18` so labels stay inside small rooms instead of using one fixed text size [@map-screen]. Three layers draw the room source: room numbers that scale from zoom `13.5` to `21`, room titles at high zoom, and a fill layer that highlights the selected room, colors WC rooms, and otherwise uses the precomputed fill [@map-screen].
 
 Room press handling reads the pressed feature id from the Mapbox event and calls the shared room-press flow [@map-screen]. That flow may switch the selected floor, set selection state, collapse the main map bottom sheet, open the room modal, and focus the camera [@map-screen]. The modal itself loads the selected room from `useRoomStore`, presents the cached room when found, and falls back to fetching rooms before showing an error [@room-modal].
 
@@ -51,4 +54,4 @@ Queue status is a polygon overlay, not a point overlay. The map builds `queueGeo
 
 The rendering layer is tightly coupled to the map screen's bottom sheets. `MapBottomSheet` exposes imperative `snapToMax`, `snapToMid`, and `snapToMin` methods with fixed min, mid, and max snap heights, and the map screen collapses it before opening room or friend detail sheets [@map-bottom-sheet] [@map-screen]. Search focus also collapses the bottom sheet, while search blur returns it to the mid snap point [@map-screen].
 
-The result is one map-centered interaction model: [room search](../search/room-search-flow), room-list taps, and direct polygon taps all converge on the same selected room state and modal opening behavior [@map-screen]. [Room and feature data](room-feature-data) explains the store and cache path that feeds the renderer, and [GeoJSON debug import](../../guides/map/geojson-debug-import) explains the older debug cache path that is separate from the active rendering source.
+The result is one map-centered interaction model: [room search](../search/room-search-flow), room-list taps, and direct polygon taps all converge on the same selected room state and modal opening behavior [@map-screen]. The Ruokalinjasto shortcut is part of the people tab header inside the bottom sheet, not a floating map control; pressing it focuses the queue area and snaps the sheet to its minimum height so the overlay remains visible [@map-screen]. [Room and feature data](room-feature-data) explains the store and cache path that feeds the renderer, and [GeoJSON debug import](../../guides/map/geojson-debug-import) explains the older debug cache path that is separate from the active rendering source.
