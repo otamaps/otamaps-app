@@ -94,10 +94,10 @@ export default function WilmaCourseworkScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
-      setCourses(await fetchCoursework());
+      setCourses(await fetchCoursework(undefined, { forceRefresh: refresh }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Kurssitietojen lataaminen epäonnistui.");
     } finally {
@@ -168,7 +168,7 @@ export default function WilmaCourseworkScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                void load();
+                void load(true);
               }}
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />

@@ -14,9 +14,9 @@ export default function WilmaRoomsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
-    try { setRooms(await fetchWilmaRooms()); }
+    try { setRooms(await fetchWilmaRooms({ forceRefresh: refresh })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Tilojen lataaminen epäonnistui."); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -52,7 +52,7 @@ export default function WilmaRoomsScreen() {
           data={filtered}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={filtered.length ? styles.list : styles.emptyList}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#4A89EE" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#4A89EE" />}
           ListEmptyComponent={<Text style={styles.empty}>Tiloja ei löytynyt.</Text>}
           renderItem={({ item }) => (
             <Pressable

@@ -22,10 +22,14 @@ export default function WilmaCourseSelectionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
-      const [nextSelected, nextTrays] = await Promise.all([fetchSelectedCourses(), fetchCourseTrays()]);
+      const options = { forceRefresh: refresh };
+      const [nextSelected, nextTrays] = await Promise.all([
+        fetchSelectedCourses(options),
+        fetchCourseTrays(options),
+      ]);
       setSelected(nextSelected); setTrays(nextTrays);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Kurssivalintojen lataaminen epäonnistui."); }
     finally { setLoading(false); setRefreshing(false); }
@@ -48,7 +52,7 @@ export default function WilmaCourseSelectionsScreen() {
       </View>
       {loading ? <View style={styles.centered}><ActivityIndicator size="large" color="#4A89EE" /></View>
       : error ? <View style={styles.centered}><Text style={styles.empty}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Yritä uudelleen</Text></Pressable></View>
-      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#4A89EE" />}>
+      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#4A89EE" />}>
           <View style={[styles.notice, isDark && styles.noticeDark]}><MaterialIcons name="lock-outline" size={18} color="#4A89EE" /><Text style={[styles.noticeText, isDark && styles.textMuted]}>Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.</Text></View>
           {tab === "SELECTED" ? (selected.length ? selected.map((course) => (
             <View key={`${course.tray}-${course.period}-${course.groupCode}`} style={[styles.card, isDark && styles.cardDark]}>

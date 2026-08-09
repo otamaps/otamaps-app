@@ -213,7 +213,7 @@ export default function MessagesScreen() {
     if (!isRefresh) setLoading(true);
     setError(null);
     try {
-      const msgs = await fetchMessages(folder);
+      const msgs = await fetchMessages(folder, { forceRefresh: isRefresh });
       setMessages(msgs);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Lataus epäonnistui");
