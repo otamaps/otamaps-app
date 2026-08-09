@@ -27,15 +27,18 @@ sources:
   - id: implementation-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
+  - id: map-ui-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
 ---
 
 # Queue Status
 
-Queue status is the OtaMaps "Vilkkaus" feature for showing the current Ruokalinjasto crowd level on the map. The client reads a safe aggregate from Supabase, highlights the configured room polygon, and shows a compact map control for focusing the queue area [@queue-service] [@map-route]. Automatic estimates come from `anonymous_crowd_samples`, while trusted administrators can record append-only manual observations that override the automatic estimate for a short window [@queue-migration] [@location-service]. This keeps the map useful to all signed-in users without exposing raw anonymous samples or treating sample counts as people counts.
+Queue status is the OtaMaps "Vilkkaus" feature for showing the current Ruokalinjasto crowd level on the map. The client reads a safe aggregate from Supabase, highlights the configured room polygon, and shows a compact people-tab entry for focusing the queue area [@queue-service] [@map-route] [@map-ui-session]. Automatic estimates come from `anonymous_crowd_samples`, while trusted administrators can record append-only manual observations that override the automatic estimate for a short window [@queue-migration] [@location-service]. This keeps the map useful to all signed-in users without exposing raw anonymous samples or treating sample counts as people counts.
 
 ## Public Map Flow
 
-The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. Every 30 seconds it refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The floating map control always names Ruokalinjasto and uses the queue color/label helpers so missing data displays as `Ei tuoretta tietoa`, not as an empty queue [@queue-service] [@map-route].
+The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. Every 30 seconds it refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The people tab header inside the map bottom sheet names Ruokalinjasto, uses the queue color/label helpers, disables itself until a queue status exists, focuses the queue area when pressed, and snaps the sheet to its minimum height so the map overlay stays visible [@queue-service] [@map-route].
 
 The feature deliberately lives inside the existing map renderer. It reuses the same room geometry and floor filter described in [geospatial rendering](geospatial-rendering), so queue rendering should not introduce a second map, a separate coordinate model, or a room lookup path outside the current room data flow [@map-route].
 
