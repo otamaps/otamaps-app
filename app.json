@@ -30,7 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "fi.otamaps.app",
-      "versionCode": 12,
+      "versionCode": 14,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

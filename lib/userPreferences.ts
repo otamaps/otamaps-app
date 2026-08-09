@@ -26,6 +26,19 @@ export type ConsentChoices = Pick<
 >;
 
 const CACHE_PREFIX = "user_preferences_v1:";
+const PREFERENCE_COLUMNS =
+  "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at";
+
+type PreferenceWritePayload = {
+  user_id: string;
+  onboarding_version?: number;
+  onboarding_completed_at?: string | null;
+  friend_location_enabled: boolean;
+  anonymous_analytics_enabled: boolean;
+  background_tracking_enabled: boolean;
+  consent_policy_version: number;
+  updated_at: string;
+};
 
 function defaultPreferences(userId: string): UserPreferences {
   return {
@@ -63,6 +76,50 @@ async function cachePreferences(preferences: UserPreferences): Promise<void> {
   );
 }
 
+async function updateExistingPreferences(
+  payload: PreferenceWritePayload
+): Promise<UserPreferences | null> {
+  const { user_id: userId, ...allowedUpdates } = payload;
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .update(allowedUpdates)
+    .eq("user_id", userId)
+    .select(PREFERENCE_COLUMNS)
+    .maybeSingle<UserPreferences>();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Keep profile_source server-managed while supporting both Wilma users (whose
+ * preference row is created by a database trigger) and older legacy users.
+ *
+ * A Supabase upsert maps to one INSERT ... ON CONFLICT request. That request is
+ * rejected when INSERT/UPDATE are intentionally granted per-column instead of
+ * for the whole table. Use the permitted UPDATE or INSERT operation directly.
+ */
+async function writePreferences(
+  payload: PreferenceWritePayload
+): Promise<UserPreferences> {
+  const updated = await updateExistingPreferences(payload);
+  if (updated) return updated;
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .insert(payload)
+    .select(PREFERENCE_COLUMNS)
+    .single<UserPreferences>();
+
+  if (!error) return data;
+
+  // A Wilma identity can create the row between our UPDATE and INSERT.
+  if (error.code === "23505") {
+    const retried = await updateExistingPreferences(payload);
+    if (retried) return retried;
+  }
+  throw error;
+}
+
 async function requireUserId(): Promise<string> {
   const {
     data: { session },
@@ -83,9 +140,7 @@ export async function getUserPreferences(options: {
 
   const { data, error } = await supabase
     .from("user_preferences")
-    .select(
-      "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at"
-    )
+    .select(PREFERENCE_COLUMNS)
     .eq("user_id", userId)
     .maybeSingle<UserPreferences>();
 
@@ -151,14 +206,7 @@ export async function saveOnboardingChoices(
     consent_policy_version: CURRENT_CONSENT_POLICY_VERSION,
     updated_at: now,
   };
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .upsert(payload, { onConflict: "user_id" })
-    .select(
-      "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at"
-    )
-    .single<UserPreferences>();
-  if (error) throw error;
+  const data = await writePreferences(payload);
 
   await recordConsentEvents(userId, previous, choices, true);
   await cachePreferences(data);
@@ -178,22 +226,14 @@ export async function updateConsentChoices(
       patch.background_tracking_enabled ?? previous.background_tracking_enabled,
   };
   const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .upsert(
-      {
-        user_id: previous.user_id,
-        ...next,
-        consent_policy_version: CURRENT_CONSENT_POLICY_VERSION,
-        updated_at: now,
-      },
-      { onConflict: "user_id" }
-    )
-    .select(
-      "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at"
-    )
-    .single<UserPreferences>();
-  if (error) throw error;
+  const data = await writePreferences({
+    user_id: previous.user_id,
+    onboarding_version: previous.onboarding_version,
+    onboarding_completed_at: previous.onboarding_completed_at,
+    ...next,
+    consent_policy_version: CURRENT_CONSENT_POLICY_VERSION,
+    updated_at: now,
+  });
 
   await recordConsentEvents(previous.user_id, previous, next);
   await cachePreferences(data);
