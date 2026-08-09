@@ -1,4 +1,8 @@
-import { fetchMessages, WilmaMessage } from "@/lib/wilma/graphqlClient";
+import {
+  fetchMessages,
+  WilmaMessage,
+  WilmaMessageFolder,
+} from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -87,7 +91,9 @@ function MessageRow({
   isDark: boolean;
   onPress: () => void;
 }) {
-  const senderLine = msg.senders.map((s) => s.name).join(", ") || msg.sender;
+  const senderLine = msg.folder === "outbox"
+    ? msg.recipients.map((recipient) => recipient.name).join(", ") || msg.recipient || "Vastaanottaja piilotettu"
+    : msg.senders.map((sender) => sender.name).join(", ") || msg.sender;
   const ts = formatTimestamp(msg.timestamp);
   const full = fullTimestamp(msg.timestamp);
   const applying = msg.applying ? applyingDisplay(msg.applying.status) : null;
@@ -110,7 +116,11 @@ function MessageRow({
       {/* Centre: subject + sender + chips */}
       <View style={styles.textCol}>
         <Text
-          style={[styles.subject, isDark && { color: "#fff" }]}
+          style={[
+            styles.subject,
+            !msg.isUnread && styles.subjectRead,
+            isDark && { color: msg.isUnread ? "#fff" : "#d0d0d0" },
+          ]}
           numberOfLines={1}
         >
           {msg.subject}
@@ -197,12 +207,13 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [folder, setFolder] = useState<WilmaMessageFolder>("INBOX");
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
     try {
-      const msgs = await fetchMessages();
+      const msgs = await fetchMessages(folder, { forceRefresh: isRefresh });
       setMessages(msgs);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Lataus epäonnistui");
@@ -210,7 +221,7 @@ export default function MessagesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [folder]);
 
   useEffect(() => {
     load();
@@ -258,6 +269,35 @@ export default function MessagesScreen() {
             {messages.length}
           </Text>
         )}
+      </View>
+
+      <View style={[styles.folderTabs, isDark && { backgroundColor: "#1e1e1e", borderBottomColor: "#333" }]}>
+        {([
+          ["INBOX", "Saapuneet"],
+          ["OUTBOX", "Lähetetyt"],
+          ["APPOINTMENTS", "Kutsut"],
+        ] as const).map(([value, label]) => {
+          const active = folder === value;
+          return (
+            <Pressable
+              key={value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={[styles.folderTab, active && styles.folderTabActive]}
+              onPress={() => setFolder(value)}
+            >
+              <Text
+                style={[
+                  styles.folderTabText,
+                  isDark && { color: "#999" },
+                  active && { color: isDark ? "#51a2ff" : "#4A89EE" },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {loading && (
@@ -375,6 +415,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#aaa",
   },
+  folderTabs: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e4e7ec",
+    paddingHorizontal: 12,
+  },
+  folderTab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  folderTabActive: { borderBottomColor: "#4A89EE" },
+  folderTabText: {
+    fontFamily: "Figtree-Medium",
+    fontSize: 13,
+    color: "#667085",
+  },
 
   list: { flex: 1, backgroundColor: "#fff" },
   listContent: { backgroundColor: "#fff" },
@@ -401,6 +461,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#222",
   },
+  subjectRead: { fontFamily: "Figtree-Medium" },
   sender: {
     fontFamily: "Figtree-Regular",
     fontSize: 13,
