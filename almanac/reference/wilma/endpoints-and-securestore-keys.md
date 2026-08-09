@@ -36,6 +36,9 @@ sources:
   - id: eas-config
     type: file
     path: eas.json
+  - id: course-tray-rollout
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
 ---
 
 # Wilma Endpoints And SecureStore Keys
@@ -56,7 +59,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 
 | Path | Method | Owner | Purpose |
 | --- | --- | --- | --- |
-| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, coursework, messages, message detail, recipients, compose, reply, attendance, news, news-detail, past-exam, gradebook, matriculation, room, room-schedule, selected-course, and course-tray GraphQL requests [@graphql-client]. |
+| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, coursework, messages, message detail, recipients, compose, reply, attendance, news, news-detail, past-exam, gradebook, matriculation, room, room-schedule, selected-course, course-tray list, and course-tray detail GraphQL requests [@graphql-client]. |
 | `/v1/auth/wilma/start` | POST | `lib/wilma/authBroker.ts` | Starts Wilma credential verification and returns either a Supabase session exchange or a legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/create` | POST | `lib/wilma/authBroker.ts` | Creates a new OtaMaps account from a Wilma-authenticated legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/link-legacy` | POST with Supabase bearer token | `lib/wilma/authBroker.ts` | Links a pending Wilma attempt to an already signed-in legacy Supabase account [@auth-broker]. |
@@ -97,8 +100,11 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `fetchWilmaRoomSchedule` | `query RoomSchedule($roomId: Int!, $date: String)` | `roomId`, optional `date` | Room profile and lessons with groups and teachers [@graphql-client]. |
 | `fetchSelectedCourses` | anonymous `{ selectedCourses { ... } }` query | none | Selected course group code, period, bar, and tray rows [@graphql-client]. |
 | `fetchCourseTrays` | anonymous `{ courseTrays { ... } }` query | none | Course tray id, category, name, status, and closed flag [@graphql-client]. |
+| `fetchCourseTray` | `query CourseTray($id: String!)` | `id` | One tray with bars and courses, including course code, name, teacher, selected, locked, full, completed, and grade fields [@graphql-client]. |
 
 Every active GraphQL helper uses the same timeout-aware POST path through the client. The request mechanics and retry behavior are described in [Wilma GraphQL client and reauth](../../architecture/wilma/graphql-client-and-reauth), and the Supabase exchange is described in [Wilma auth broker and account linking](../../architecture/wilma/auth-broker-and-account-linking).
+
+Production schema support can lag behind this client reference. The 2026-08-09 course-tray-detail implementation recorded app-side support for `fetchCourseTray` and a sibling backend branch, while production `api.otamaps.fi` still lacked the `courseTray` field until that backend branch is deployed [@course-tray-rollout].
 
 ## Direct REST Leftovers
 
