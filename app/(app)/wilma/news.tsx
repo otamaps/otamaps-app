@@ -22,10 +22,10 @@ export default function WilmaNewsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
-      setItems(await fetchNews());
+      setItems(await fetchNews({ forceRefresh: refresh }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Tiedotteiden lataaminen epäonnistui.");
     } finally {
@@ -70,14 +70,22 @@ export default function WilmaNewsScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                void load();
+                void load(true);
               }}
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
           }
           ListEmptyComponent={<Text style={[styles.emptyText, isDark && styles.textMuted]}>Ei tiedotteita.</Text>}
           renderItem={({ item }) => (
-            <View style={[styles.card, isDark && styles.cardDark]}>
+            <Pressable
+              style={[styles.card, isDark && styles.cardDark]}
+              onPress={() =>
+                router.push({
+                  pathname: "/wilma/news-item" as never,
+                  params: { id: String(item.id), title: item.title },
+                })
+              }
+            >
               <View style={styles.metaRow}>
                 <Text style={[styles.date, isDark && styles.textMuted]}>{item.date}</Text>
                 {item.isPermanent ? (
@@ -94,7 +102,7 @@ export default function WilmaNewsScreen() {
               {!!item.teacherName && (
                 <Text style={[styles.author, isDark && styles.textMuted]}>{item.teacherName}</Text>
               )}
-            </View>
+            </Pressable>
           )}
         />
       )}

@@ -31,7 +31,7 @@ export default function TeachersScreen() {
     if (!refresh) setLoading(true);
     setError(null);
     try {
-      setRecipients(await fetchMessageRecipients());
+      setRecipients(await fetchMessageRecipients({ forceRefresh: refresh }));
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Vastaanottajien lataus epäonnistui");
     } finally {

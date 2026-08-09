@@ -22,10 +22,10 @@ export default function WilmaPastExamsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
-      setItems(await fetchPastExams());
+      setItems(await fetchPastExams({ forceRefresh: refresh }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Arvosanojen lataaminen epäonnistui.");
     } finally {
@@ -73,7 +73,7 @@ export default function WilmaPastExamsScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                void load();
+                void load(true);
               }}
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
