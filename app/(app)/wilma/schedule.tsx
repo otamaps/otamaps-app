@@ -93,10 +93,14 @@ function cacheKey(year: number, month: number) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-async function fetchMonthCached(year: number, month: number): Promise<ScheduleData> {
+async function fetchMonthCached(
+  year: number,
+  month: number,
+  forceRefresh = false
+): Promise<ScheduleData> {
   const key = cacheKey(year, month);
-  if (_cache[key]) return _cache[key];
-  const data = await fetchSchedule(`1.${month}.${year}`);
+  if (_cache[key] && !forceRefresh) return _cache[key];
+  const data = await fetchSchedule(`1.${month}.${year}`, { forceRefresh });
   _cache[key] = data;
   return data;
 }
@@ -254,11 +258,11 @@ export default function ScheduleScreen() {
       try {
         let combined: ScheduleData;
         if (sameMonth) {
-          combined = await fetchMonthCached(monYear, monMonth);
+          combined = await fetchMonthCached(monYear, monMonth, isRefresh);
         } else {
           const [a, b] = await Promise.all([
-            fetchMonthCached(monYear, monMonth),
-            fetchMonthCached(sunYear, sunMonth),
+            fetchMonthCached(monYear, monMonth, isRefresh),
+            fetchMonthCached(sunYear, sunMonth, isRefresh),
           ]);
           combined = mergeScheduleData(a, b);
         }

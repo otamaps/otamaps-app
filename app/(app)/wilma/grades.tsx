@@ -31,12 +31,12 @@ export default function WilmaGradesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError(null);
     try {
       const [nextGradebook, nextMatriculation] = await Promise.all([
-        fetchGradebook(),
-        fetchMatriculationResults(),
+        fetchGradebook({ forceRefresh: refresh }),
+        fetchMatriculationResults({ forceRefresh: refresh }),
       ]);
       setGradebook(nextGradebook);
       setMatriculation(nextMatriculation);
@@ -95,7 +95,7 @@ export default function WilmaGradesScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#4A89EE" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#4A89EE" />}
         >
           {tab === "COURSES" ? (
             <>

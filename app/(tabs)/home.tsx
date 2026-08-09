@@ -325,10 +325,10 @@ function Dashboard({
 
       try {
         const [profile, scheduleData, msgs, att] = await Promise.all([
-          fetchMe(),
-          fetchSchedule(),
-          fetchMessages(),
-          fetchAttendance(0),
+          fetchMe({ forceRefresh: isRefresh }),
+          fetchSchedule(undefined, { forceRefresh: isRefresh }),
+          fetchMessages("INBOX", { forceRefresh: isRefresh }),
+          fetchAttendance(0, { forceRefresh: isRefresh }),
         ]);
 
         const today = todayISO();
