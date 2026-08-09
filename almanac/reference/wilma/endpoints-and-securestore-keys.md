@@ -56,7 +56,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 
 | Path | Method | Owner | Purpose |
 | --- | --- | --- | --- |
-| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, messages, message detail, recipients, compose, reply, attendance, news, and past-exam GraphQL requests [@graphql-client]. |
+| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, coursework, messages, message detail, recipients, compose, reply, attendance, news, news-detail, past-exam, gradebook, matriculation, room, room-schedule, selected-course, and course-tray GraphQL requests [@graphql-client]. |
 | `/v1/auth/wilma/start` | POST | `lib/wilma/authBroker.ts` | Starts Wilma credential verification and returns either a Supabase session exchange or a legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/create` | POST | `lib/wilma/authBroker.ts` | Creates a new OtaMaps account from a Wilma-authenticated legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/link-legacy` | POST with Supabase bearer token | `lib/wilma/authBroker.ts` | Links a pending Wilma attempt to an already signed-in legacy Supabase account [@auth-broker]. |
@@ -81,6 +81,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `logoutMutation` | `mutation { logout }` | none | Boolean logout response, ignored by local cleanup [@graphql-client]. |
 | `fetchMe` | `{ me { studentId role baseUrl firstName lastName displayName studentClass } }` | none | Student profile used for greeting and guidance group/class display [@graphql-client] [@home-route]. |
 | `fetchSchedule` | `query Schedule($date: String)` | optional `date` | Lessons under `schedule.schedule` and exams under `schedule.exams` [@graphql-client]. |
+| `fetchCoursework` | `query Coursework($date: String)` | optional `date` | Courses with teachers, homework, diary entries, and course exams under `schedule.courses` [@graphql-client]. |
 | `fetchMessages` | anonymous `{ messages { messages { ... } } }` query | none | Inbox message rows with sender, event, reply, and applying fields [@graphql-client]. |
 | `fetchMessage` | `query Message($id: Int!)` | `id` | Message id, subject, and HTML body [@graphql-client]. |
 | `fetchMessageRecipients` | anonymous `{ messageRecipients { ... } }` query | none | Recipient rows with id, school id, name, code, category, and own-teacher flag [@graphql-client]. |
@@ -88,7 +89,14 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `replyToWilmaMessage` | `mutation ReplyMessage($messageId: Int!, $body: String!)` | `messageId`, `body` | Boolean reply confirmation [@graphql-client]. |
 | `fetchAttendance` | `query Attendance($range: Int)` | optional `range` | Attendance entries with date, course, teacher, type, and excused fields [@graphql-client]. |
 | `fetchNews` | anonymous `{ news { ... } }` query | none | School news rows with date, excerpt, teacher metadata, and permanence [@graphql-client]. |
+| `fetchNewsItem` | `query NewsItem($id: Int!)` | `id` | News item id, title, and HTML body [@graphql-client]. |
 | `fetchPastExams` | anonymous `{ pastExams { ... } }` query | none | Last-year exam or grade rows with teacher, grade, details, and written assessment [@graphql-client]. |
+| `fetchGradebook` | anonymous `{ gradebook { ... } }` query | none | Summary rows plus subject and course grade rows with credits, completion date, and teacher [@graphql-client]. |
+| `fetchMatriculationResults` | anonymous `{ matriculationResults { ... } }` query | none | Matriculation rows with subject, completion date, compulsory flag, grade, rejected reason, and points [@graphql-client]. |
+| `fetchWilmaRooms` | anonymous `{ rooms { id code name } }` query | none | Wilma room profiles, separate from the Supabase campus-map room table [@graphql-client]. |
+| `fetchWilmaRoomSchedule` | `query RoomSchedule($roomId: Int!, $date: String)` | `roomId`, optional `date` | Room profile and lessons with groups and teachers [@graphql-client]. |
+| `fetchSelectedCourses` | anonymous `{ selectedCourses { ... } }` query | none | Selected course group code, period, bar, and tray rows [@graphql-client]. |
+| `fetchCourseTrays` | anonymous `{ courseTrays { ... } }` query | none | Course tray id, category, name, status, and closed flag [@graphql-client]. |
 
 Every active GraphQL helper uses the same timeout-aware POST path through the client. The request mechanics and retry behavior are described in [Wilma GraphQL client and reauth](../../architecture/wilma/graphql-client-and-reauth), and the Supabase exchange is described in [Wilma auth broker and account linking](../../architecture/wilma/auth-broker-and-account-linking).
 

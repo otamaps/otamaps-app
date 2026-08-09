@@ -1,6 +1,6 @@
 ---
 title: "Wilma GraphQL Client And Reauth"
-summary: "The Wilma GraphQL client centralizes the OtaMaps API GraphQL endpoint, SecureStore session state, timeout handling, single-flight reauthentication, and typed data and message actions used by Wilma screens."
+summary: "The Wilma GraphQL client centralizes the OtaMaps API GraphQL endpoint, SecureStore session state, scoped AsyncStorage read caches, timeout handling, single-flight reauthentication, and typed data and message actions used by Wilma screens."
 topics: [architecture, wilma, integrations]
 sources:
   - id: graphql-client
@@ -18,6 +18,9 @@ sources:
   - id: schedule-route
     type: file
     path: app/(app)/wilma/schedule.tsx
+  - id: coursework-route
+    type: file
+    path: app/(app)/wilma/coursework.tsx
   - id: teachers-route
     type: file
     path: app/(app)/wilma/teachers.tsx
@@ -30,9 +33,24 @@ sources:
   - id: news-route
     type: file
     path: app/(app)/wilma/news.tsx
+  - id: news-item-route
+    type: file
+    path: app/(app)/wilma/news-item.tsx
   - id: past-exams-route
     type: file
     path: app/(app)/wilma/past-exams.tsx
+  - id: grades-route
+    type: file
+    path: app/(app)/wilma/grades.tsx
+  - id: rooms-route
+    type: file
+    path: app/(app)/wilma/rooms.tsx
+  - id: room-schedule-route
+    type: file
+    path: app/(app)/wilma/room-schedule.tsx
+  - id: course-selections-route
+    type: file
+    path: app/(app)/wilma/course-selections.tsx
   - id: env-example
     type: file
     path: .env.example
@@ -40,13 +58,21 @@ sources:
 
 # Wilma GraphQL Client And Reauth
 
-The Wilma GraphQL client is the active network and session boundary for the OtaMaps [Wilma](../../concepts/integrations/wilma) integration. `lib/wilma/graphqlClient.ts` builds its GraphQL URL from `EXPO_PUBLIC_OTAMAPS_API_URL` with an `https://api.otamaps.fi` default, stores the session token and saved credentials in Expo SecureStore, attaches `X-Wilma-Session` to authenticated requests, retries one time after an authentication error, and exposes typed helpers for login, logout, profile, schedule, messages, message detail, recipients, compose, reply, attendance, news, and past exams [@graphql-client]. The home, schedule, message list, message detail, teacher directory, compose, reply, news, and past-exam routes call those helpers instead of owning GraphQL transport themselves [@home-route] [@schedule-route] [@messages-route] [@message-route] [@teachers-route] [@compose-route] [@reply-route] [@news-route] [@past-exams-route].
+The Wilma GraphQL client is the active network and session boundary for the OtaMaps [Wilma](../../concepts/integrations/wilma) integration. `lib/wilma/graphqlClient.ts` builds its GraphQL URL from `EXPO_PUBLIC_OTAMAPS_API_URL` with an `https://api.otamaps.fi` default, stores the session token and saved credentials in Expo SecureStore, attaches `X-Wilma-Session` to authenticated requests, retries one time after an authentication error, caches read responses under a username-scoped AsyncStorage prefix, and exposes typed helpers for login, logout, profile, schedule, coursework, messages, message detail, recipients, compose, reply, attendance, news, news detail, past exams, gradebook, matriculation results, Wilma rooms, room schedules, selected courses, and course trays [@graphql-client]. The home, schedule, coursework, message list, message detail, teacher directory, compose, reply, news, news-detail, past-exam, grades, rooms, room-schedule, and course-selection routes call those helpers instead of owning GraphQL transport themselves [@home-route] [@schedule-route] [@coursework-route] [@messages-route] [@message-route] [@teachers-route] [@compose-route] [@reply-route] [@news-route] [@news-item-route] [@past-exams-route] [@grades-route] [@rooms-route] [@room-schedule-route] [@course-selections-route].
 
 ## Client Boundary
 
 `gqlFetch` is the core fetcher. It builds a JSON GraphQL POST body, reads the stored session token, adds `X-Wilma-Session` when the token exists, sends the request through `fetchWithTimeout`, parses the JSON response, and returns `json.data` as the caller's typed result [@graphql-client]. Errors are normalized at the same layer: GraphQL errors become thrown JavaScript errors, and `UNAUTHENTICATED`, HTTP `401`, and HTTP `403` trigger the reauthentication path when the request is not already a retry [@graphql-client].
 
 The timeout wrapper is intentionally shared by login and data requests. `fetchWithTimeout` aborts requests after ten seconds by default and throws a Finnish timeout message for `AbortError`; `_doReauth` passes a twelve-second timeout because the login operation is expected to do more HTTP work behind the GraphQL server [@graphql-client]. `.env.example` describes `EXPO_PUBLIC_OTAMAPS_API_URL` as the API host for both GraphQL and the Wilma-to-Supabase auth exchange, so endpoint changes affect this client and the [Wilma auth broker and account linking](auth-broker-and-account-linking) flow together [@env-example].
+
+## Read Cache
+
+Read helpers use `cachedGqlFetch` rather than calling `gqlFetch` directly. The cache scope is a SHA-256 digest of the API base URL and the saved Wilma username, so cached school data is separated by backend origin and credential identity [@graphql-client]. Cache entries are stored in memory and in AsyncStorage under `wilma_read_cache_v1:<scope>:<cacheKey>`, wrapped as `{ version: 1, storedAt, data }` envelopes [@graphql-client]. Missing credentials bypass the cache because there is no scope [@graphql-client].
+
+The cache is stale-while-revalidate for reads. If a cached entry exists and the caller did not request `forceRefresh`, the client returns it immediately; expired entries also start a background refresh, and failed refreshes fall back to cached data unless the error is a Wilma authentication error [@graphql-client]. Write helpers invalidate related read keys: `sendWilmaMessage` clears cached message lists and message details, while `replyToWilmaMessage` clears message lists plus the replied message detail [@graphql-client].
+
+TTL values are per data family. Profile lasts six hours, schedule and coursework last fifteen minutes, message lists last two minutes, message and news detail last twenty-four hours, recipients and rooms last twenty-four hours, attendance lasts ten minutes, news lasts fifteen minutes, grade and matriculation data lasts one hour, room schedules last fifteen minutes, and course-selection data lasts thirty minutes [@graphql-client]. `clearAll()` removes the session, credentials, and all cache entries for the current scope, which makes full Wilma logout stronger than just deleting the SecureStore token [@graphql-client].
 
 ## Session And Reauthentication Flow
 
@@ -60,7 +86,7 @@ The home route adds a startup rule on top of the client. On mount, it uses an ex
 
 The data helpers define the active Wilma data model for screens. `fetchMe` returns student id, role, base URL, first name, last name, display name, and guidance group or class [@graphql-client]. The home dashboard calls it with schedule, messages, and attendance, then uses the first name for the greeting and `studentClass` for the `Ryhmä` line [@home-route].
 
-`fetchSchedule` runs `query Schedule($date: String)` and returns lessons plus exams, including reservation ids, weekday numbers, start/end times, lesson groups, teachers, rooms, exam ids, exam dates, exam times, and teachers [@graphql-client]. The schedule route builds on this by fetching month data with `fetchSchedule("1.<month>.<year>")`, caching each month in module memory, and merging two months when the visible week crosses a month boundary [@schedule-route].
+`fetchSchedule` runs `query Schedule($date: String)` and returns lessons plus exams, including reservation ids, weekday numbers, start/end times, lesson groups, teachers, rooms, exam ids, exam dates, exam times, and teachers [@graphql-client]. The schedule route builds on this by fetching month data with `fetchSchedule("1.<month>.<year>")`, caching each month in module memory, and merging two months when the visible week crosses a month boundary [@schedule-route]. `fetchCoursework` uses the same `schedule(date:)` query family to return course metadata, teachers, homework, diary entries, and exams; the coursework route flattens those nested rows into dated schoolwork items [@graphql-client] [@coursework-route].
 
 `fetchMessages` requests inbox message rows with ids, subjects, timestamps, folders, senders, event flags, reply counts, and applying status [@graphql-client]. The message list route calls it on load and refresh, while the home dashboard slices the result to the latest five messages [@messages-route] [@home-route]. `fetchMessage` runs `query Message($id: Int!)` for a selected message's id, subject, and HTML body, and the detail route renders that HTML in a WebView [@graphql-client] [@message-route].
 
@@ -68,7 +94,9 @@ The data helpers define the active Wilma data model for screens. `fetchMe` retur
 
 `replyToWilmaMessage` runs the reply mutation with message id and body, and the message detail screen routes to `/wilma/reply` with the selected message id, subject, and sender [@graphql-client] [@message-route] [@reply-route]. `fetchAttendance` runs `query Attendance($range: Int)` and returns attendance entries with date, course, status, teacher, teacher code, type code, and excused status [@graphql-client]. The home dashboard calls `fetchAttendance(0)`, sorts recent entries by converted Finnish dates, and labels the section `Merkinnät (4 vko)` [@home-route].
 
-`fetchNews` returns school news with title, date, excerpt, teacher metadata, and permanence, while `fetchPastExams` returns the last-year exam and grade rows shown by the news and past-exams routes [@graphql-client] [@news-route] [@past-exams-route].
+`fetchNews` returns school news with title, date, excerpt, teacher metadata, and permanence, while `fetchNewsItem` returns the selected news item's HTML body for the detail route [@graphql-client] [@news-route] [@news-item-route]. `fetchPastExams` returns the last-year exam and grade rows shown by the past-exams route; `fetchGradebook` and `fetchMatriculationResults` feed the grades route with subject/course grades, credit summaries, and matriculation rows [@graphql-client] [@past-exams-route] [@grades-route].
+
+`fetchWilmaRooms` and `fetchWilmaRoomSchedule` are separate from the app's Supabase-backed campus map room data. They expose Wilma room profiles and room lesson schedules for the Wilma room screens, while the map's room model remains documented under [campus map model](../../concepts/map/campus-map-model) [@graphql-client] [@rooms-route] [@room-schedule-route]. `fetchSelectedCourses` and `fetchCourseTrays` feed the course-selection route with selected group codes, periods, bars, trays, and tray availability metadata [@graphql-client] [@course-selections-route].
 
 ## Change Constraints
 

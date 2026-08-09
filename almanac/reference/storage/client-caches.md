@@ -52,7 +52,7 @@ sources:
 
 # Client Caches
 
-Client caches in OtaMaps are local device stores spread across AsyncStorage and SecureStore. They cover the app's custom user cache, onboarding and privacy preferences, Supabase-backed map data, BLE tracking snapshots and beacon lookups, friend list results, feature flags, FabLab tab opt-in, BLE background consent, and Wilma credentials or response data [@user-handle] [@user-preferences] [@room-service] [@ble-runtime] [@ble-location] [@friends-handler] [@wilma-graphql]. This reference lists the exact keys visible in the assigned source files and links those keys back to the architecture pages that use them.
+Client caches in OtaMaps are local device stores spread across AsyncStorage and SecureStore. They cover the app's custom user cache, onboarding and privacy preferences, Supabase-backed map data, BLE tracking snapshots and beacon lookups, friend list results, feature flags, FabLab tab opt-in, BLE background consent, Wilma read-through response caches, and Wilma credentials or response data [@user-handle] [@user-preferences] [@room-service] [@ble-runtime] [@ble-location] [@friends-handler] [@wilma-graphql]. This reference lists the exact keys visible in the assigned source files and links those keys back to the architecture pages that use them.
 
 ## AsyncStorage Keys
 
@@ -71,6 +71,7 @@ Client caches in OtaMaps are local device stores spread across AsyncStorage and 
 | `cached_friends` | `lib/friendsHandler.ts` | JSON array of friend records joined with location/status data | Returned by `getFriends()` unless a force refresh is requested; no TTL is enforced in this helper [@friends-handler]. |
 | `@feature_flags` | `lib/featureFlagService.ts` | JSON array of enabled feature flag records | Replaced when `fetchAndStoreFeatureFlags()` fetches all flags from Supabase and stores only enabled ones [@feature-flags]. |
 | `fablabEnabled` | `app/(app)/me/fablab.tsx` | String `"true"` or `"false"` for local FabLab tab opt-in | Read on focus and written when the FabLab settings switch changes [@fablab-settings]. |
+| `wilma_read_cache_v1:<scope>:<cacheKey>` | `lib/wilma/graphqlClient.ts` | JSON `{ version: 1, storedAt, data }` envelope for cached Wilma GraphQL reads, scoped by a SHA-256 digest of API base URL and Wilma username | TTL depends on the helper: message lists are shortest at two minutes, profile/rooms/recipients and detail reads are longest at hours; `forceRefresh` bypasses cache-first behavior, auth errors do not fall back to cached data, message send/reply invalidates message keys, and `clearAll()` removes entries for the current scope [@wilma-graphql]. |
 The `user` keys belong to [session and identity](../../architecture/auth/session-and-identity), and the `user_preferences_v1:<user_id>` key belongs to [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences). The room and feature keys belong to [room feature data](../../architecture/map/room-feature-data), while the BLE keys belong to [BLE background location](../../architecture/location/ble-background-location). `useBLEScanner` no longer owns AsyncStorage cache keys directly; it reads the shared runtime snapshot instead [@ble-scanner] [@ble-runtime].
 
 ## SecureStore Keys
@@ -95,3 +96,5 @@ The user cache is cleared only through `clearUserCache()`, which removes `user` 
 Room and feature stores each expose a clear method that removes the matching AsyncStorage key and empties in-memory Zustand state [@room-service]. Beacon coordinate/floor data has its own `clearBeaconsCache()` function, while runtime snapshot and pending-fix cleanup are owned by tracking stop, sign-out, upload success, and consent manager paths rather than by the scanner hook [@ble-location] [@ble-runtime] [@ble-background-manager].
 
 [Feature flags](../../architecture/runtime/feature-flags) store only enabled flags locally. `getEnabledFeatureFlags()` returns an empty array when the key is absent or parsing fails, and `isFeatureEnabled()` returns false on lookup errors [@feature-flags]. This makes missing local feature-flag cache fail closed from the caller's perspective.
+
+Wilma GraphQL read caches are scoped to the saved Wilma credentials rather than the Supabase user id. `saveCredentials()` computes the cache scope from the API base URL and username, while `clearAll()` removes the session, credentials, and cache entries for the current scope [@wilma-graphql]. The detailed helper-level cache behavior is in [Wilma GraphQL client and reauth](../../architecture/wilma/graphql-client-and-reauth).
