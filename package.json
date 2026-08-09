@@ -31,6 +31,7 @@
     "@types/lodash": "^4.17.19",
     "algoliasearch": "^5.29.0",
     "buffer": "^6.0.3",
+    "eas-cli": "^21.7.0",
     "expo": "^57.0.0",
     "expo-blur": "~57.0.2",
     "expo-clipboard": "~57.0.1",

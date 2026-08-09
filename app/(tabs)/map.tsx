@@ -170,10 +170,13 @@ function collectGeometryCoordinates(
 
 function getRoomNumberMaxTextSize(
   geometry: Polygon | MultiPolygon,
-  roomNumber: string
+  roomNumber: unknown
 ): number {
   const coordinates = collectGeometryCoordinates(geometry.coordinates);
   if (coordinates.length < 3) return MAX_ROOM_LABEL_TEXT_SIZE;
+
+  const normalizedRoomNumber =
+    roomNumber == null ? "" : String(roomNumber).trim();
 
   const longitudes = coordinates.map(([longitude]) => longitude);
   const latitudes = coordinates.map(([, latitude]) => latitude);
@@ -191,7 +194,7 @@ function getRoomNumberMaxTextSize(
     2 ** ROOM_LABEL_REFERENCE_ZOOM;
   const widthPixels = widthMeters / metersPerPixel;
   const heightPixels = heightMeters / metersPerPixel;
-  const characterCount = Math.max(Array.from(roomNumber).length, 1);
+  const characterCount = Math.max(Array.from(normalizedRoomNumber).length, 1);
 
   // Keep a little padding inside each room and account for average glyph width.
   const widthLimitedSize = (widthPixels * 0.82) / (characterCount * 0.62);
@@ -730,8 +733,8 @@ export default function HomeScreen() {
   }, [roomsWithGeometry, selectedFloor]);
 
   // Helper function to determine WC type from room name
-  const getWCType = (roomName: string): "wc" | "men" | "women" | null => {
-    const name = roomName.toLowerCase();
+  const getWCType = (roomName: unknown): "wc" | "men" | "women" | null => {
+    const name = roomName == null ? "" : String(roomName).toLowerCase();
     if (name.includes("wc")) {
       if (name.includes("miehet")) return "men";
       if (name.includes("naiset")) return "women";
@@ -749,19 +752,22 @@ export default function HomeScreen() {
         parseInt(roomColor.slice(5, 7), 16),
       ];
 
-      const isWC = getWCType(room.title || room.room_number) !== null;
+      const roomNumber =
+        room.room_number == null ? "" : String(room.room_number).trim();
+      const roomTitle = room.title == null ? "" : String(room.title).trim();
+      const isWC = getWCType(roomTitle || roomNumber) !== null;
 
       return {
         type: "Feature",
         geometry: room.geometry,
         properties: {
           id: room.id,
-          roomNumber: room.room_number,
+          roomNumber,
           roomNumberMaxTextSize: getRoomNumberMaxTextSize(
             room.geometry,
-            room.room_number
+            roomNumber
           ),
-          title: room.title || "Untitled Room",
+          title: roomTitle || "Untitled Room",
           isSelected: selectedRoomId === room.id,
           color: roomColor,
           isWC: isWC,
