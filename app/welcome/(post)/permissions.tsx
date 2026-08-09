@@ -47,6 +47,14 @@ const STEPS = ["Profiili", "Tietosuoja", "Sisäpaikannus", "Taustakäyttö", "Il
 
 type PermissionState = "idle" | "loading" | "granted" | "denied";
 
+type SaveStage = "profile" | "preferences";
+
+const SAVE_STAGE_MESSAGES: Record<SaveStage, string> = {
+  profile: "Profiilitietoja ei voitu tallentaa. Yritä hetken kuluttua uudelleen.",
+  preferences:
+    "Tietosuoja-asetuksia ei voitu tallentaa. Yritä hetken kuluttua uudelleen.",
+};
+
 export default function PermissionsScreen() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -156,8 +164,10 @@ export default function PermissionsScreen() {
 
   const finishOnboarding = async () => {
     setSaving(true);
+    let saveStage: SaveStage = "profile";
     try {
       await saveProfile();
+      saveStage = "preferences";
       let saved = await saveOnboardingChoices({
         friend_location_enabled: friendLocation,
         anonymous_analytics_enabled: anonymousAnalytics,
@@ -196,9 +206,12 @@ export default function PermissionsScreen() {
 
       if (saved.onboarding_version > 0) router.replace("/home");
     } catch (error) {
+      console.error(`[onboarding] ${saveStage} save failed`, error);
       Alert.alert(
         "Tietoja ei voitu tallentaa",
-        error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen."
+        error instanceof Error && error.message
+          ? error.message
+          : SAVE_STAGE_MESSAGES[saveStage]
       );
     } finally {
       setSaving(false);

@@ -145,6 +145,68 @@ const emptyGeoJSON: GeoJSON.FeatureCollection = {
   features: [],
 };
 
+const ROOM_LABEL_REFERENCE_ZOOM = 21;
+const MAX_ROOM_LABEL_TEXT_SIZE = 18;
+const MIN_ROOM_LABEL_TEXT_SIZE = 1;
+
+function collectGeometryCoordinates(
+  value: unknown,
+  coordinates: [number, number][] = []
+): [number, number][] {
+  if (!Array.isArray(value)) return coordinates;
+
+  if (
+    value.length >= 2 &&
+    typeof value[0] === "number" &&
+    typeof value[1] === "number"
+  ) {
+    coordinates.push([value[0], value[1]]);
+    return coordinates;
+  }
+
+  value.forEach((child) => collectGeometryCoordinates(child, coordinates));
+  return coordinates;
+}
+
+function getRoomNumberMaxTextSize(
+  geometry: Polygon | MultiPolygon,
+  roomNumber: string
+): number {
+  const coordinates = collectGeometryCoordinates(geometry.coordinates);
+  if (coordinates.length < 3) return MAX_ROOM_LABEL_TEXT_SIZE;
+
+  const longitudes = coordinates.map(([longitude]) => longitude);
+  const latitudes = coordinates.map(([, latitude]) => latitude);
+  const averageLatitude =
+    latitudes.reduce((sum, latitude) => sum + latitude, 0) / latitudes.length;
+  const latitudeRadians = (averageLatitude * Math.PI) / 180;
+  const widthMeters =
+    (Math.max(...longitudes) - Math.min(...longitudes)) *
+    111_320 *
+    Math.cos(latitudeRadians);
+  const heightMeters =
+    (Math.max(...latitudes) - Math.min(...latitudes)) * 110_574;
+  const metersPerPixel =
+    (156_543.03392 * Math.cos(latitudeRadians)) /
+    2 ** ROOM_LABEL_REFERENCE_ZOOM;
+  const widthPixels = widthMeters / metersPerPixel;
+  const heightPixels = heightMeters / metersPerPixel;
+  const characterCount = Math.max(Array.from(roomNumber).length, 1);
+
+  // Keep a little padding inside each room and account for average glyph width.
+  const widthLimitedSize = (widthPixels * 0.82) / (characterCount * 0.62);
+  const heightLimitedSize = heightPixels * 0.68;
+
+  return Math.max(
+    MIN_ROOM_LABEL_TEXT_SIZE,
+    Math.min(
+      MAX_ROOM_LABEL_TEXT_SIZE,
+      widthLimitedSize,
+      heightLimitedSize
+    )
+  );
+}
+
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
@@ -695,6 +757,10 @@ export default function HomeScreen() {
         properties: {
           id: room.id,
           roomNumber: room.room_number,
+          roomNumberMaxTextSize: getRoomNumberMaxTextSize(
+            room.geometry,
+            room.room_number
+          ),
           title: room.title || "Untitled Room",
           isSelected: selectedRoomId === room.id,
           color: roomColor,
@@ -1044,6 +1110,13 @@ export default function HomeScreen() {
             zoomEnabled={true}
             scrollEnabled={true}
             rotateEnabled={true}
+            requestDisallowInterceptTouchEvent={true}
+            gestureSettings={{
+              doubleTouchToZoomOutEnabled: true,
+              pinchPanEnabled: true,
+              pinchZoomEnabled: true,
+              simultaneousRotateAndPinchZoomEnabled: true,
+            }}
           >
             {/* Map image assets */}
             <Images
@@ -1055,11 +1128,11 @@ export default function HomeScreen() {
               animationDuration={cameraConfig.animationDuration}
               pitch={5}
               maxBounds={{
-                ne: [24.837734917168515, 60.193210548540286],
-                sw: [24.797450838759808, 60.1724484493661],
+                ne: [24.858, 60.205],
+                sw: [24.777, 60.161],
               }}
               heading={180}
-              minZoomLevel={14}
+              minZoomLevel={13.5}
               maxZoomLevel={21}
               allowUpdates={true}
               followUserLocation={false}
@@ -1073,18 +1146,28 @@ export default function HomeScreen() {
               >
                 <SymbolLayer
                   id="room-numbers"
-                  minZoomLevel={18.5}
                   style={{
                     textField: ["get", "roomNumber"],
-                    textSize: 18,
+                    textSize: [
+                      "max",
+                      MIN_ROOM_LABEL_TEXT_SIZE,
+                      [
+                        "interpolate",
+                        ["exponential", 2],
+                        ["zoom"],
+                        13.5,
+                        ["*", ["get", "roomNumberMaxTextSize"], 0.005524],
+                        ROOM_LABEL_REFERENCE_ZOOM,
+                        ["get", "roomNumberMaxTextSize"],
+                      ],
+                    ],
                     textAnchor: "center",
-                    textAllowOverlap: false,
-                    textIgnorePlacement: false,
+                    textAllowOverlap: true,
+                    textIgnorePlacement: true,
                     textOpacity: 0.9,
                     textColor: isDark ? "#ffffffff" : "#424853ff",
-                    textHaloColor: "white",
-                    textHaloWidth: 0,
-                    textTranslate: [0, -10],
+                    textHaloColor: isDark ? "#20242A" : "#FFFFFF",
+                    textHaloWidth: 0.75,
                   }}
                 />
                 <SymbolLayer
@@ -1404,46 +1487,6 @@ export default function HomeScreen() {
           <View style={styles.mapControls} pointerEvents="box-none">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Näytä Ruokalinjaston vilkkaus kartalla"
-              disabled={!queueStatus}
-              onPress={focusQueueArea}
-              style={({ pressed }) => [
-                styles.queuePill,
-                { backgroundColor: isDark ? "#252525F2" : "#FFFFFFF2" },
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <View
-                style={[
-                  styles.queuePillDot,
-                  {
-                    backgroundColor: getQueueColor(
-                      queueStatus?.status_level ?? null
-                    ),
-                  },
-                ]}
-              />
-              <View style={styles.queuePillTextContainer}>
-                <Text
-                  style={[styles.queuePillTitle, isDark && { color: "#FFF" }]}
-                >
-                  Ruokalinjasto
-                </Text>
-                <Text
-                  style={[
-                    styles.queuePillSubtitle,
-                    isDark && { color: "#BFC5CE" },
-                  ]}
-                >
-                  Vilkkaus · {queueStatus
-                    ? getQueueLabel(queueStatus.status_level)
-                    : "Ladataan…"}
-                </Text>
-              </View>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
               accessibilityLabel="Keskitä kartta omaan sijaintiin"
               disabled={!localUserLocation?.coordinates}
               onPress={recenterOnUser}
@@ -1691,70 +1734,104 @@ export default function HomeScreen() {
                 {selectedTab === "people" && (
                   <BottomSheetFlatList
                     ListHeaderComponent={
-                      <View
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingTop: 4,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <TextInput
-                          placeholder="Hae kavereita..."
-                          value={searchQuery}
-                          onChangeText={setSearchQuery}
-                          placeholderTextColor={isDark ? "#B5B5B5" : "#a1a1a1"}
-                          onFocus={() => {
-                            mapBottomSheetRef.current?.snapToMax();
-                          }}
-                          style={{
-                            backgroundColor: isDark ? "#404040" : "#f5f5f5",
-                            borderRadius: 8,
-                            paddingHorizontal: 12,
-                            paddingVertical: 10,
-                            fontSize: 16,
-                            flex: 1,
-                            color: isDark ? "white" : "black",
-                          }}
-                        />
+                      <View style={styles.friendsListHeader}>
                         <Pressable
-                          onPress={() => router.push("/friends/add")}
-                          style={{
-                            marginLeft: 6,
-                            backgroundColor: isDark ? "#404040" : "#f5f5f5",
-                            padding: 8,
-                            borderRadius: 8,
+                          accessibilityRole="button"
+                          accessibilityLabel="Näytä Ruokalinjaston vilkkaus kartalla"
+                          disabled={!queueStatus}
+                          onPress={() => {
+                            focusQueueArea();
+                            mapBottomSheetRef.current?.snapToMin();
                           }}
+                          style={({ pressed }) => [
+                            styles.queueListCard,
+                            {
+                              backgroundColor: isDark ? "#303030" : "#F5F7FA",
+                              borderColor: isDark ? "#444A52" : "#E1E6ED",
+                            },
+                            !queueStatus && styles.queueListCardDisabled,
+                            pressed && { opacity: 0.75 },
+                          ]}
                         >
-                          {requests.length > 0 && (
-                            <View
-                              style={{
-                                backgroundColor: "red",
-                                width: 15,
-                                height: 15,
-                                borderRadius: 20,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                display: "flex",
-                                flexDirection: "row",
-                                position: "absolute",
-                                top: -3,
-                                right: -3,
-                              }}
+                          <View
+                            style={[
+                              styles.queuePillDot,
+                              {
+                                backgroundColor: getQueueColor(
+                                  queueStatus?.status_level ?? null
+                                ),
+                              },
+                            ]}
+                          />
+                          <View style={styles.queuePillTextContainer}>
+                            <Text
+                              style={[
+                                styles.queuePillTitle,
+                                isDark && { color: "#FFF" },
+                              ]}
                             >
-                              <Text style={{ color: "white", fontSize: 12 }}>
-                                {requests.length}
-                              </Text>
-                            </View>
-                          )}
+                              Ruokalinjasto
+                            </Text>
+                            <Text
+                              style={[
+                                styles.queuePillSubtitle,
+                                isDark && { color: "#BFC5CE" },
+                              ]}
+                            >
+                              Vilkkaus · {queueStatus
+                                ? getQueueLabel(queueStatus.status_level)
+                                : "Ladataan…"}
+                            </Text>
+                          </View>
                           <MaterialIcons
-                            name="person-add"
+                            name="chevron-right"
                             size={22}
-                            color={isDark ? "#e5e5e5" : "#737373"}
+                            color={isDark ? "#BFC5CE" : "#68717D"}
                           />
                         </Pressable>
+
+                        <View style={styles.friendSearchRow}>
+                          <TextInput
+                            placeholder="Hae kavereita..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholderTextColor={
+                              isDark ? "#B5B5B5" : "#a1a1a1"
+                            }
+                            onFocus={() => {
+                              mapBottomSheetRef.current?.snapToMax();
+                            }}
+                            style={[
+                              styles.friendSearchInput,
+                              {
+                                backgroundColor: isDark ? "#404040" : "#f5f5f5",
+                                color: isDark ? "white" : "black",
+                              },
+                            ]}
+                          />
+                          <Pressable
+                            onPress={() => router.push("/friends/add")}
+                            style={[
+                              styles.addFriendIconButton,
+                              {
+                                backgroundColor: isDark ? "#404040" : "#f5f5f5",
+                              },
+                            ]}
+                          >
+                            {requests.length > 0 && (
+                              <View style={styles.friendRequestBadge}>
+                                <Text style={styles.friendRequestBadgeText}>
+                                  {requests.length}
+                                </Text>
+                              </View>
+                            )}
+                            <MaterialIcons
+                              name="person-add"
+                              size={22}
+                              color={isDark ? "#e5e5e5" : "#737373"}
+                            />
+                          </Pressable>
+                        </View>
                       </View>
                     }
                     data={filteredFriends}
@@ -1995,21 +2072,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 9,
   },
-  queuePill: {
-    minWidth: 190,
-    maxWidth: 230,
+  friendsListHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    marginBottom: 12,
+  },
+  queueListCard: {
+    width: "100%",
     minHeight: 54,
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 5,
-    elevation: 3,
+    borderWidth: 1,
+    marginBottom: 12,
   },
+  queueListCardDisabled: { opacity: 0.65 },
   queuePillDot: {
     width: 11,
     height: 11,
@@ -2027,6 +2106,37 @@ const styles = StyleSheet.create({
     color: "#68717D",
     fontSize: 12,
     fontFamily: "Figtree-Medium",
+  },
+  friendSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  friendSearchInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    flex: 1,
+  },
+  addFriendIconButton: {
+    marginLeft: 6,
+    padding: 8,
+    borderRadius: 8,
+  },
+  friendRequestBadge: {
+    backgroundColor: "red",
+    width: 15,
+    height: 15,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    top: -3,
+    right: -3,
+  },
+  friendRequestBadgeText: {
+    color: "white",
+    fontSize: 12,
   },
   recenterButton: {
     width: 44,

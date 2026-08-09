@@ -1,10 +1,13 @@
 {
   "build": {
     "development": {
-      "developmentClient": true,
+      "developmentClient": false,
       "distribution": "internal",
       "channel": "development",
       "environment": "development",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "587558103382-pq3t39bef7jsq7vvr8c1t044gaeqomgh.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "587558103382-esnjsvgl9is8co4ottb5i1p8rdj9drn7.apps.googleusercontent.com",
