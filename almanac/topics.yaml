@@ -151,6 +151,10 @@ topics:
     title: Runtime
     description: Client runtime state, caches, and app behavior controlled outside route files
     parents: [architecture]
+  - slug: observability
+    title: Observability
+    description: Sentry telemetry, handled-error reporting, sanitization, and source-map build wiring
+    parents: [runtime, mobile, integrations]
   - slug: feature-flags
     title: Feature Flags
     description: Supabase-backed flags, local enabled-flag cache, and gated UI behavior

@@ -1,7 +1,7 @@
 ---
 title: "Expo Router Shell"
-summary: "The Expo Router shell owns app-wide providers, font and splash readiness, root stacks, search, payment context, and BLE background lifecycle hooks."
-topics: [architecture, app-shell, routes, authentication, location, fablab]
+summary: "The Expo Router shell owns app-wide providers, font and splash readiness, root stacks, search, payment context, mobile observability, and BLE background lifecycle hooks."
+topics: [architecture, app-shell, routes, authentication, location, fablab, observability]
 sources:
   - id: package
     type: file
@@ -9,6 +9,9 @@ sources:
   - id: root-layout
     type: file
     path: app/_layout.tsx
+  - id: sentry-runtime
+    type: file
+    path: lib/sentry.ts
   - id: index-route
     type: file
     path: app/index.tsx
@@ -25,11 +28,13 @@ sources:
 
 # Expo Router Shell
 
-The Expo Router shell is the app-wide runtime boundary for OtaMaps. The package entrypoint is `expo-router/entry`, so files under `app/` define navigation rather than a manually assembled React Navigation tree [@package]. The root layout imports the BLE background task first, loads Figtree fonts before hiding the splash screen, mounts SumUp, user, gesture, stack, Algolia InstantSearch, and status-bar providers, and listens to Supabase auth events to start or stop BLE background location [@root-layout]. Route-specific code should be read against this shell because payment, search, auth-adjacent background services, and font readiness are established before individual screens render.
+The Expo Router shell is the app-wide runtime boundary for OtaMaps. The package entrypoint is `expo-router/entry`, so files under `app/` define navigation rather than a manually assembled React Navigation tree [@package]. The root layout imports the BLE background task first, initializes Sentry immediately after that native entrypoint, loads Figtree fonts before hiding the splash screen, mounts SumUp, user, gesture, stack, Algolia InstantSearch, and status-bar providers, and listens to Supabase auth events to start or stop BLE background location [@root-layout] [@sentry-runtime]. Route-specific code should be read against this shell because payment, search, mobile observability, auth-adjacent background services, and font readiness are established before individual screens render.
 
 ## Root Runtime Responsibilities
 
 `app/_layout.tsx` calls `SplashScreen.preventAutoHideAsync()` at module scope and returns `null` from the root navigation component until the custom Figtree font files are loaded [@root-layout]. When fonts finish loading, it hides the splash screen and renders the provider tree [@root-layout]. This makes font readiness a root concern instead of something each tab handles.
+
+The root layout also exports `Sentry.wrap(function RootLayout() { ... })`, so React errors at and below the root shell enter the shared [mobile observability](../runtime/mobile-observability) path [@root-layout]. Keep the BLE background task import before the Sentry import because Notifee foreground-service registration must stay the first native background entrypoint [@root-layout].
 
 The same file creates an Algolia lite client and wraps the app in `InstantSearch` with index name `rooms_rows` [@root-layout]. That is the app-wide search boundary used by map search flows, not a provider that belongs only to one search component. The root also wraps navigation with `SumUpProvider`, passing `process.env.EXPO_PUBLIC_SUMUP_API_KEY || ''` as the public key [@root-layout]. See [SumUp payment boundary](../fablab/sumup-payment-boundary) before changing this provider or the FabLab checkout surfaces.
 

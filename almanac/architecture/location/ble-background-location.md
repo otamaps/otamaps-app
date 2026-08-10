@@ -1,7 +1,7 @@
 ---
 title: "BLE Background Location"
 summary: "BLE background location keeps OtaMaps beacon scanning and live location uploads running through one process-wide tracking runtime used by foreground hooks, Android foreground service work, iOS restoration, settings, and diagnostics."
-topics: [architecture, location, ble, mobile]
+topics: [architecture, location, ble, mobile, observability]
 sources:
   - id: scanner
     type: file
@@ -33,6 +33,9 @@ sources:
   - id: background-task
     type: file
     path: lib/bleBackgroundTask.ts
+  - id: sentry-runtime
+    type: file
+    path: lib/sentry.ts
   - id: background-manager
     type: file
     path: lib/bleBackgroundManager.ts
@@ -88,7 +91,7 @@ Offline and failed uploads are latest-only. The runtime stores one pending fix u
 
 Background tracking consent is explicit and versioned. `BLE_BACKGROUND_CONSENT_KEY` is `ble_background_consent_v1`; `getBackgroundTrackingConsent()` hydrates it, `setBackgroundTrackingConsent()` writes `"true"` or `"false"`, and `startTrackingRuntime` blocks background modes with `consent_required` when it is absent or false [@runtime]. Settings initialize their background switch to false before reading `isBLEBackgroundEnabled()`, and the manager clears consent when background tracking is stopped or the user signs out [@background-manager].
 
-The runtime also persists `ble_tracking_snapshot_v1` for diagnostics and latest displayed state, while the location service persists the beacon catalog under `ble_beacon_catalog_v2` with a one-day timestamp [@runtime] [@location-service]. `BeaconCatalogCache` is single-flight for full refreshes and missing-id fetches, so multiple runtime callers can share one catalog refresh instead of issuing duplicate Supabase reads [@catalog-cache]. The exact cache keys are cataloged in [client caches](../../reference/storage/client-caches).
+The runtime also persists `ble_tracking_snapshot_v1` for diagnostics and latest displayed state, while the location service persists the beacon catalog under `ble_beacon_catalog_v2` with a one-day timestamp [@runtime] [@location-service]. Snapshot persistence, hydration, device-scan callback, foreground-service, iOS restoration, and non-routine upload failures are reported through the shared [mobile observability](../runtime/mobile-observability) helpers without changing the runtime's local retry and diagnostic state [@runtime] [@background-task] [@sentry-runtime]. `BeaconCatalogCache` is single-flight for full refreshes and missing-id fetches, so multiple runtime callers can share one catalog refresh instead of issuing duplicate Supabase reads [@catalog-cache]. The exact cache keys are cataloged in [client caches](../../reference/storage/client-caches).
 
 ## Operational Constraints
 
