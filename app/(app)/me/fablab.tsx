@@ -1,6 +1,7 @@
+import { FABLAB_VISIBLE } from "@/constants/features";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, Stack, useFocusEffect } from "expo-router";
+import { Redirect, router, Stack, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   Pressable,
@@ -60,6 +61,10 @@ const Fablab = () => {
 			loadValue();
 		}, [loadValue])
 	);
+
+	if (!FABLAB_VISIBLE) {
+		return <Redirect href="/(tabs)/me" />;
+	}
 
 	const onToggle = async (nextValue: boolean) => {
 		setIsSaving(true);
