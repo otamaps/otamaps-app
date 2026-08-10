@@ -4032,7 +4032,7 @@ create-require@^1.1.0:
   resolved "https://registry.yarnpkg.com/create-require/-/create-require-1.1.1.tgz#c1d7e8f1e5f6cfc9ff65f9cd352d37348756c333"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
 
-cross-fetch@^3.1.5, cross-fetch@^3.1.8:
+cross-fetch@^3.1.5:
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-3.2.0.tgz#34e9192f53bc757d6614304d9e5e6fb4edb782e3"
   integrity sha512-Q+xVJLoGOeIMXZmbUK4HYk+69cQH6LudR0Vu/pRm2YlU/hDV9CiS0gKUMaWY5f2NeUH9C1nV3bsTlCo0FsTV1Q==
@@ -4274,13 +4274,6 @@ domelementtype@^2.3.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/domelementtype/-/domelementtype-2.3.0.tgz#5c45e8e869952626331d7aab326d01daf65d589d"
   integrity sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==
-
-domexception@^4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/domexception/-/domexception-4.0.0.tgz#4ad1be56ccadc86fc76d033353999a8037d03673"
-  integrity sha512-A2is4PLG+eeSfoTMA95/s4pvAoSo2mKtiM5jlHkAVewmiO8ISFTFKZjH7UAM1Atli/OT/7JHOrJRJiMKUZKYBw==
-  dependencies:
-    webidl-conversions "^7.0.0"
 
 domhandler@^5.0.2, domhandler@^5.0.3:
   version "5.0.3"
@@ -6323,14 +6316,6 @@ jake@^10.8.5:
     filelist "^1.0.4"
     picocolors "^1.1.1"
 
-jest-fetch-mock@^3.0.3:
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/jest-fetch-mock/-/jest-fetch-mock-3.2.0.tgz#658a6690e3a740d8cac174f6fa23e9df628e3249"
-  integrity sha512-7yGuHznS2mQSUr17H6Q/YMKExuey1ush3Vdvm1QsUzi7PzajSNBiAvMxtS1nucKJYiIF3g4qTtHxG9T10vJjWg==
-  dependencies:
-    cross-fetch "^3.1.8"
-    domexception "^4.0.0"
-
 jest-get-type@^29.6.3:
   version "29.6.3"
   resolved "https://registry.yarnpkg.com/jest-get-type/-/jest-get-type-29.6.3.tgz#36f499fdcea197c1045a127319c0481723908fd1"
@@ -6696,7 +6681,7 @@ log-symbols@^2.2.0:
   dependencies:
     chalk "^2.0.1"
 
-loose-envify@^1.0.0, loose-envify@^1.1.0, loose-envify@^1.4.0:
+loose-envify@^1.0.0, loose-envify@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/loose-envify/-/loose-envify-1.4.0.tgz#71ee51fa7be4caec1a63839f7e682d8132d30caf"
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
@@ -7139,23 +7124,6 @@ mkdirp@~0.5.1:
   integrity sha512-FP+p8RB8OWpF3YZBCrP5gtADmtXApB5AMLn+vdyA+PyxCjrCs00mjyUozssO33cwDeT3wNGdLxJ5M//YqtHAJw==
   dependencies:
     minimist "^1.2.6"
-
-mobx-react-lite@^3.4.0:
-  version "3.4.3"
-  resolved "https://registry.yarnpkg.com/mobx-react-lite/-/mobx-react-lite-3.4.3.tgz#3a4c22c30bfaa8b1b2aa48d12b2ba811c0947ab7"
-  integrity sha512-NkJREyFTSUXR772Qaai51BnE1voWx56LOL80xG7qkZr6vo8vEaLF3sz1JNUVh+rxmUzxYaqOhfuxTfqUh0FXUg==
-
-mobx-react@^7.6.0:
-  version "7.6.0"
-  resolved "https://registry.yarnpkg.com/mobx-react/-/mobx-react-7.6.0.tgz#ebf0456728a9bd2e5c24fdcf9b36e285a222a7d6"
-  integrity sha512-+HQUNuh7AoQ9ZnU6c4rvbiVVl+wEkb9WqYsVDzGLng+Dqj1XntHu79PvEWKtSMoMj67vFp/ZPXcElosuJO8ckA==
-  dependencies:
-    mobx-react-lite "^3.4.0"
-
-mobx@^6.9.0:
-  version "6.16.1"
-  resolved "https://registry.yarnpkg.com/mobx/-/mobx-6.16.1.tgz#8b3166186d1298b1848395e10e64b5c43d6dc43b"
-  integrity sha512-syNcDdX3KT+Jq3je6eGjBhuc24Z68td2VG0zNFqRswaE433D9SNH5VRy/xrGbJsUixfppLLccXhAW9JSf6n+SQ==
 
 moment@^2.19.3:
   version "2.30.1"
@@ -7896,15 +7864,15 @@ react-instantsearch@^7.16.0:
     instantsearch.js "4.109.0"
     react-instantsearch-core "7.42.0"
 
-"react-is@^16.12.0 || ^17.0.0 || ^18.0.0", react-is@^18.0.0, react-is@^18.3.1:
-  version "18.3.1"
-  resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.3.1.tgz#e83557dc12eae63a99e003a46388b1dcbb44db7e"
-  integrity sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==
-
 react-is@^16.13.1, react-is@^16.7.0:
   version "16.13.1"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
+
+react-is@^18.0.0:
+  version "18.3.1"
+  resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.3.1.tgz#e83557dc12eae63a99e003a46388b1dcbb44db7e"
+  integrity sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==
 
 react-is@^19.1.0:
   version "19.2.8"
@@ -7931,11 +7899,6 @@ react-native-drawer-layout@^4.2.2:
     color "^4.2.3"
     use-latest-callback "^0.2.4"
 
-react-native-format-currency@^0.0.3:
-  version "0.0.3"
-  resolved "https://registry.yarnpkg.com/react-native-format-currency/-/react-native-format-currency-0.0.3.tgz#31e2db4c6955bb78e5efb926fb92a2927af47ccb"
-  integrity sha512-MLCTyQ+B9DWz85KQZzqsjY+peKYScnemRobTcNb+A6bstmNR8LLK8dx3PAYlwc5ZQ0PMm13XXAqT2sPwp9UKAA==
-
 react-native-gesture-handler@~2.32.0:
   version "2.32.0"
   resolved "https://registry.yarnpkg.com/react-native-gesture-handler/-/react-native-gesture-handler-2.32.0.tgz#59b8658a4e1586ce6fb0ca0053ac80f6acf7f882"
@@ -7951,7 +7914,7 @@ react-native-is-edge-to-edge@^1.3.1:
   resolved "https://registry.yarnpkg.com/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.3.1.tgz#feb9a6a8faf0874298947edd556e5af22044e139"
   integrity sha512-NIXU/iT5+ORyCc7p0z2nnlkouYKX425vuU1OEm6bMMtWWR9yvb+Xg5AZmImTKoF9abxCPqrKC3rOZsKzUYgYZA==
 
-react-native-modal@13.0.1, react-native-modal@^13.0.1:
+react-native-modal@13.0.1:
   version "13.0.1"
   resolved "https://registry.yarnpkg.com/react-native-modal/-/react-native-modal-13.0.1.tgz#691f1e646abb96fa82c1788bf18a16d585da37cd"
   integrity sha512-UB+mjmUtf+miaG/sDhOikRfBOv0gJdBU2ZE1HtFWp6UixW9jCk/bhGdHUgmZljbPpp0RaO/6YiMmQSSK3kkMaw==
@@ -7988,11 +7951,6 @@ react-native-screens@~4.26.0:
     react-freeze "^1.0.0"
     warn-once "^0.1.0"
 
-react-native-spacing-system@^2.0.0-rc.0:
-  version "2.0.0-rc.0"
-  resolved "https://registry.yarnpkg.com/react-native-spacing-system/-/react-native-spacing-system-2.0.0-rc.0.tgz#2f1f9533929a69605ed970f066ae10535b06ac8d"
-  integrity sha512-mZpFnO0iFzw4rdwE5DGieGDJ0/FWPzKIgVGADoy+JaO7ERAEri9T7X+cpw8mYTX5zrVplTINx411sOKrlere+w==
-
 react-native-svg@15.15.4:
   version "15.15.4"
   resolved "https://registry.yarnpkg.com/react-native-svg/-/react-native-svg-15.15.4.tgz#c029be85c20ead09c63dffa6b1ade06012f095ed"
@@ -8008,11 +7966,6 @@ react-native-url-polyfill@^2.0.0:
   integrity sha512-My330Do7/DvKnEvwQc0WdcBnFPploYKp9CYlefDXzIdEaA+PAhDYllkvGeEroEzvc4Kzzj2O4yVdz8v6fjRvhA==
   dependencies:
     whatwg-url-without-unicode "8.0.0-3"
-
-react-native-uuid@^2.0.1:
-  version "2.0.4"
-  resolved "https://registry.yarnpkg.com/react-native-uuid/-/react-native-uuid-2.0.4.tgz#0c4f345523c5feac0282d3a51fe19887727df988"
-  integrity sha512-LSJNeh559qC17fgVPBsWuTSW/OygFp2dwTcf94IQBLYft5FzIQS9pCsuT36OPvyvDOMb6yiGr6TafaJDnz9PPQ==
 
 react-native-web@^0.21.0:
   version "0.21.2"
@@ -8116,14 +8069,6 @@ react-remove-scroll@^2.7.2:
     use-callback-ref "^1.3.3"
     use-sidecar "^1.1.3"
 
-react-shallow-renderer@^16.15.0:
-  version "16.15.0"
-  resolved "https://registry.yarnpkg.com/react-shallow-renderer/-/react-shallow-renderer-16.15.0.tgz#48fb2cf9b23d23cde96708fe5273a7d3446f4457"
-  integrity sha512-oScf2FqQ9LFVQgA73vr86xl2NaOIX73rh+YFqcOp68CWj56tSfgtGKrEbyhCj0rSijyG9M1CYprTh39fBi5hzA==
-  dependencies:
-    object-assign "^4.1.1"
-    react-is "^16.12.0 || ^17.0.0 || ^18.0.0"
-
 react-style-singleton@^2.2.2, react-style-singleton@^2.2.3:
   version "2.2.3"
   resolved "https://registry.yarnpkg.com/react-style-singleton/-/react-style-singleton-2.2.3.tgz#4265608be69a4d70cfe3047f2c6c88b2c3ace388"
@@ -8131,15 +8076,6 @@ react-style-singleton@^2.2.2, react-style-singleton@^2.2.3:
   dependencies:
     get-nonce "^1.0.0"
     tslib "^2.0.0"
-
-react-test-renderer@^18.2.0:
-  version "18.3.1"
-  resolved "https://registry.yarnpkg.com/react-test-renderer/-/react-test-renderer-18.3.1.tgz#e693608a1f96283400d4a3afead6893f958b80b4"
-  integrity sha512-KkAgygexHUkQqtvvx/otwxtuFu5cVjfzTCtjXLH9boS19/Nbtg84zS7wIQn39G8IlrhThBpQsMKkq5ZHZIYFXA==
-  dependencies:
-    react-is "^18.3.1"
-    react-shallow-renderer "^16.15.0"
-    scheduler "^0.23.2"
 
 react@19.2.3, "react@>= 0.14.0":
   version "19.2.3"
@@ -8389,13 +8325,6 @@ scheduler@0.27.0, scheduler@^0.27.0:
   version "0.27.0"
   resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.27.0.tgz#0c4ef82d67d1e5c1e359e8fc76d3a87f045fe5bd"
   integrity sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==
-
-scheduler@^0.23.2:
-  version "0.23.2"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.23.2.tgz#414ba64a3b282892e944cf2108ecc078d115cdc3"
-  integrity sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==
-  dependencies:
-    loose-envify "^1.1.0"
 
 search-insights@^2.17.2:
   version "2.17.3"
@@ -8874,20 +8803,6 @@ sucrase@3.35.0:
     mz "^2.7.0"
     pirates "^4.0.1"
     ts-interface-checker "^0.1.9"
-
-sumup-react-native-alpha@^0.1.36:
-  version "0.1.36"
-  resolved "https://registry.yarnpkg.com/sumup-react-native-alpha/-/sumup-react-native-alpha-0.1.36.tgz#d08dd04fa043609eb3281bd7d74ccd5e1056a06a"
-  integrity sha512-QYCdrjcaKEDOIH8a1R3767ZBpd/hWCqKkqkiNfrBH47jdcOo0npn/H6kWrEJI16HbohFIbBniSQXOeYc5wFJ6g==
-  dependencies:
-    jest-fetch-mock "^3.0.3"
-    mobx "^6.9.0"
-    mobx-react "^7.6.0"
-    react-native-format-currency "^0.0.3"
-    react-native-modal "^13.0.1"
-    react-native-spacing-system "^2.0.0-rc.0"
-    react-native-uuid "^2.0.1"
-    react-test-renderer "^18.2.0"
 
 supports-color@^5.3.0:
   version "5.5.0"
@@ -9387,11 +9302,6 @@ webidl-conversions@^5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-5.0.0.tgz#ae59c8a00b121543a2acc65c0434f57b0fc11aff"
   integrity sha512-VlZwKPCkYKxQgeSbH5EyngOmRp7Ww7I9rQLERETtf5ofd9pGeswWiOtogpEO850jziPRarreGxn5QIiTqpb2wA==
-
-webidl-conversions@^7.0.0:
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-7.0.0.tgz#256b4e1882be7debbf01d05f0aa2039778ea080a"
-  integrity sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==
 
 whatwg-fetch@^3.0.0:
   version "3.6.20"
