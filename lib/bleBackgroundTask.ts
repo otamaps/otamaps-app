@@ -10,6 +10,7 @@ import {
   startTrackingRuntime,
   stopAllTracking,
 } from "./bleTrackingRuntime";
+import { reportHandledError, reportHandledMessage } from "./sentry";
 
 export const BLE_BG_NOTIFICATION_ID = "ble_location_service";
 export const BLE_BG_CHANNEL_ID = "ble_location_channel";
@@ -21,17 +22,32 @@ if (Platform.OS === "android") {
     if (androidRunnerResolve) androidRunnerResolve();
     return new Promise<void>((resolve) => {
       androidRunnerResolve = resolve;
-      void startTrackingRuntime("android-background").then(async (result) => {
-        // Keep the foreground service alive while Bluetooth is temporarily
-        // off; the shared manager is subscribed to state changes and resumes
-        // scanning as soon as the radio returns to PoweredOn.
-        if (!result.success && result.reason !== "bluetooth_off") {
+      void startTrackingRuntime("android-background")
+        .then(async (result) => {
+          // Keep the foreground service alive while Bluetooth is temporarily
+          // off; the shared manager is subscribed to state changes and resumes
+          // scanning as soon as the radio returns to PoweredOn.
+          if (!result.success && result.reason !== "bluetooth_off") {
+            if (result.reason === "service_error") {
+              reportHandledMessage("Android BLE background service failed to start", {
+                area: "ble.background",
+                operation: "start_android_service",
+              });
+            }
+            androidRunnerResolve = null;
+            resolve();
+            await stopAllTracking(result.reason === "signed_out");
+            await notifee.stopForegroundService();
+          }
+        })
+        .catch((error) => {
+          reportHandledError(error, {
+            area: "ble.background",
+            operation: "android_foreground_runner",
+          });
           androidRunnerResolve = null;
           resolve();
-          await stopAllTracking(result.reason === "signed_out");
-          await notifee.stopForegroundService();
-        }
-      });
+        });
     });
   });
 }
@@ -40,7 +56,12 @@ if (Platform.OS === "android") {
 notifee.onBackgroundEvent(async () => {});
 
 if (Platform.OS === "ios") {
-  void initializeIOSStateRestoration();
+  void initializeIOSStateRestoration().catch((error) => {
+    reportHandledError(error, {
+      area: "ble.background",
+      operation: "ios_state_restoration",
+    });
+  });
 }
 
 export async function stopAndroidBackgroundRunner(): Promise<void> {

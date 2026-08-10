@@ -14,6 +14,7 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://db.otamaps.fi",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_uCmYsYm1XBz2H-DkGp5KOt_kH5qdBrg",
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "development",
         "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
         "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
       }
@@ -28,6 +29,7 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://db.otamaps.fi",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_uCmYsYm1XBz2H-DkGp5KOt_kH5qdBrg",
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview",
         "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
         "EXPO_PUBLIC_MAPTILER_TOKEN": "XSJRg4GXeLgDiZ98hfVp",
         "EXPO_PUBLIC_MAPBOX_TOKEN": "REDACTED_MAPBOX_SECRET",
@@ -45,6 +47,7 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://db.otamaps.fi",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_uCmYsYm1XBz2H-DkGp5KOt_kH5qdBrg",
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
         "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
         "EXPO_PUBLIC_MAPTILER_TOKEN": "XSJRg4GXeLgDiZ98hfVp",
         "EXPO_PUBLIC_MAPBOX_TOKEN": "REDACTED_MAPBOX_SECRET",
