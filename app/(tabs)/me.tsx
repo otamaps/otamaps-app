@@ -1,5 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
+import { FABLAB_VISIBLE } from "@/constants/features";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
@@ -456,53 +457,57 @@ const Me = () => {
                 backgroundColor: isDark ? "#454545" : "#dddddd50",
               }}
             />
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-                {
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }
-              ]}
-              onPress={() => router.push("/me/fablab")}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Fablab
-              </Text>
-              <View
-                style={{
-                  backgroundColor: isDark ? "#525252" : "#eee",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 6,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: isDark ? "#fff" : "#444",
-                  }}
+            {FABLAB_VISIBLE && (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optionContainer,
+                    isDark && { backgroundColor: "#303030" },
+                    pressed && styles.optionContainerPressed,
+                    isDark && pressed && { backgroundColor: "#525252" },
+                    {
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    },
+                  ]}
+                  onPress={() => router.push("/me/fablab")}
                 >
-                  Uusi!
-                </Text>
-              </View>
-            </Pressable>
-            <View
-              style={{
-                height: 1,
-                backgroundColor: isDark ? "#454545" : "#dddddd50",
-              }}
-            />
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: "Figtree-SemiBold",
+                      color: isDark ? "#fff" : "#444",
+                    }}
+                  >
+                    Fablab
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDark ? "#525252" : "#eee",
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDark ? "#fff" : "#444",
+                      }}
+                    >
+                      Uusi!
+                    </Text>
+                  </View>
+                </Pressable>
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: isDark ? "#454545" : "#dddddd50",
+                  }}
+                />
+              </>
+            )}
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,

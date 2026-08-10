@@ -1,28 +1,11 @@
 import { AuthProvider } from "@/context/AuthContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSegments } from "expo-router";
+import { FABLAB_VISIBLE } from "@/constants/features";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Platform, useColorScheme } from "react-native";
-
-const FABLAB_ENABLED_STORAGE_KEY = "fablabEnabled";
 
 export default function TabLayout() {
   const isDark = useColorScheme() === "dark";
-  const [isFablabEnabled, setIsFablabEnabled] = useState(false);
-  const segments = useSegments();
-  useEffect(() => {
-    const loadFablabFlag = async () => {
-      try {
-        const value = await AsyncStorage.getItem(FABLAB_ENABLED_STORAGE_KEY);
-        setIsFablabEnabled(value === "true");
-      } catch (error) {
-        console.error("Failed to read Fablab flag:", error);
-      }
-    };
-
-    loadFablabFlag();
-  }, [segments]);
 
   return (
     <AuthProvider>
@@ -66,7 +49,7 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
         <NativeTabs.Trigger
           name="fablab"
-          hidden={!isFablabEnabled}
+          hidden={!FABLAB_VISIBLE}
           disableTransparentOnScrollEdge
         >
           <NativeTabs.Trigger.Label>FabLab</NativeTabs.Trigger.Label>

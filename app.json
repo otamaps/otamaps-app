@@ -2,7 +2,7 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fi.otamaps.ios",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "OtaMaps uses GPS and nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in.",
@@ -30,7 +31,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "fi.otamaps.app",
-      "versionCode": 14,
+      "versionCode": 15,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
