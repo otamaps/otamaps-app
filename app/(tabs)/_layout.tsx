@@ -1,7 +1,7 @@
 import { AuthProvider } from "@/context/AuthContext";
-import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Tabs, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import React, { useEffect, useState } from "react";
 import { Platform, useColorScheme } from "react-native";
 
@@ -26,67 +26,79 @@ export default function TabLayout() {
 
   return (
     <AuthProvider>
-      <Tabs
-        initialRouteName="home"
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: Platform.select({
-            ios: {
-              // Use a transparent background on iOS to show the blur effect
-              position: "absolute",
-              backgroundColor: isDark ? "#171717" : "white",
-              borderTopColor: isDark ? "transparent" : "",
-            },
-            default: {
-              backgroundColor: isDark ? "#171717" : "white",
-            },
-          }),
-          tabBarActiveTintColor: isDark ? "#51a2ff" : "#2b7fff",
-          tabBarInactiveTintColor: isDark ? "gray" : "gray",
+      <NativeTabs
+        backBehavior="initialRoute"
+        minimizeBehavior="onScrollDown"
+        tintColor={isDark ? "#51A2FF" : "#276CE5"}
+        iconColor={{
+          default: isDark ? "#A1A1AA" : "#6B7280",
+          selected: isDark ? "#51A2FF" : "#276CE5",
         }}
+        labelStyle={{
+          default: { color: isDark ? "#A1A1AA" : "#6B7280" },
+          selected: { color: isDark ? "#51A2FF" : "#276CE5" },
+        }}
+        backgroundColor={
+          Platform.OS === "android"
+            ? isDark
+              ? "#171717"
+              : "#FFFFFF"
+            : undefined
+        }
+        indicatorColor={
+          Platform.OS === "android"
+            ? isDark
+              ? "#1E3A5F"
+              : "#DCEAFF"
+            : undefined
+        }
+        tabBarRespectsIMEInsets
       >
-        <Tabs.Screen
+        <NativeTabs.Trigger
           name="home"
-          options={{
-            title: "Wilma",
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="school" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
+          disableTransparentOnScrollEdge
+        >
+          <NativeTabs.Trigger.Label>Wilma</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: "graduationcap", selected: "graduationcap.fill" }}
+            md={{ default: "school", selected: "school" }}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name="fablab"
-          options={{
-            title: "FabLab",
-            href: isFablabEnabled ? undefined : null,
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons
-                name="precision-manufacturing"
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
+          hidden={!isFablabEnabled}
+          disableTransparentOnScrollEdge
+        >
+          <NativeTabs.Trigger.Label>FabLab</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: "printer", selected: "printer.fill" }}
+            md={{
+              default: "precision_manufacturing",
+              selected: "precision_manufacturing",
+            }}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name="map"
-          options={{
-            title: "Kartta",
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="map" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
+          disableTransparentOnScrollEdge
+        >
+          <NativeTabs.Trigger.Label>Kartta</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: "map", selected: "map.fill" }}
+            md={{ default: "map", selected: "map" }}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name="me"
-          options={{
-            title: "Minä",
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="person" size={size} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
+          disableTransparentOnScrollEdge
+        >
+          <NativeTabs.Trigger.Label>Minä</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: "person", selected: "person.fill" }}
+            md={{ default: "person", selected: "person" }}
+          />
+        </NativeTabs.Trigger>
+      </NativeTabs>
     </AuthProvider>
   );
 }

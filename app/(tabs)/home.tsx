@@ -1,3 +1,4 @@
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import {
   AttendanceEntry,
   clearSession,
@@ -15,7 +16,6 @@ import {
   WilmaMessage,
   WilmaStudentProfile,
 } from "@/lib/wilma/graphqlClient";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -185,6 +185,7 @@ function LoginView({
 
   return (
     <SafeAreaView
+      edges={["top", "left", "right"]}
       style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
     >
       <ScrollView
@@ -195,10 +196,11 @@ function LoginView({
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.loginHeader}>
-          <Ionicons
-            name="school"
+          <PlatformSymbol
+            ios="graduationcap.fill"
+            android="school"
             size={52}
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            tintColor={isDark ? "#51a2ff" : "#4A89EE"}
           />
           <Text style={[styles.loginTitle, isDark && { color: "#fff" }]}>
             Wilma
@@ -258,7 +260,12 @@ function LoginView({
           </View>
           {!!error && (
             <View style={styles.errorBox}>
-              <MaterialIcons name="error-outline" size={16} color="#ff4444" />
+              <PlatformSymbol
+                ios="exclamationmark.circle"
+                android="error"
+                size={16}
+                tintColor="#ff4444"
+              />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -281,10 +288,11 @@ function LoginView({
         <View
           style={[styles.noteRow, isDark && { backgroundColor: "#252525" }]}
         >
-          <Ionicons
-            name="information-circle-outline"
+          <PlatformSymbol
+            ios="info.circle"
+            android="info"
             size={18}
-            color={isDark ? "#888" : "#777"}
+            tintColor={isDark ? "#888" : "#777"}
           />
           <Text style={[styles.noteText, isDark && { color: "#888" }]}>
             Tunnuksesi tallennetaan vain laitteellesi. Sovellus käyttää niitä
@@ -389,6 +397,7 @@ function Dashboard({
   if (loading) {
     return (
       <SafeAreaView
+        edges={["top", "left", "right"]}
         style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
       >
         <View style={styles.centered}>
@@ -406,13 +415,15 @@ function Dashboard({
     const isNet = isNetworkError(loadError);
     return (
       <SafeAreaView
+        edges={["top", "left", "right"]}
         style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
       >
         <View style={styles.centered}>
-          <MaterialIcons
-            name={isNet ? "wifi-off" : "error-outline"}
+          <PlatformSymbol
+            ios={isNet ? "wifi.slash" : "exclamationmark.circle"}
+            android={isNet ? "wifi_off" : "error"}
             size={52}
-            color={isDark ? "#555" : "#ccc"}
+            tintColor={isDark ? "#555" : "#ccc"}
           />
           <Text style={[styles.errorHeading, isDark && { color: "#d4d4d4" }]}>
             {isNet ? "Ei yhteyttä palvelimeen" : "Lataus epäonnistui"}
@@ -426,7 +437,12 @@ function Dashboard({
             style={[styles.retryBtn, isDark && { backgroundColor: "#303030" }]}
             onPress={() => load()}
           >
-            <MaterialIcons name="refresh" size={18} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <PlatformSymbol
+              ios="arrow.clockwise"
+              android="refresh"
+              size={18}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+            />
             <Text style={[styles.retryBtnText, isDark && { color: "#51a2ff" }]}>
               Yritä uudelleen
             </Text>
@@ -439,6 +455,7 @@ function Dashboard({
   // ── Dashboard
   return (
     <SafeAreaView
+      edges={["top", "left", "right"]}
       style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
     >
       <ScrollView
@@ -711,88 +728,132 @@ function Dashboard({
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/coursework" as never)}
           >
-            <MaterialIcons
-              name="assignment"
+            <PlatformSymbol
+              ios="doc.text"
+              android="assignment"
               size={22}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssit ja tehtävät</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kotitehtävät, tuntipäiväkirja ja kurssikokeet</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/course-selections" as never)}
           >
-            <MaterialIcons name="view-week" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <PlatformSymbol
+              ios="rectangle.grid.1x2"
+              android="view_week"
+              size={22}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+            />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssivalinnat</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Omat valinnat ja tarjottimet vain luku -tilassa</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/rooms" as never)}
           >
-            <MaterialIcons name="meeting-room" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <PlatformSymbol
+              ios="door.left.hand.open"
+              android="meeting_room"
+              size={22}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+            />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Tilojen lukujärjestykset</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Katso milloin luokkahuone on käytössä</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/teachers" as never)}
           >
-            <MaterialIcons
-              name="people-outline"
+            <PlatformSymbol
+              ios="person.2"
+              android="group"
               size={22}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Opettajat ja henkilökunta</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Selaa vastaanottajia ja lähetä viesti</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/news" as never)}
           >
-            <MaterialIcons
-              name="campaign"
+            <PlatformSymbol
+              ios="megaphone"
+              android="campaign"
               size={22}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Tiedotteet</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Koulun ajankohtaiset tiedotteet</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
           <Divider isDark={isDark} />
           <Pressable
             style={styles.moreWilmaRow}
             onPress={() => router.push("/wilma/grades" as never)}
           >
-            <MaterialIcons
-              name="fact-check"
+            <PlatformSymbol
+              ios="checkmark.seal"
+              android="fact_check"
               size={22}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Arvosanat</Text>
               <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kurssisuoritukset, kokeet ja yo-tulokset</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={22}
+              tintColor={isDark ? "#555" : "#bbb"}
+            />
           </Pressable>
         </SectionCard>
       </ScrollView>
@@ -834,6 +895,7 @@ export default function HomeScreen() {
   if (sessionState === "checking") {
     return (
       <SafeAreaView
+        edges={["top", "left", "right"]}
         style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
       >
         <View style={styles.centered}>

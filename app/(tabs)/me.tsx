@@ -1,8 +1,8 @@
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
-import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -315,10 +315,11 @@ const Me = () => {
                     alignItems: "center",
                   }}
                 >
-                  <MaterialIcons
-                    name="content-copy"
+                  <PlatformSymbol
+                    ios="doc.on.doc"
+                    android="content_copy"
                     size={14}
-                    color={isDark ? "#fff" : "#3333337d"}
+                    tintColor={isDark ? "#fff" : "#3333337d"}
                     style={{ marginRight: 4 }}
                   />
                   <Text
@@ -393,10 +394,11 @@ const Me = () => {
                   >
                     Jonotilanteen hallinta
                   </Text>
-                  <MaterialIcons
-                    name="admin-panel-settings"
+                  <PlatformSymbol
+                    ios="checkmark.shield"
+                    android="admin_panel_settings"
                     size={20}
-                    color={isDark ? "#AFC8FF" : "#276CE5"}
+                    tintColor={isDark ? "#AFC8FF" : "#276CE5"}
                   />
                 </Pressable>
                 <View
