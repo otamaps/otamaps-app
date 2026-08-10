@@ -6,6 +6,12 @@ sources:
   - id: root-layout
     type: file
     path: app/_layout.tsx
+  - id: package
+    type: file
+    path: package.json
+  - id: sumup-patch
+    type: file
+    path: patches/sumup-react-native-alpha+0.1.36.patch
   - id: job-detail
     type: file
     path: app/(tabs)/fablab/[jobId].tsx
@@ -35,6 +41,8 @@ The SumUp payment boundary is the split between FabLab job payment UI in the Rea
 `app/_layout.tsx` wraps the app navigation in `SumUpProvider` and passes `process.env.EXPO_PUBLIC_SUMUP_API_KEY || ''` as the provider public key [@root-layout]. The print job detail route calls `useSumUp()` directly to obtain `initPaymentSheet` and `presentPaymentSheet` [@job-detail]. This means the payment sheet dependency is available globally, while job-specific checkout creation is triggered only from statuses that expose payment UI.
 
 When the user taps "Pay Now" or the inline "Pay" button, `handlePayNow()` requires a loaded job and an authenticated Supabase session [@job-detail]. It sends a POST request to `${BACKEND_URL}/jobs/${job.id}/checkout` with `Authorization: Bearer <access_token>`, handles non-2xx responses by reading an optional JSON `message`, and expects the success response body to contain `checkoutId` [@job-detail]. The checkout id is then passed to `initPaymentSheet({ checkoutId })`, and a successful initialization is followed by `presentPaymentSheet()` [@job-detail].
+
+The native payment sheet dependency has an iOS build compatibility patch. `package.json` runs `patch-package` after install, and `patches/sumup-react-native-alpha+0.1.36.patch` removes the SDK podspec's New Architecture-only React Codegen, RCT-Folly, RCTRequired, RCTTypeSafety, and ReactCommon turbomodule dependencies [@package] [@sumup-patch]. Keep that patch with the `sumup-react-native-alpha` version unless the SDK is upgraded and the replacement podspec is proven against an iOS EAS archive.
 
 ## Backend And Secret Boundary
 
