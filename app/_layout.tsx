@@ -17,7 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { getTrackingConsentChoices } from "@/lib/userPreferences";
 import { liteClient as algoliasearch } from "algoliasearch/lite";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -49,6 +49,7 @@ function useLoadedAssets() {
 
 function RootLayoutNav() {
   const fontsLoaded = useLoadedAssets();
+  const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -61,22 +62,24 @@ function RootLayoutNav() {
   }
 
   return (
-    <SumUpProvider publicKey={process.env.EXPO_PUBLIC_SUMUP_API_KEY || ''}>
-      <UserProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-        <Stack
-          screenOptions={{
-            headerShown: false, // this disables the default header everywhere
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(app)/me" options={{ headerShown: false }} />
-          <Stack.Screen name="welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        </GestureHandlerRootView>
-      </UserProvider>
-    </SumUpProvider>
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <SumUpProvider publicKey={process.env.EXPO_PUBLIC_SUMUP_API_KEY || ""}>
+        <UserProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <Stack
+              screenOptions={{
+                headerShown: false, // this disables the default header everywhere
+              }}
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(app)/me" options={{ headerShown: false }} />
+              <Stack.Screen name="welcome" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          </GestureHandlerRootView>
+        </UserProvider>
+      </SumUpProvider>
+    </ThemeProvider>
   );
 }
 

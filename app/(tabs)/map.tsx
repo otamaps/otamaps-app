@@ -7,6 +7,7 @@ import RoomItem from "@/components/hRoomItem";
 import MapBottomSheet, {
   BottomSheetMethods,
 } from "@/components/mapBottomSheet";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import FriendModalSheet, {
   FriendModalSheetRef,
 } from "@/components/sheets/friendModalSheet";
@@ -28,7 +29,6 @@ import {
   QueueStatus,
 } from "@/lib/queueService";
 import { supabase } from "@/lib/supabase";
-import { MaterialIcons } from "@expo/vector-icons";
 import {
   BottomSheetFlatList,
   BottomSheetModalProvider,
@@ -1503,10 +1503,11 @@ export default function HomeScreen() {
                 pressed && { opacity: 0.75 },
               ]}
             >
-              <MaterialIcons
-                name="my-location"
+              <PlatformSymbol
+                ios="location.fill"
+                android="my_location"
                 size={21}
-                color={
+                tintColor={
                   localUserLocation?.coordinates
                     ? isDark
                       ? "#FFFFFF"
@@ -1570,7 +1571,12 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Pressable onPress={() => friendModalRef.current?.close()}>
-                <MaterialIcons name="close" size={24} color="#666" />
+                <PlatformSymbol
+                  ios="xmark"
+                  android="close"
+                  size={24}
+                  tintColor="#666"
+                />
               </Pressable>
             </View>
             {/* <View style={[fmstyles.navigateButton, { opacity: 0.5 }]}>
@@ -1789,10 +1795,11 @@ export default function HomeScreen() {
                                 : "Ladataan…"}
                             </Text>
                           </View>
-                          <MaterialIcons
-                            name="chevron-right"
+                          <PlatformSymbol
+                            ios="chevron.right"
+                            android="chevron_right"
                             size={22}
-                            color={isDark ? "#BFC5CE" : "#68717D"}
+                            tintColor={isDark ? "#BFC5CE" : "#68717D"}
                           />
                         </Pressable>
 
@@ -1831,10 +1838,11 @@ export default function HomeScreen() {
                                 </Text>
                               </View>
                             )}
-                            <MaterialIcons
-                              name="person-add"
+                            <PlatformSymbol
+                              ios="person.badge.plus"
+                              android="person_add"
                               size={22}
-                              color={isDark ? "#e5e5e5" : "#737373"}
+                              tintColor={isDark ? "#e5e5e5" : "#737373"}
                             />
                           </Pressable>
                         </View>
@@ -1902,10 +1910,11 @@ export default function HomeScreen() {
                           router.push("/friends/add");
                         }}
                       >
-                        <MaterialIcons
-                          name="person-add"
+                        <PlatformSymbol
+                          ios="person.badge.plus"
+                          android="person_add"
                           size={20}
-                          color={isDark ? "#8ec5ff" : "#4A89EE"}
+                          tintColor={isDark ? "#8ec5ff" : "#4A89EE"}
                         />
                         <Text
                           style={[
