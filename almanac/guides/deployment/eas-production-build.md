@@ -6,6 +6,9 @@ sources:
   - id: release-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
+  - id: ios-production-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/10/rollout-2026-08-10T19-02-10-019fec68-f9f4-7652-afff-13664fb4d6b9.jsonl
   - id: eas-config
     type: file
     path: eas.json
@@ -15,11 +18,17 @@ sources:
   - id: package
     type: file
     path: package.json
+  - id: google-modular-plugin
+    type: file
+    path: plugins/withIosGoogleModularHeaders.js
+  - id: sumup-patch
+    type: file
+    path: patches/sumup-react-native-alpha+0.1.36.patch
 ---
 
 # EAS Production Build
 
-Use this guide when preparing an Android or iOS production build for OtaMaps through EAS. Production builds are native release artifacts, so they require more than a successful Metro bundle: inspect the EAS archive, verify the public build-time configuration, run native-target exports with dotenv disabled, upload with the intended EAS profile, and poll the remote build result before calling the release complete [@release-session] [@eas-config]. Server-side readiness is a separate gate covered by [server deployment](server-deployment).
+Use this guide when preparing an Android or iOS production build for OtaMaps through EAS. Production builds are native release artifacts, so they require more than a successful Metro bundle: inspect the EAS archive, verify the public build-time configuration, run native-target exports with dotenv disabled, upload with the intended EAS profile, preserve the known iOS CocoaPods compatibility fixes, and poll the remote build result before calling the release complete [@release-session] [@ios-production-session] [@eas-config]. Server-side readiness is a separate gate covered by [server deployment](server-deployment).
 
 ## Archive Before Upload
 
@@ -69,8 +78,14 @@ A non-escalated Android upload failed locally after credentials were selected be
 
 When this failure appears, do not debug the build contents first. Re-run the same profile after confirming the archive scan passed, and allow the local EAS CLI to update its cache and Git ignore-case setting [@release-session]. That fix only starts the remote build; it does not prove that Android or iOS finished successfully.
 
+## iOS CocoaPods Failure Modes
+
+The August 2026 iOS production run hit two separate CocoaPods failures after the upload reached remote native dependency resolution. First, `sumup-react-native` asked CocoaPods for the standalone `RCT-Folly` spec and failed with "Unable to find a specification for `RCT-Folly` depended upon by `sumup-react-native`" [@ios-production-session]. The repository fix is not a pod repo update; `patch-package` runs in `postinstall`, and the committed patch removes the SumUp podspec's New Architecture-only `React-Codegen`, `RCT-Folly`, `RCTRequired`, `RCTTypeSafety`, and `ReactCommon/turbomodule/core` dependencies [@package] [@sumup-patch].
+
+After that patch, iOS pod install progressed to `sumup-react-native` and then failed because the Swift pod `AppCheckCore` depends on `GoogleUtilities` and `RecaptchaInterop`, which did not define modules under the static-library build [@ios-production-session]. The app config registers `./plugins/withIosGoogleModularHeaders`, which uses Expo's `apple.extraPods` Podfile properties hook to mark only `GoogleUtilities` and `RecaptchaInterop` as modular headers [@app-config] [@google-modular-plugin]. Keep that targeted plugin instead of switching to a global `use_modular_headers!` workaround unless the whole native graph is revalidated.
+
 ## Completion Criteria
 
-An EAS production build is complete only after both platform jobs reach a successful terminal state and the resulting artifacts are installed or submitted through the intended channel [@release-session]. The transcript ended after starting the iOS production upload command, so it is evidence for the Android upload path and the iOS command shape, not for a completed iOS build [@release-session].
+An EAS production build is complete only after both platform jobs reach a successful terminal state and the resulting artifacts are installed or submitted through the intended channel [@release-session] [@ios-production-session]. The August 10, 2026 replacement iOS job `c289a5c9-3b6b-4d1d-a240-ab7b5b696617` reached `FINISHED`, produced an `.ipa`, completed remote CocoaPods installation with 153 pods, archived the app, and uploaded Sentry debug symbols [@ios-production-session]. That proves the remote iOS archive path after the SumUp and Google modular-header fixes, but it does not prove App Store Connect submission or device-level runtime behavior [@ios-production-session].
 
 Native build success also does not prove server cutover. Before releasing a build that changes Supabase, Wilma, or OtaMaps API hosts, verify the server-side checklist in [server deployment](server-deployment) and make sure the EAS profile values match that deployed state [@eas-config].
