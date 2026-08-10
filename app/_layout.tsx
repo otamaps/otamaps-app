@@ -1,6 +1,7 @@
 // Must be the first import so notifee.registerForegroundService() runs before
 // any notification with asForegroundService:true is displayed.
 import "@/lib/bleBackgroundTask";
+import "@/lib/sentry";
 
 import { UserProvider } from "@/context/UserContext";
 import {
@@ -26,6 +27,7 @@ import { AppState, useColorScheme, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { SumUpProvider } from "sumup-react-native-alpha";
+import * as Sentry from "@sentry/react-native";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -83,7 +85,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
@@ -167,4 +169,4 @@ export default function RootLayout() {
       <StatusBar style={isDark ? "light" : "dark"} />
     </View>
   );
-}
+});

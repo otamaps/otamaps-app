@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { sha256 } from "js-sha256";
+import { reportHandledError } from "../sentry";
 
 const API_BASE_URL = (
   process.env.EXPO_PUBLIC_OTAMAPS_API_URL || "https://api.otamaps.fi"
@@ -285,11 +286,53 @@ export function reauthenticate(): Promise<boolean> {
 
 // ── Core fetch ────────────────────────────────────────────────────────────────
 
+function graphqlOperationName(query: string): string {
+  return (
+    query.match(/\b(?:query|mutation)\s+([A-Za-z0-9_]+)/)?.[1] ??
+    query.match(/\{\s*([A-Za-z0-9_]+)/)?.[1] ??
+    "anonymous"
+  );
+}
+
+function reportGraphqlFailure(
+  error: unknown,
+  query: string,
+  details: {
+    kind: string;
+    retry: boolean;
+    status?: number;
+    code?: string;
+  }
+): void {
+  reportHandledError(error, {
+    area: "wilma.graphql",
+    operation: graphqlOperationName(query),
+    level: details.code === "UNAUTHENTICATED" ? "warning" : "error",
+    tags: {
+      "graphql.failure_kind": details.kind,
+      "graphql.retry": details.retry,
+      "graphql.code": details.code,
+      "http.status_code": details.status,
+    },
+  });
+}
+
 async function gqlFetch<T>(
   query: string,
   variables?: Record<string, unknown>,
-  _isRetry = false
+  _isRetry = false,
+  _reauthenticateOnFailure = true
 ): Promise<T> {
+  const retryAfterReauth = async (error: unknown): Promise<T> => {
+    if (!_isRetry && _reauthenticateOnFailure) {
+      const ok = await reauthenticate();
+      if (ok) {
+        return gqlFetch<T>(query, variables, true, _reauthenticateOnFailure);
+      }
+    }
+    throw error;
+  };
+
   const token = await getSession();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -304,37 +347,78 @@ async function gqlFetch<T>(
       body: JSON.stringify({ query, variables }),
     });
   } catch (err) {
-    // Network / timeout errors – bubble up immediately, no retry
-    throw err;
+    return retryAfterReauth(err);
   }
 
-  const json = await res.json();
+  let json: {
+    data?: T;
+    errors?: {
+      message?: string;
+      extensions?: { code?: string };
+    }[];
+  };
+  try {
+    json = (await res.json()) as typeof json;
+  } catch (cause) {
+    const error = new Error(
+      `Palvelin palautti virheellisen vastauksen (HTTP ${res.status})`,
+      { cause }
+    );
+    reportGraphqlFailure(error, query, {
+      kind: "invalid_response",
+      retry: _isRetry,
+      status: res.status,
+    });
+    return retryAfterReauth(error);
+  }
 
-  if (json.errors?.length) {
-    const err = json.errors[0];
-    const code: string | undefined = err.extensions?.code;
+  if (!res.ok || json.errors?.length) {
+    const err = json.errors?.[0];
+    const code: string | undefined = err?.extensions?.code;
     const isAuthError =
       code === "UNAUTHENTICATED" ||
       res.status === 401 ||
       res.status === 403;
+    const requestError = new Error(
+      err?.message ?? `GraphQL-pyyntö epäonnistui (HTTP ${res.status})`
+    );
+    reportGraphqlFailure(requestError, query, {
+      kind: json.errors?.length ? "graphql_error" : "http_error",
+      retry: _isRetry,
+      status: res.status,
+      code,
+    });
+
+    if (!_isRetry && _reauthenticateOnFailure) {
+      const ok = await reauthenticate();
+      if (ok) {
+        return gqlFetch<T>(query, variables, true, _reauthenticateOnFailure);
+      }
+    }
 
     if (isAuthError) {
-      if (!_isRetry) {
-        const ok = await reauthenticate();
-        if (ok) return gqlFetch<T>(query, variables, true);
-      }
       // Re-auth failed – wipe session so login screen appears. Cached data must
       // not hide an authentication failure and keep the user in a stale session.
       await clearSession();
-      const authError = new Error(err.message ?? "Wilma-istunto on vanhentunut");
+      const authError = new Error(err?.message ?? "Wilma-istunto on vanhentunut");
       authError.name = "WilmaAuthenticationError";
       throw authError;
     }
 
-    throw new Error(err.message ?? "GraphQL-virhe");
+    throw requestError;
   }
 
-  return json.data as T;
+  if (json.data === undefined) {
+    const error = new Error("Palvelin ei palauttanut GraphQL-dataa");
+    reportGraphqlFailure(error, query, {
+      kind: "missing_data",
+      retry: _isRetry,
+      status: res.status,
+    });
+    return retryAfterReauth(error);
+  }
+
+  return json.data;
 }
 
 function cachedGqlFetch<T>(
@@ -365,15 +449,17 @@ export async function loginMutation(
   username: string,
   password: string
 ): Promise<LoginResult> {
-  // Login goes through gqlFetch so it benefits from timeout + error parsing.
-  // It won't trigger re-auth loop because there's no UNAUTHENTICATED on login.
+  // Login goes through gqlFetch so it benefits from timeout + error parsing,
+  // but it must never trigger a saved-credential re-authentication loop.
   const data = await gqlFetch<{ login: LoginResult }>(
     `mutation Login($username: String!, $password: String!) {
       login(username: $username, password: $password) {
         sessionToken role studentId baseUrl
       }
     }`,
-    { username, password }
+    { username, password },
+    false,
+    false
   );
   await saveSession(data.login.sessionToken);
   await saveCredentials(username, password);
@@ -892,6 +978,26 @@ export type WilmaCourseTray = {
   closed: boolean;
 };
 
+export type WilmaCourseTrayCourse = {
+  id: string;
+  code: string;
+  name: string;
+  teacher: string;
+  selected: boolean;
+  locked: boolean;
+  full: boolean;
+  completed: boolean;
+  grade: string;
+};
+
+export type WilmaCourseTrayDetail = {
+  id: string;
+  bars: {
+    name: string;
+    courses: WilmaCourseTrayCourse[];
+  }[];
+};
+
 export async function fetchSelectedCourses(
   options: WilmaFetchOptions = {}
 ): Promise<WilmaSelectedCourse[]> {
@@ -916,4 +1022,28 @@ export async function fetchCourseTrays(
     options
   );
   return data.courseTrays;
+}
+
+export async function fetchCourseTray(
+  id: string,
+  options: WilmaFetchOptions = {}
+): Promise<WilmaCourseTrayDetail> {
+  const data = await cachedGqlFetch<{ courseTray: WilmaCourseTrayDetail }>(
+    `courseTray:${id}`,
+    CACHE_TTL.courseSelections,
+    `query CourseTray($id: String!) {
+      courseTray(id: $id) {
+        id
+        bars {
+          name
+          courses {
+            id code name teacher selected locked full completed grade
+          }
+        }
+      }
+    }`,
+    { id },
+    options
+  );
+  return data.courseTray;
 }

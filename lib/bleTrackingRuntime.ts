@@ -35,6 +35,7 @@ import {
   TrackingRuntimeMode,
 } from "./bleTrackingTypes";
 import { supabase } from "./supabase";
+import { reportHandledError, reportHandledMessage } from "./sentry";
 
 export const BLE_BACKGROUND_CONSENT_KEY = "ble_background_consent_v1";
 const BLE_SNAPSHOT_KEY = "ble_tracking_snapshot_v1";
@@ -130,7 +131,14 @@ function queueSnapshotPersistence(immediate = false): void {
     const value = JSON.stringify(snapshot);
     persistenceChain = persistenceChain
       .then(() => AsyncStorage.setItem(BLE_SNAPSHOT_KEY, value))
-      .catch((error) => console.warn("BLE snapshot persistence failed", error));
+      .catch((error) => {
+        reportHandledError(error, {
+          area: "ble.background",
+          operation: "persist_snapshot",
+          level: "warning",
+        });
+        console.warn("BLE snapshot persistence failed", error);
+      });
   };
 
   if (immediate || Date.now() - lastPersistedAt >= SNAPSHOT_PERSIST_THROTTLE_MS) {
@@ -189,6 +197,11 @@ async function hydrate(): Promise<void> {
       }
     } catch (error) {
       snapshot.diagnostics.lastError = sanitizeError(error);
+      reportHandledError(error, {
+        area: "ble.background",
+        operation: "hydrate_tracking_state",
+        level: "warning",
+      });
     } finally {
       hydrated = true;
       hydrationPromise = null;
@@ -272,6 +285,10 @@ function startScan(): void {
         scanActive = false;
         snapshot.diagnostics.status = "error";
         snapshot.diagnostics.lastError = sanitizeError(error);
+        reportHandledError(error, {
+          area: "ble.scan",
+          operation: "device_scan_callback",
+        });
         emitSnapshot(true);
         return;
       }
@@ -463,6 +480,23 @@ async function drainUploadQueue(): Promise<void> {
         pendingFix = latestLocationFix(queuedFix, fix);
         queuedFix = null;
         snapshot.diagnostics.lastError = result.error ?? "upload_failed";
+        if (
+          result.error !== "signed_out" &&
+          result.error !== "selected_beacon_not_found" &&
+          result.error !== "location_estimate_unavailable"
+        ) {
+          reportHandledMessage(
+            `BLE location upload failed: ${result.error ?? "upload_failed"}`,
+            {
+              area: "ble.upload",
+              operation: "update_location_fix",
+              tags: {
+                "ble.runtime_mode": currentMode,
+                "ble.upload_reason": fix.uploadReason,
+              },
+            }
+          );
+        }
         if (pendingFix) await persistPendingFix(pendingFix);
         break;
       }

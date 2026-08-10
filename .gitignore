@@ -45,3 +45,4 @@ app-example
 .VSCodeCounter/
 
 decoder.py
+.env.local
