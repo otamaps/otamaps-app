@@ -1,38 +1,42 @@
 ---
-title: CodeAlmanac Wiki
-topics: [wiki]
-sources: []
+title: "OtaMaps Almanac"
+summary: "Repository-owned Almanac entry point for the OtaMaps Expo mobile app."
+topics: [wiki, product, app-shell]
+sources:
+  - id: project-notes
+    type: file
+    path: chatgpt.md
+  - id: package
+    type: file
+    path: package.json
+  - id: root-layout
+    type: file
+    path: app/_layout.tsx
+  - id: map-route
+    type: file
+    path: app/(tabs)/map.tsx
+  - id: home-route
+    type: file
+    path: app/(tabs)/home.tsx
+  - id: fablab-route
+    type: file
+    path: app/(tabs)/fablab/index.tsx
 ---
 
-# CodeAlmanac Wiki
+# OtaMaps Almanac
 
-This is the living wiki for this repository. It records the durable knowledge
-the code cannot say: decisions, flows, invariants, incidents, gotchas, and
-project context that future agents should not rediscover from scratch.
+OtaMaps is an Expo Router React Native app for an Otaniemi school/campus map, Wilma school data, account/profile flows, BLE-based indoor location, friends and shared location, Ruokalinjasto queue status, and optional FabLab print workflows [@project-notes] [@map-route] [@home-route] [@fablab-route]. The app entrypoint is `expo-router/entry`, and the dependency graph includes native Mapbox, Supabase, Google sign-in, BLE, Notifee, Algolia, SumUp, and Sentry packages [@package].
 
-## Notability Bar
+Use [Getting Started](getting-started) as the reading map for this wiki. It routes first-time agents toward product shape, app-shell ownership, route boundaries, Wilma, map/location behavior, FabLab, deployment, and validation caveats.
 
-Write a page when it preserves non-obvious knowledge that will help a future
-agent work safely in this codebase.
+## First Reads
 
-Good pages explain:
+Start with [OtaMaps mobile app](concepts/product/otamaps-mobile-app), [Expo Router shell](architecture/app/expo-router-shell), and [main route map](architecture/app/main-route-map). The root layout wraps the app with SumUp, user state, gesture handling, Algolia search, splash/font loading, and BLE lifecycle wiring before individual screens render [@root-layout].
 
-- a decision that took research or trial-and-error
-- a cross-file flow
-- an invariant or gotcha not visible from one file
-- an external dependency as this repo uses it
-- a product or operational constraint that shapes future work
+For feature work, read the owning cluster before editing code: [Wilma](concepts/integrations/wilma), [campus map model](concepts/map/campus-map-model), [BLE background location](architecture/location/ble-background-location), [friends and shared location](concepts/social/friends-and-shared-location), [queue status](architecture/map/queue-status), or [print jobs](concepts/fablab/print-jobs).
 
-Do not write pages that restate nearby code.
+## Maintenance Bar
 
-## Topic Taxonomy
+This wiki records durable knowledge future agents should not rediscover from scratch: decisions, cross-file flows, invariants, incidents, gotchas, operating procedures, and project context. Do not add pages that only restate nearby code.
 
-Topics live in `topics.yaml`. Pages are Markdown files directly under
-`almanac/`, including nested folders.
-
-Use [Getting Started](getting-started) as the project entry point before reading
-area-specific pages.
-
-## Links
-
-Use normal Markdown links between pages. Put file evidence in `sources:`.
+Topics live in `topics.yaml`. Pages are Markdown files directly under `almanac/`, including nested folders. Use normal Markdown links between pages and put file evidence in `sources:`.
