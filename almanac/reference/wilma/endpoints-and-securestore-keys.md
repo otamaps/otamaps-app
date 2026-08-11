@@ -104,6 +104,10 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 
 Every active GraphQL helper uses the same timeout-aware POST path through the client. The request mechanics and retry behavior are described in [Wilma GraphQL client and reauth](../../architecture/wilma/graphql-client-and-reauth), and the Supabase exchange is described in [Wilma auth broker and account linking](../../architecture/wilma/auth-broker-and-account-linking).
 
+## Backend Schema Boundary
+
+This reference lists client helpers, not a guarantee that the deployed or sibling backend exposes every helper's field. Client helpers added in `lib/wilma/graphqlClient.ts` require backend schema verification before they are treated as production-supported [@graphql-client]. This matters most for helpers whose root GraphQL fields were added after the original login, schedule, message, attendance, news, and recipient surfaces, because app-side support can land before the production API field does [@graphql-client] [@course-tray-rollout].
+
 Production schema support can lag behind this client reference. The 2026-08-09 course-tray-detail implementation recorded app-side support for `fetchCourseTray` and a sibling backend branch, while production `api.otamaps.fi` still lacked the `courseTray` field until that backend branch is deployed [@course-tray-rollout].
 
 ## Direct REST Leftovers

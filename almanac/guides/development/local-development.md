@@ -48,7 +48,7 @@ npm run web
 
 These commands start local development surfaces. They do not prove native background BLE, EAS builds, Supabase migrations, Wilma backend deployment, or physical-device behavior.
 
-The current `development` EAS profile is not a classic Expo dev-client build. It sets `developmentClient: false`, `distribution: "internal"`, Android `buildType: "apk"`, and channel/environment `development`, so the installed testing APK contains an embedded release-mode bundle and does not support local Fast Refresh [@eas-config] [@dev-apk-session]. Use this profile when the Android development-client runtime is the thing failing, but do not expect `npx expo start --dev-client` to drive that APK [@dev-apk-session].
+The current `development` EAS profile is a development-client internal APK. It sets `developmentClient: true`, `distribution: "internal"`, Android `buildType: "apk"`, and channel/environment `development` [@eas-config]. A previous development profile was deliberately release-mode after an Android development-client runtime crash, so verify the native dev-client startup path on a built APK before treating `npx expo start --dev-client` as proven for this checkout [@dev-apk-session] [@eas-config].
 
 For JavaScript or TypeScript-only testing changes on an installed development-channel build, publish an EAS update instead of rebuilding the APK [@dev-apk-session]:
 

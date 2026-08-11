@@ -15,6 +15,9 @@ sources:
   - id: room-modal
     type: file
     path: components/sheets/roomModalSheet.tsx
+  - id: feature-service
+    type: file
+    path: lib/featureFlagService.ts
   - id: rooms-debug
     type: file
     path: app/(app)/debug/supabase/rooms.tsx
@@ -43,7 +46,7 @@ The map screen keeps refs to the current fetch functions and calls both on mount
 
 The map screen is the main consumer. It uses rooms for the bottom-sheet room list, selectable room polygons, WC symbols, and camera focus [@map-screen]. It uses features for wall and stairs extrusions after validating that each feature has a geometry type and coordinate array [@map-screen]. These rendering rules depend on the [campus map model](../../concepts/map/campus-map-model), especially numeric floors and Mapbox coordinate order.
 
-`RoomModalSheet` is the detail consumer. Its `open(id)` method first looks for the room in the current room store, presents the modal immediately when found, and otherwise calls `fetchRooms()` before searching the updated store [@room-modal]. That means a selected room can open without an extra network request after the map screen has already populated the cache.
+`RoomModalSheet` is the detail consumer. Its `open(id)` method first looks for the room in the current room store, presents the modal immediately when found, and otherwise calls `fetchRooms()` before searching the updated store [@room-modal]. That means a selected room can open without an extra network request after the map screen has already populated the cache. The same room detail surface also checks the cached `booking` feature flag before exposing booking UI, so room UI changes should be read together with [feature flags](../runtime/feature-flags) when they touch booking behavior [@room-modal] [@feature-service].
 
 The Supabase debug route for rooms queries `rooms` directly and renders id, room number, title, description, seats, and equipment [@rooms-debug]. The feature debug route is currently only a placeholder screen, so it is not a live inspection tool for feature records yet [@features-debug].
 

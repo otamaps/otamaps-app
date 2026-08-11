@@ -43,7 +43,7 @@ This inspection path confirms only that the debug cache can store and read the c
 
 After importing debug GeoJSON, verify any real map behavior through the active room and feature pipeline. On the map tab, rooms are fetched from `useRoomStore`, features are fetched from `useFeatureStore`, both are filtered by `selectedFloor`, and the resulting data becomes Mapbox `ShapeSource` layers [@map-screen]. If the imported GeoJSON does not appear on the map, that is expected unless you also change the active map screen to read from the cached debug document.
 
-Use [debug and disabled routes](../../reference/routes/debug-and-disabled-routes) for route reachability once that reference page exists. For data checks, inspect the active Supabase room and feature stores rather than the debug GeoJSON cache, because the map screen renders `roomsGeoJSON` and `featuresGeoJSON` from those stores [@map-screen].
+Use [debug and disabled routes](../../reference/routes/debug-and-disabled-routes) for route reachability. For data checks, inspect the active Supabase room and feature stores rather than the debug GeoJSON cache, because the map screen renders `roomsGeoJSON` and `featuresGeoJSON` from those stores [@map-screen].
 
 ## Recovery Notes
 

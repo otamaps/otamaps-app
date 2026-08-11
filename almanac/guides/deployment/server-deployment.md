@@ -1,11 +1,14 @@
 ---
 title: "Server Deployment"
-summary: "Use this guide when preparing an Ubuntu Docker deployment for the OtaMaps API and Supabase services that the mobile client expects."
+summary: "Use this guide when preparing or verifying the self-hosted Supabase and OtaMaps Wilma API deployment that the mobile client expects."
 topics: [guides, deployment, supabase, wilma, configuration]
 sources:
   - id: deployment-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
+  - id: cutover-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/10/rollout-2026-08-10T17-50-29-019fec27-5ab5-7382-9a46-d5688210c318.jsonl
   - id: wilma-graphql-client
     type: file
     path: lib/wilma/graphqlClient.ts
@@ -25,7 +28,7 @@ sources:
 
 # Server Deployment
 
-Use this guide when preparing the server side that OtaMaps needs in production. This repository is the Expo mobile client, not the Wilma GraphQL server; the client expects one OtaMaps API origin for Wilma GraphQL and Wilma-to-Supabase account exchange, and a separate Supabase origin for Auth, REST, Realtime, Storage, and Postgres [@deployment-session] [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client]. The first self-hosted deployment was brought up on AWS Lightsail as an interim Ubuntu Docker host with HTTPS `sslip.io` names for API and Supabase while final domain cutover remains separate [@deployment-session].
+Use this guide when preparing or verifying the server side that OtaMaps needs in production. This repository is the Expo mobile client, not the Wilma GraphQL server; the client expects one OtaMaps API origin for Wilma GraphQL and Wilma-to-Supabase account exchange, and a separate Supabase origin for Auth, REST, Realtime, Storage, and Postgres [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client]. The latest recorded self-hosting cutover moved production Supabase and the Wilma API onto `fablabserver` behind Cloudflare Tunnel, with public traffic on `https://db.otamaps.fi` and `https://api.otamaps.fi` [@cutover-session].
 
 ## Deployment Boundary
 
@@ -37,24 +40,34 @@ Supabase remains the mobile session and data authority. The client reads `EXPO_P
 
 ## Server Shape
 
-The discussed first deployment target was a single Ubuntu 24.04 LTS server with Docker Compose, HTTPS through Caddy, and only SSH, HTTP, and HTTPS exposed publicly [@deployment-session]. Do not expose Postgres `5432`, Supavisor `6543`, the Supabase gateway `8000`, or the OtaMaps GraphQL container port directly to the internet; route public traffic through HTTPS hostnames instead [@deployment-session].
+The production shape recorded in the cutover keeps the private service ports loopback-only and routes public traffic through Cloudflare Tunnel [@cutover-session]. Keep Supabase/Kong on `127.0.0.1:8000` and the Wilma API on `127.0.0.1:4000`; do not expose Postgres `5432`, Supavisor `6543`, the Supabase gateway, or the OtaMaps GraphQL container port directly to the internet [@cutover-session].
 
 Keep the hostname split explicit:
 
 | Hostname | Backend |
 | --- | --- |
 | `api.otamaps.fi` | OtaMaps API container that implements `/graphql` and `/v1/auth/wilma/*` [@wilma-graphql-client] [@wilma-auth-broker]. |
-| Supabase URL | Supabase Auth, REST, Realtime, Storage, and Postgres, matching `EXPO_PUBLIC_SUPABASE_URL` in mobile builds [@supabase-client] [@env-example] [@eas-config]. |
+| `db.otamaps.fi` | Supabase Auth, REST, Realtime, Storage, and Postgres gateway, matching `EXPO_PUBLIC_SUPABASE_URL` in mobile builds [@supabase-client] [@env-example] [@eas-config]. |
 
 EAS profiles currently set `https://db.otamaps.fi` for Supabase and `https://api.otamaps.fi` for the OtaMaps API in development, preview, and production [@eas-config]. If the deployment moves either service to a different hostname, update and verify the relevant EAS profile values together with [runtime and build config](../../reference/configuration/runtime-and-build-config).
 
-## Interim Lightsail State
+## Cutover State
 
-The August 7 deployment session verified AWS Lightsail instance `otamaps-prod-1` in `eu-north-1` as running, `https://api.13-62-117-118.sslip.io/health` as returning `{"status":"ok"}`, `https://api.13-62-117-118.sslip.io/graphql` as answering `{ __typename }`, and `https://supabase.13-62-117-118.sslip.io/` as reachable with HTTP `401` because Studio is protected [@deployment-session]. That state proves public process health and routing, not final production cutover.
+The August 10, 2026 cutover recorded migration parity for 536 Auth users, 606 sessions, 6,062 refresh tokens, public table row counts, two Storage objects, 39 public RLS policies, and ownership/function fingerprints [@cutover-session]. The run preserved target-only Postgres and dashboard credentials while migrating production Google Auth and Wilma API configuration [@cutover-session].
 
-The same session cloned database schema/data, Auth metadata, RLS, and Storage metadata into the target and verified disposable Auth and Storage create/read/delete flows there [@deployment-session]. Two private Storage object bodies and the Google Auth provider secret were still missing because they are not recoverable through the PostgreSQL connection alone, and the run intentionally stopped at the Supabase dashboard authentication boundary instead of extracting an end-user session or weakening Storage policies [@deployment-session].
+Public probes in the cutover passed for Supabase Auth health, Supabase REST, OtaMaps API `/health`, and GraphQL `{ __typename }` on the production hostnames [@cutover-session]. The recorded stress test is a lightweight endpoint result, not a maximum-user claim: at 128 concurrent health requests Autocannon reached about 727 requests per second with p97.5 latency around 274 ms and zero errors, while 256 concurrent requests flattened throughput and raised p97.5 latency to about 607 ms [@cutover-session].
 
-Treat this as an operational checkpoint. Resuming the migration should start from Supabase dashboard sign-in, copy the remaining private Storage bytes and Google provider configuration through authorized provider surfaces, verify Google login against the target, run a point-in-time resynchronization, and only then update EAS/profile hostnames or DNS for real client traffic [@deployment-session] [@eas-config].
+Treat the cutover as proof for the recorded lightweight workloads only. Any later capacity claim needs representative authenticated GraphQL, REST, Realtime, Storage, and database workloads with user think-time, and should monitor the recorded cold Kong first-use outlier separately from warmed latency [@cutover-session].
+
+## Migration And Recovery Gotchas
+
+Postgres 17 can look healthy at the container level while the database is unusable. The cutover hit `could not open file "global/pg_filenode.map": Permission denied` when a Postgres 17 container running as UID 100 read data owned by UID 105; the recovery path was a cold backup, ownership repair, and authenticated SQL plus API probes rather than relying on `docker compose ps` [@cutover-session].
+
+Supabase Storage's file backend uses extended attributes for object metadata. Ordinary tar extraction caused `ENODATA`; restore Storage files with GNU tar extended attributes, for example `tar --xattrs --xattrs-include='*'`, before treating Storage parity as complete [@cutover-session].
+
+Cloudflare Tunnel ingress for this deployment is remotely managed. Local `cloudflared` ingress edits may have no effect when pushed Cloudflare Zero Trust configuration wins, so hostname changes must be made in Cloudflare Zero Trust and must preserve existing `supa.otamaps.fi` and `ssh.otamaps.fi` routes [@cutover-session].
+
+When DNS or HTTPS looks inconsistent, compare authoritative DNS, DNS-over-HTTPS, forced-edge requests with `curl --resolve`, and normal HTTPS before concluding that a hostname is unavailable [@cutover-session]. Public process health alone is also too shallow: always include authenticated SQL plus Auth, REST, Storage, API health, and GraphQL probes in release verification [@cutover-session].
 
 ## Supabase Installer TLS Failure
 
