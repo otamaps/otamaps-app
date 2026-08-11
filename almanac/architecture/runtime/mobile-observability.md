@@ -15,6 +15,12 @@ sources:
   - id: graphql-client
     type: file
     path: lib/wilma/graphqlClient.ts
+  - id: wilma-auth-broker
+    type: file
+    path: lib/wilma/authBroker.ts
+  - id: network-errors
+    type: file
+    path: lib/networkErrors.ts
   - id: ble-background-task
     type: file
     path: lib/bleBackgroundTask.ts
@@ -46,7 +52,7 @@ Mobile observability is a root runtime concern in OtaMaps. `app/_layout.tsx` imp
 
 `lib/sentry.ts` calls `Sentry.init` with the public DSN from `EXPO_PUBLIC_SENTRY_DSN` or a committed mobile fallback, sets `EXPO_PUBLIC_SENTRY_ENVIRONMENT` or a development/production fallback as the environment, enables native crash, app hang, watchdog termination, tombstone, session, replay, feedback, console-log, HTTP-client, and Supabase integrations, and exports `Sentry` for the root layout wrapper [@sentry-runtime]. `metro.config.js` uses `getSentryExpoConfig`, and `app.json` declares the `@sentry/react-native/expo` plugin with the OtaMaps Sentry organization and project identifiers, so source maps and native integration are part of the Expo config rather than only JavaScript code [@metro-config] [@app-config].
 
-The Sentry runtime also installs an idempotent `globalThis.fetch` wrapper for rejected network requests. The wrapper skips Sentry's own hostnames, records sanitized URL, method, duration, and network-failure tags, then rethrows the original error so callers keep their existing control flow [@sentry-runtime]. HTTP responses with status 400 through 599 are captured by Sentry's HTTP client integration rather than this rejected-fetch wrapper [@sentry-runtime].
+The Sentry runtime also installs an idempotent `globalThis.fetch` wrapper for rejected network requests. The wrapper skips Sentry's own hostnames and expected AbortController cancellations, records sanitized URL, method, duration, and network-failure tags for other rejections, then rethrows the original error so callers keep their existing control flow [@sentry-runtime] [@network-errors]. The cancellation helper treats an aborted request signal, standard abort names and codes, nested causes, and Expo SDK 57's native "fetch request has been canceled" message as cancellation evidence, which keeps client-owned timeout control flow out of the global network-error stream [@network-errors] [@sentry-runtime]. HTTP responses with status 400 through 599 are captured by Sentry's HTTP client integration rather than this rejected-fetch wrapper [@sentry-runtime].
 
 ## Sanitization Boundary
 
@@ -56,7 +62,7 @@ Telemetry sanitization happens before events, breadcrumbs, handled-error context
 
 ## Feature Instrumentation
 
-The Wilma GraphQL client reports invalid JSON or HTML responses, HTTP failures, GraphQL errors, missing data, retry state, authentication codes, and operation names before applying its one reauthentication retry or stale-session cleanup behavior [@graphql-client]. This instrumentation belongs in the GraphQL client because screens should not duplicate transport-level failure handling.
+The Wilma GraphQL client reports invalid JSON or HTML responses, HTTP failures, GraphQL errors, missing data, retry state, authentication codes, and operation names before applying its one reauthentication retry or stale-session cleanup behavior [@graphql-client]. Wilma primary-auth exchange timeouts are reported in the auth broker instead, because those `/v1/auth/wilma/*` POSTs have a 45-second timeout and are not ordinary GraphQL reads [@wilma-auth-broker] [@network-errors]. This instrumentation belongs in the Wilma network boundaries because screens should not duplicate transport-level failure handling.
 
 The BLE background entrypoint reports Android foreground-service runner exceptions, Android service-start failures, and iOS Core Bluetooth restoration failures through the same helpers [@ble-background-task]. The shared BLE tracking runtime reports snapshot persistence errors, hydrated-state errors, device-scan callback errors, and non-routine upload failures while preserving the runtime's local diagnostics and retry behavior [@ble-runtime]. This keeps [BLE background location](../location/ble-background-location) observable without splitting its single runtime ownership.
 
