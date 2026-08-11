@@ -21,6 +21,12 @@ sources:
   - id: graphql-client
     type: file
     path: lib/wilma/graphqlClient.ts
+  - id: network-errors
+    type: file
+    path: lib/networkErrors.ts
+  - id: sentry-runtime
+    type: file
+    path: lib/sentry.ts
   - id: env-example
     type: file
     path: .env.example
@@ -35,7 +41,7 @@ The Wilma auth broker is the client-side boundary for using Wilma as an OtaMaps 
 
 ## API Boundary And Feature Flag
 
-The broker builds its API base from `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi`, and uses JSON POST requests with a 15-second timeout [@auth-broker]. `.env.example` describes that URL as the OtaMaps API hosting GraphQL and the Wilma-to-Supabase auth exchange, and EAS build profiles set the same API URL for development, preview, and production [@env-example] [@eas-config].
+The broker builds its API base from `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi`, and uses JSON POST requests with a 45-second timeout for Wilma primary-auth exchange calls [@auth-broker]. That timeout is intentionally longer than ordinary GraphQL reads because a successful primary-auth sign-in can include upstream Wilma login, profile parsing, identity lookup or creation, and Supabase token minting behind the OtaMaps API route [@auth-broker]. When the abort is recognized as a fetch cancellation, the broker throws a `FetchTimeoutError` with code `ETIMEDOUT` and reports a handled `wilma.auth` timeout with the path and timeout duration before rethrowing [@auth-broker] [@network-errors] [@sentry-runtime]. `.env.example` describes that URL as the OtaMaps API hosting GraphQL and the Wilma-to-Supabase auth exchange, and EAS build profiles set the same API URL for development, preview, and production [@env-example] [@eas-config].
 
 Wilma primary auth is gated by `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED` [@auth-broker]. The auth broker treats Wilma primary auth as enabled unless the value is exactly `"false"`, and the welcome screen shows the Wilma username/password form when the exported broker constant is enabled [@auth-broker] [@welcome-index]. The committed EAS profiles set the flag to `"true"` for development, preview, and production; setting it to `"false"` is therefore an explicit rollback path that changes the visible onboarding route to legacy OtaMaps login [@eas-config] [@welcome-index].
 

@@ -6,6 +6,9 @@ sources:
   - id: graphql-client
     type: file
     path: lib/wilma/graphqlClient.ts
+  - id: network-errors
+    type: file
+    path: lib/networkErrors.ts
   - id: sentry-runtime
     type: file
     path: lib/sentry.ts
@@ -70,7 +73,7 @@ The Wilma GraphQL client is the active network and session boundary for the OtaM
 
 `gqlFetch` is the core fetcher. It builds a JSON GraphQL POST body, reads the stored session token, adds `X-Wilma-Session` when the token exists, sends the request through `fetchWithTimeout`, parses the JSON response, and returns `json.data` as the caller's typed result [@graphql-client]. Errors are normalized at the same layer. Fetch failures, invalid JSON or HTML responses, HTTP errors, GraphQL errors, and missing `data` on a first attempt all call `reauthenticate()` and retry the original request once when saved-credential login succeeds [@graphql-client]. Invalid responses, HTTP failures, GraphQL errors, and missing-data cases are also reported through the shared Sentry handled-error helper with operation, retry, status, and GraphQL code tags before the retry or stale-session cleanup proceeds [@graphql-client] [@sentry-runtime].
 
-The timeout wrapper is intentionally shared by login and data requests. `fetchWithTimeout` aborts requests after ten seconds by default and throws a Finnish timeout message for `AbortError`; `_doReauth` passes a twelve-second timeout because the login operation is expected to do more HTTP work behind the GraphQL server [@graphql-client]. `.env.example` describes `EXPO_PUBLIC_OTAMAPS_API_URL` as the API host for both GraphQL and the Wilma-to-Supabase auth exchange, so endpoint changes affect this client and the [Wilma auth broker and account linking](auth-broker-and-account-linking) flow together [@env-example].
+The timeout wrapper is intentionally shared by login and data requests. `fetchWithTimeout` aborts requests after ten seconds by default and throws a Finnish `FetchTimeoutError` with code `ETIMEDOUT` when the shared network helper recognizes the abort as a fetch cancellation [@graphql-client] [@network-errors]. `_doReauth` passes a twelve-second timeout because the login operation is expected to do more HTTP work behind the GraphQL server [@graphql-client]. `.env.example` describes `EXPO_PUBLIC_OTAMAPS_API_URL` as the API host for both GraphQL and the Wilma-to-Supabase auth exchange, so endpoint changes affect this client and the [Wilma auth broker and account linking](auth-broker-and-account-linking) flow together [@env-example].
 
 ## Read Cache
 
