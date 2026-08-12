@@ -9,6 +9,7 @@ import {
   stopAllTracking,
 } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
+import { clearSharedWeeklySchedules } from "@/lib/sharedSchedule";
 import {
   getUserPreferences,
   saveOnboardingChoices,
@@ -28,6 +29,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -49,6 +51,63 @@ type PermissionState = "idle" | "loading" | "granted" | "denied";
 
 type SaveStage = "profile" | "preferences";
 
+type OnboardingTheme = {
+  background: string;
+  surface: string;
+  text: string;
+  secondaryText: string;
+  label: string;
+  border: string;
+  inputBackground: string;
+  lockedBackground: string;
+  lockedText: string;
+  progressInactive: string;
+  infoBackground: string;
+  infoText: string;
+  success: string;
+  switchOffTrack: string;
+  switchOnTrack: string;
+  switchThumb: string;
+};
+
+const LIGHT_THEME: OnboardingTheme = {
+  background: "#FFFFFF",
+  surface: "#FFFFFF",
+  text: "#101828",
+  secondaryText: "#667085",
+  label: "#344054",
+  border: "#E4E7EC",
+  inputBackground: "#F8FAFC",
+  lockedBackground: "#F2F4F7",
+  lockedText: "#475467",
+  progressInactive: "#EAECF0",
+  infoBackground: "#F2F4F7",
+  infoText: "#475467",
+  success: "#067647",
+  switchOffTrack: "#667085",
+  switchOnTrack: "#3478F5",
+  switchThumb: "#FFFFFF",
+};
+
+const DARK_THEME: OnboardingTheme = {
+  background: "#1E1E1E",
+  surface: "#252525",
+  text: "#FFFFFF",
+  secondaryText: "#B3B3B3",
+  label: "#D0D5DD",
+  border: "#3A3A3A",
+  inputBackground: "#252525",
+  lockedBackground: "#303030",
+  lockedText: "#D0D5DD",
+  progressInactive: "#475467",
+  infoBackground: "#303030",
+  infoText: "#D0D5DD",
+  success: "#6CE9A6",
+  switchOffTrack: "#667085",
+  switchOnTrack: "#3478F5",
+  switchThumb: "#FFFFFF",
+};
+
 const SAVE_STAGE_MESSAGES: Record<SaveStage, string> = {
   profile: "Profiilitietoja ei voitu tallentaa. Yritä hetken kuluttua uudelleen.",
   preferences:
@@ -56,6 +115,8 @@ const SAVE_STAGE_MESSAGES: Record<SaveStage, string> = {
 };
 
 export default function PermissionsScreen() {
+  const isDark = useColorScheme() === "dark";
+  const theme = isDark ? DARK_THEME : LIGHT_THEME;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,6 +125,7 @@ export default function PermissionsScreen() {
   const [userClass, setUserClass] = useState("");
   const [color, setColor] = useState("#2b7fff");
   const [friendLocation, setFriendLocation] = useState(false);
+  const [shareSchedule, setShareSchedule] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [backgroundTracking, setBackgroundTracking] = useState(false);
   const [notifications, setNotifications] = useState(false);
@@ -99,6 +161,7 @@ export default function PermissionsScreen() {
         setUserClass(data?.class || user.user_metadata?.class || "");
         setColor(data?.color || user.user_metadata?.color || "#2b7fff");
         setFriendLocation(preferences.friend_location_enabled);
+        setShareSchedule(preferences.schedule_sharing_enabled);
         setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
         setBackgroundTracking(preferences.background_tracking_enabled);
       } catch (error) {
@@ -170,6 +233,7 @@ export default function PermissionsScreen() {
       saveStage = "preferences";
       let saved = await saveOnboardingChoices({
         friend_location_enabled: friendLocation,
+        schedule_sharing_enabled: shareSchedule,
         anonymous_analytics_enabled: anonymousAnalytics,
         background_tracking_enabled:
           trackingPurposeEnabled && backgroundTracking,
@@ -181,6 +245,7 @@ export default function PermissionsScreen() {
       if (!friendLocation && session) {
         await supabase.from("locations").delete().eq("user_id", session.user.id);
       }
+      if (!shareSchedule) await clearSharedWeeklySchedules();
 
       if (!trackingPurposeEnabled) {
         await stopBLEBackgroundService();
@@ -223,34 +288,60 @@ export default function PermissionsScreen() {
       return (
         <>
           <Ionicons name="person-circle-outline" size={54} color="#3478F5" />
-          <Text style={styles.title}>Tarkista profiilisi</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.title, { color: theme.text }]}>Tarkista profiilisi</Text>
+          <Text style={[styles.description, { color: theme.secondaryText }]}>
             {isWilmaProfile
               ? "Nimi ja luokka tulevat Wilmasta eikä niitä voi muuttaa OtaMapsissa."
               : "Voit muuttaa nimeä ja luokkaa myöhemmin profiiliasetuksista."}
           </Text>
-          <Text style={styles.label}>Nimi</Text>
+          <Text style={[styles.label, { color: theme.label }]}>Nimi</Text>
           <TextInput
             value={name}
             onChangeText={setName}
             editable={!isWilmaProfile}
-            style={[styles.input, isWilmaProfile && styles.lockedInput]}
+            selectionColor="#3478F5"
+            keyboardAppearance={isDark ? "dark" : "light"}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBackground,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+              isWilmaProfile && {
+                backgroundColor: theme.lockedBackground,
+                color: theme.lockedText,
+              },
+            ]}
           />
-          <Text style={styles.label}>Luokka</Text>
+          <Text style={[styles.label, { color: theme.label }]}>Luokka</Text>
           <TextInput
             value={userClass}
             onChangeText={(value) => setUserClass(value.toUpperCase())}
             editable={!isWilmaProfile}
-            style={[styles.input, isWilmaProfile && styles.lockedInput]}
+            selectionColor="#3478F5"
+            keyboardAppearance={isDark ? "dark" : "light"}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBackground,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+              isWilmaProfile && {
+                backgroundColor: theme.lockedBackground,
+                color: theme.lockedText,
+              },
+            ]}
             autoCapitalize="characters"
           />
           {isWilmaProfile && (
             <View style={styles.verifiedRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#067647" />
-              <Text style={styles.verifiedText}>Wilman vahvistamat tiedot</Text>
+              <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+              <Text style={[styles.verifiedText, { color: theme.success }]}>Wilman vahvistamat tiedot</Text>
             </View>
           )}
-          <Text style={styles.label}>Profiilin väri</Text>
+          <Text style={[styles.label, { color: theme.label }]}>Profiilin väri</Text>
           <View style={styles.colors}>
             {COLORS.map((option) => (
               <Pressable
@@ -259,7 +350,10 @@ export default function PermissionsScreen() {
                 style={[
                   styles.color,
                   { backgroundColor: option },
-                  color === option && styles.selectedColor,
+                  color === option && [
+                    styles.selectedColor,
+                    { borderColor: theme.background },
+                  ],
                 ]}
               >
                 {color === option && (
@@ -276,8 +370,8 @@ export default function PermissionsScreen() {
       return (
         <>
           <Ionicons name="shield-checkmark-outline" size={54} color="#3478F5" />
-          <Text style={styles.title}>Valitse, mihin sijaintia käytetään</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.title, { color: theme.text }]}>Valitse, mihin sijaintia käytetään</Text>
+          <Text style={[styles.description, { color: theme.secondaryText }]}>
             Valinnat ovat vapaaehtoisia ja voit muuttaa niitä asetuksista.
           </Text>
           <ChoiceRow
@@ -285,12 +379,21 @@ export default function PermissionsScreen() {
             description="Tallentaa sijaintisi käyttäjätiliisi ja näyttää sen vain hyväksytyille kavereillesi."
             value={friendLocation}
             onValueChange={setFriendLocation}
+            theme={theme}
+          />
+          <ChoiceRow
+            title="Viikkolukujärjestys kavereille"
+            description="Jaa tämän viikon oppituntien ajat, aineet ja luokat vain hyväksytyille kavereillesi. Viestejä, poissaoloja tai kokeita ei jaeta."
+            value={shareSchedule}
+            onValueChange={setShareSchedule}
+            theme={theme}
           />
           <ChoiceRow
             title="Anonyymit ruuhka-arviot"
             description="Lähettää vain karkean tila- ja aikatiedon esimerkiksi ruokalan jonon arviointiin. Käyttäjätunnusta, luokkaa tai tarkkaa sijaintia ei tallenneta."
             value={anonymousAnalytics}
             onValueChange={setAnonymousAnalytics}
+            theme={theme}
           />
         </>
       );
@@ -300,13 +403,13 @@ export default function PermissionsScreen() {
       return (
         <>
           <Ionicons name="bluetooth-outline" size={54} color="#3478F5" />
-          <Text style={styles.title}>Sisäpaikannus</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.title, { color: theme.text }]}>Sisäpaikannus</Text>
+          <Text style={[styles.description, { color: theme.secondaryText }]}>
             OtaMaps tunnistaa koulun Bluetooth-majakoita. Paikannusta käytetään vain valitsemiisi tarkoituksiin.
           </Text>
           {!trackingPurposeEnabled ? (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
+            <View style={[styles.infoBox, { backgroundColor: theme.infoBackground }]}>
+              <Text style={[styles.infoText, { color: theme.infoText }]}>
                 Et valinnut sijaintia käyttäviä ominaisuuksia, joten oikeuksia ei pyydetä.
               </Text>
             </View>
@@ -337,8 +440,8 @@ export default function PermissionsScreen() {
       return (
         <>
           <Ionicons name="location-outline" size={54} color="#3478F5" />
-          <Text style={styles.title}>Sallitaanko taustapaikannus?</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.title, { color: theme.text }]}>Sallitaanko taustapaikannus?</Text>
+          <Text style={[styles.description, { color: theme.secondaryText }]}>
             Kun tämä on käytössä, OtaMaps voi tunnistaa läheisiä majakoita myös silloin, kun sovellus ei ole näkyvissä. Android näyttää tästä pysyvän ilmoituksen.
           </Text>
           <ChoiceRow
@@ -351,6 +454,7 @@ export default function PermissionsScreen() {
             value={trackingPurposeEnabled && backgroundTracking}
             onValueChange={setBackgroundTracking}
             disabled={!trackingPurposeEnabled}
+            theme={theme}
           />
         </>
       );
@@ -359,8 +463,8 @@ export default function PermissionsScreen() {
     return (
       <>
         <Ionicons name="notifications-outline" size={54} color="#3478F5" />
-        <Text style={styles.title}>Ilmoitukset</Text>
-        <Text style={styles.description}>
+        <Text style={[styles.title, { color: theme.text }]}>Ilmoitukset</Text>
+        <Text style={[styles.description, { color: theme.secondaryText }]}>
           Saat ilmoituksia esimerkiksi Wilma-viesteistä, muutoksista ja kaveripyynnöistä. Voit jatkaa myös ilman ilmoituksia.
         </Text>
         <ChoiceRow
@@ -368,6 +472,7 @@ export default function PermissionsScreen() {
           description="Käyttöjärjestelmä pyytää vielä vahvistuksen."
           value={notifications}
           onValueChange={setNotifications}
+          theme={theme}
         />
       </>
     );
@@ -375,27 +480,28 @@ export default function PermissionsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loading}>
+      <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color="#3478F5" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={styles.progress}>
         {STEPS.map((label, index) => (
           <View key={label} style={styles.progressItem}>
             <View
               style={[
                 styles.progressDot,
+                { backgroundColor: theme.progressInactive },
                 index <= step && styles.progressDotActive,
               ]}
             />
           </View>
         ))}
       </View>
-      <Text style={styles.stepLabel}>
+      <Text style={[styles.stepLabel, { color: theme.secondaryText }]}>
         {step + 1}/{STEPS.length} · {STEPS[step]}
       </Text>
       <ScrollView
@@ -404,13 +510,27 @@ export default function PermissionsScreen() {
       >
         {renderStep()}
       </ScrollView>
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.background,
+            borderTopColor: theme.border,
+          },
+        ]}
+      >
         <Pressable
           style={styles.backButton}
           onPress={() => setStep((value) => Math.max(0, value - 1))}
           disabled={step === 0 || saving}
         >
-          <Text style={[styles.backText, step === 0 && styles.disabledText]}>
+          <Text
+            style={[
+              styles.backText,
+              { color: theme.secondaryText },
+              step === 0 && styles.disabledText,
+            ]}
+          >
             Takaisin
           </Text>
         </Pressable>
@@ -442,44 +562,58 @@ function ChoiceRow({
   value,
   onValueChange,
   disabled = false,
+  theme,
 }: {
   title: string;
   description: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
+  theme: OnboardingTheme;
 }) {
   return (
-    <View style={[styles.choice, disabled && styles.choiceDisabled]}>
+    <View
+      style={[
+        styles.choice,
+        { backgroundColor: theme.surface, borderColor: theme.border },
+        disabled && styles.choiceDisabled,
+      ]}
+    >
       <View style={styles.choiceText}>
-        <Text style={styles.choiceTitle}>{title}</Text>
-        <Text style={styles.choiceDescription}>{description}</Text>
+        <Text style={[styles.choiceTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.choiceDescription, { color: theme.secondaryText }]}>
+          {description}
+        </Text>
       </View>
       <Switch
+        accessibilityLabel={title}
+        accessibilityHint={description}
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: "#D0D5DD", true: "#84ADFF" }}
-        thumbColor={value ? "#3478F5" : "#F2F4F7"}
+        ios_backgroundColor={theme.switchOffTrack}
+        trackColor={{
+          false: theme.switchOffTrack,
+          true: theme.switchOnTrack,
+        }}
+        thumbColor={theme.switchThumb}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
+  safeArea: { flex: 1 },
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
   },
   progress: { flexDirection: "row", paddingHorizontal: 24, paddingTop: 12 },
   progressItem: { flex: 1, paddingHorizontal: 3 },
-  progressDot: { height: 4, borderRadius: 2, backgroundColor: "#EAECF0" },
+  progressDot: { height: 4, borderRadius: 2 },
   progressDotActive: { backgroundColor: "#3478F5" },
   stepLabel: {
-    color: "#667085",
     fontFamily: "Figtree-Medium",
     fontSize: 12,
     paddingHorizontal: 27,
@@ -495,13 +629,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: {
-    color: "#101828",
     fontFamily: "Figtree-SemiBold",
     fontSize: 27,
     marginTop: 18,
   },
   description: {
-    color: "#667085",
     fontFamily: "Figtree-Regular",
     fontSize: 15,
     lineHeight: 22,
@@ -509,24 +641,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   label: {
-    color: "#344054",
     fontFamily: "Figtree-Medium",
     fontSize: 14,
     marginBottom: 7,
   },
   input: {
-    backgroundColor: "#F8FAFC",
-    borderColor: "#E4E7EC",
     borderRadius: 12,
     borderWidth: 1,
-    color: "#101828",
     fontFamily: "Figtree-Regular",
     fontSize: 16,
     marginBottom: 16,
     minHeight: 50,
     paddingHorizontal: 14,
   },
-  lockedInput: { color: "#475467", backgroundColor: "#F2F4F7" },
   verifiedRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -535,7 +662,6 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   verifiedText: {
-    color: "#067647",
     fontFamily: "Figtree-Medium",
     fontSize: 13,
   },
@@ -547,10 +673,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  selectedColor: { borderColor: "#FFFFFF", borderWidth: 3 },
+  selectedColor: { borderWidth: 3 },
   choice: {
     alignItems: "center",
-    borderColor: "#E4E7EC",
     borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
@@ -561,20 +686,17 @@ const styles = StyleSheet.create({
   choiceDisabled: { opacity: 0.5 },
   choiceText: { flex: 1 },
   choiceTitle: {
-    color: "#101828",
     fontFamily: "Figtree-SemiBold",
     fontSize: 16,
   },
   choiceDescription: {
-    color: "#667085",
     fontFamily: "Figtree-Regular",
     fontSize: 13,
     lineHeight: 19,
     marginTop: 5,
   },
-  infoBox: { backgroundColor: "#F2F4F7", borderRadius: 12, padding: 16 },
+  infoBox: { borderRadius: 12, padding: 16 },
   infoText: {
-    color: "#475467",
     fontFamily: "Figtree-Regular",
     fontSize: 14,
     lineHeight: 21,
@@ -592,7 +714,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   footer: {
-    borderTopColor: "#EAECF0",
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 12,

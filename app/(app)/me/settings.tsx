@@ -6,6 +6,7 @@ import {
 import { requestBleTrackingPermissions } from "@/lib/blePermissions";
 import { startForegroundTracking, stopAllTracking } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
+import { clearSharedWeeklySchedules } from "@/lib/sharedSchedule";
 import {
   getUserPreferences,
   updateConsentChoices,
@@ -35,6 +36,7 @@ export default function Settings() {
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [friendLocation, setFriendLocation] = useState(false);
+  const [shareSchedule, setShareSchedule] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [backgroundTracking, setBackgroundTracking] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function Settings() {
           ]);
         if (cancelled) return;
         setFriendLocation(preferences.friend_location_enabled);
+        setShareSchedule(preferences.schedule_sharing_enabled);
         setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
         setBackgroundTracking(
           preferences.background_tracking_enabled && backgroundEnabled
@@ -113,6 +116,21 @@ export default function Settings() {
       setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
       if (enabled) await ensureForegroundTracking();
       if (!enabled && !friendLocation) await disableAllTracking();
+    } catch (error) {
+      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const changeScheduleSharing = async (enabled: boolean) => {
+    setUpdating("schedule");
+    try {
+      const preferences = await updateConsentChoices({
+        schedule_sharing_enabled: enabled,
+      });
+      setShareSchedule(preferences.schedule_sharing_enabled);
+      if (!enabled) await clearSharedWeeklySchedules();
     } catch (error) {
       Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
     } finally {
@@ -211,6 +229,15 @@ export default function Settings() {
             value={friendLocation}
             disabled={updating !== null}
             onValueChange={(value) => void changeFriendLocation(value)}
+            colors={{ titleColor, descriptionColor }}
+          />
+          <Divider isDark={isDark} />
+          <SettingSwitch
+            title="Viikkolukujärjestys kavereille"
+            description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
+            value={shareSchedule}
+            disabled={updating !== null}
+            onValueChange={(value) => void changeScheduleSharing(value)}
             colors={{ titleColor, descriptionColor }}
           />
           <Divider isDark={isDark} />

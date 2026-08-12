@@ -1,5 +1,6 @@
 import {
   fetchMessageRecipients,
+  fetchWilmaQueryCapabilities,
   WilmaMessageRecipient,
 } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -26,12 +27,19 @@ export default function TeachersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scheduleSupported, setScheduleSupported] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     if (!refresh) setLoading(true);
     setError(null);
     try {
       setRecipients(await fetchMessageRecipients({ forceRefresh: refresh }));
+      try {
+        const capabilities = await fetchWilmaQueryCapabilities({ forceRefresh: refresh });
+        setScheduleSupported(capabilities.has("teacherSchedule"));
+      } catch {
+        setScheduleSupported(false);
+      }
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Vastaanottajien lataus epäonnistui");
     } finally {
@@ -55,6 +63,21 @@ export default function TeachersScreen() {
         return a.name.localeCompare(b.name, "fi-FI");
       });
   }, [query, recipients]);
+
+  const openMessage = (item: WilmaMessageRecipient) => router.push({
+    pathname: "/wilma/compose" as never,
+    params: {
+      recipientId: String(item.id),
+      schoolId: String(item.schoolId),
+      name: item.name,
+      code: item.code,
+    },
+  });
+
+  const openSchedule = (item: WilmaMessageRecipient) => router.push({
+    pathname: "/wilma/teacher-schedule" as never,
+    params: { teacherId: String(item.id), name: item.name, code: item.code },
+  });
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
@@ -109,21 +132,10 @@ export default function TeachersScreen() {
               <Text style={[styles.stateText, isDark && styles.mutedDark]}>Ei hakutuloksia</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.row, isDark && styles.rowDark]}
-              onPress={() =>
-                router.push({
-                  pathname: "/wilma/compose" as never,
-                  params: {
-                    recipientId: String(item.id),
-                    schoolId: String(item.schoolId),
-                    name: item.name,
-                    code: item.code,
-                  },
-                })
-              }
-            >
+          renderItem={({ item }) => {
+            const isTeacher = item.category.toLocaleLowerCase("fi-FI").includes("opettajat");
+            return (
+            <View style={[styles.row, isDark && styles.rowDark]}>
               <View style={[styles.avatar, isDark && styles.avatarDark]}>
                 <MaterialIcons name="person-outline" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
               </View>
@@ -136,9 +148,28 @@ export default function TeachersScreen() {
                   {item.isOwnTeacher ? "Oma opettaja · " : ""}{item.category}
                 </Text>
               </View>
-              <MaterialIcons name="chevron-right" size={22} color={isDark ? "#555" : "#bbb"} />
-            </Pressable>
-          )}
+              <View style={styles.actions}>
+                {isTeacher && scheduleSupported && (
+                  <Pressable
+                    style={[styles.actionButton, isDark && styles.actionButtonDark]}
+                    onPress={() => openSchedule(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Näytä opettajan ${item.name} lukujärjestys`}
+                  >
+                    <MaterialIcons name="calendar-month" size={19} color={isDark ? "#51a2ff" : "#4A89EE"} />
+                  </Pressable>
+                )}
+                <Pressable
+                  style={[styles.actionButton, isDark && styles.actionButtonDark]}
+                  onPress={() => openMessage(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
+                >
+                  <MaterialIcons name="mail-outline" size={19} color={isDark ? "#51a2ff" : "#4A89EE"} />
+                </Pressable>
+              </View>
+            </View>
+          );}}
         />
       )}
     </SafeAreaView>
@@ -167,6 +198,9 @@ const styles = StyleSheet.create({
   name: { flexShrink: 1, fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#222" },
   code: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#888" },
   category: { marginTop: 2, fontFamily: "Figtree-Regular", fontSize: 12, color: "#888" },
+  actions: { flexDirection: "row", gap: 7 },
+  actionButton: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#eef4ff" },
+  actionButtonDark: { backgroundColor: "#25334a" },
   textLight: { color: "#fff" },
   mutedDark: { color: "#888" },
 });

@@ -3,6 +3,7 @@
 import "@/lib/bleBackgroundTask";
 import "@/lib/sentry";
 
+import RequiredUpdateGate from "@/components/updates/RequiredUpdateGate";
 import { UserProvider } from "@/context/UserContext";
 import {
   isBLEBackgroundEnabled,
@@ -166,6 +167,7 @@ export default Sentry.wrap(function RootLayout() {
       <InstantSearch searchClient={searchClient} indexName="rooms_rows">
         <RootLayoutNav />
       </InstantSearch>
+      <RequiredUpdateGate />
       <StatusBar style={isDark ? "light" : "dark"} />
     </View>
   );

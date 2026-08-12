@@ -1,12 +1,13 @@
 {
   "name": "otamaps-app",
   "main": "expo-router/entry",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "test:ble": "tsc lib/bleTrackingCore.ts lib/bleTrackingTypes.ts lib/blePositionEstimator.ts lib/bleBeaconCatalog.ts --ignoreConfig --outDir .expo/ble-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/bleTrackingCore.test.cjs tests/bleConfig.test.mjs"
@@ -81,6 +82,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~57.0.1",
+    "patch-package": "^8.0.0",
     "typescript": "~6.0.3"
   },
   "resolutions": {

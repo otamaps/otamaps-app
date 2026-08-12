@@ -9,14 +9,14 @@ export type Room = {
   description: string;
   seats: number;
   type: string;
-  equipment: object;
+  equipment: Record<string, unknown> | string[] | null;
   wilma_id: string;
   bookable: boolean;
-  image_url: string;
+  image_url: string | null;
   created_at: string;
-  schedule: object;
+  schedule: Record<string, unknown> | null;
   status: string;
-  floor: number; // Add the floor field
+  floor: number;
   geometry?: {
     type: string;
     coordinates: any[];

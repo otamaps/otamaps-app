@@ -1,4 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { reportHandledError } from "@/lib/sentry";
+import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
 import {
   AttendanceEntry,
   clearSession,
@@ -16,7 +18,7 @@ import {
   WilmaMessage,
   WilmaStudentProfile,
 } from "@/lib/wilma/graphqlClient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -359,6 +361,14 @@ function Dashboard({
           )
           .slice(0, 8);
 
+        void syncSharedWeeklySchedule(scheduleData.schedule).catch((error) => {
+          reportHandledError(error, {
+            area: "shared_schedule",
+            operation: "sync_current_week",
+            level: "warning",
+          });
+        });
+
         setData({
           profile,
           lessons: todaysLessons,
@@ -384,9 +394,11 @@ function Dashboard({
     [onLogout]
   );
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -802,7 +814,7 @@ function Dashboard({
             />
             <View style={styles.moreWilmaText}>
               <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Opettajat ja henkilökunta</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Selaa vastaanottajia ja lähetä viesti</Text>
+              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Opettajien lukujärjestykset ja viestit</Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"

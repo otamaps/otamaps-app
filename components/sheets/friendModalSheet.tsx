@@ -6,9 +6,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Dimensions, StyleSheet, useColorScheme, View } from "react-native";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { StyleSheet, useColorScheme, View } from "react-native";
 
 export type FriendModalSheetRef = {
   present: () => void;
@@ -23,24 +21,13 @@ type FriendModalSheetProps = {
   initialSnap?: "max" | "mid" | "min";
 };
 
-const maxHeight = SCREEN_HEIGHT * 0.95;
-const midHeight = SCREEN_HEIGHT * 0.5;
-const minHeight = SCREEN_HEIGHT * 0.3;
-
 const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
   ({ children, onDismiss, initialSnap = "mid" }, ref) => {
     const sheetRef = useRef<BottomSheetModal>(null);
 
     const isDark = useColorScheme() === "dark";
 
-    const snapPoints = useMemo(
-      () => [
-        `${Math.round((minHeight / SCREEN_HEIGHT) * 100)}%`,
-        `${Math.round((midHeight / SCREEN_HEIGHT) * 100)}%`,
-        `${Math.round((maxHeight / SCREEN_HEIGHT) * 100)}%`,
-      ],
-      [minHeight, midHeight, maxHeight]
-    );
+    const snapPoints = useMemo(() => ["42%", "68%", "94%"], []);
 
     const initialIndex = useMemo(() => {
       switch (initialSnap) {
@@ -65,18 +52,13 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
       close: () => sheetRef.current?.close(),
     }));
 
-    // Handle dismiss
-    const handleDismiss = useCallback(() => {
-      onDismiss();
-    }, [onDismiss]);
-
     return (
       <BottomSheetModal
         ref={sheetRef}
         snapPoints={snapPoints}
         enablePanDownToClose={true}
         onDismiss={onDismiss}
-        // style={[isDark && { backgroundColor: "#1e1e1e" }]}
+        backgroundStyle={{ backgroundColor: isDark ? "#1E2024" : "#FFFFFF" }}
         handleStyle={{
           backgroundColor: isDark ? "#1e1e1e" : "#fff",
           borderTopLeftRadius: 14,
@@ -105,38 +87,15 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
 );
 
 const styles = StyleSheet.create({
-  background: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
-  },
   contentContainer: {
     flexGrow: 1,
-    paddingTop: 5,
-    padding: 20,
-    paddingBottom: 40, // Extra padding at the bottom for better scrolling
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 20,
-    textAlign: "center",
-    color: "#1a1a1a",
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 48,
   },
   content: {
     flex: 1,
     width: "100%",
-  },
-  handleIndicator: {
-    backgroundColor: "#e0e0e0",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
   },
 });
 

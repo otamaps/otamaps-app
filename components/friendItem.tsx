@@ -1,4 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import {
+  friendLocationListLabel,
+  knownFriendLocation,
+} from "@/lib/friendPresentation";
 import React from "react";
 import {
   Pressable,
@@ -13,14 +17,14 @@ interface FriendItemProps {
     id: string;
     name: string;
     status?: "ei sijaintia" | "busy" | string;
-    lastSeen?: string | number; // Can be ISO string or timestamp
+    lastSeen?: string | number | null; // Can be ISO string or timestamp
     isFavorite?: boolean;
     color?: string; // Optional color for the icon background
   };
   onPress?: () => void;
 }
 
-export const formatLastSeen = (lastSeen?: string | number): string => {
+export const formatLastSeen = (lastSeen?: string | number | null): string => {
   if (!lastSeen) return "";
 
   let date: Date;
@@ -31,7 +35,7 @@ export const formatLastSeen = (lastSeen?: string | number): string => {
     date = new Date(lastSeen * 1000); // Convert seconds to milliseconds if needed
   }
 
-  if (isNaN(date.getTime())) return "Unknown";
+  if (isNaN(date.getTime())) return "Ei tietoa";
 
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -52,7 +56,7 @@ export const formatLastSeen = (lastSeen?: string | number): string => {
   }
 
   // For older dates, show the actual date
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("fi-FI", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -63,8 +67,11 @@ export const formatLastSeen = (lastSeen?: string | number): string => {
 
 const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
   const isDark = useColorScheme() === "dark";
+  const statusLabel = friendLocationListLabel(friend.status);
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${friend.name}, ${statusLabel}`}
       style={({ pressed }) => [
         styles.container,
         pressed && styles.pressed,
@@ -112,14 +119,14 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
                   styles.statusIndicator,
                   {
                     backgroundColor: getStatusColor(
-                      friend.status,
+                      statusLabel,
                       friend.lastSeen
                     ),
                   },
                 ]}
               />
               <Text style={[styles.metaText, isDark && { color: "#d4d4d4" }]}>
-                {friend.status.charAt(0).toUpperCase() + friend.status.slice(1)}
+                {statusLabel}
               </Text>
             </View>
           )}
@@ -146,20 +153,11 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
   );
 };
 
-const getStatusColor = (status?: string, lastSeen?: string | number) => {
-  // For non-'at school' statuses, return their respective colors
-  if (status !== "busy") {
-    switch (status) {
-      case "busy":
-        return "#F44336";
-      case "ei sijaintia":
-        return "#9E9E9E";
-      default:
-        return "#9E9E9E";
-    }
-  }
-
-  // For 'at school' status, calculate fade based on lastSeen
+const getStatusColor = (
+  status?: string,
+  lastSeen?: string | number | null
+) => {
+  if (!knownFriendLocation(status)) return "#9E9E9E";
   if (!lastSeen) return "#4CAF50";
 
   let date: Date;

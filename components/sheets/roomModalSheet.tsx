@@ -1,16 +1,13 @@
-import { isFeatureEnabled } from "@/lib/featureFlagService";
-import { useRoomStore } from "@/lib/roomService";
+import { Room, useRoomStore } from "@/lib/roomService";
 import { MaterialIcons } from "@expo/vector-icons";
-import {
-  BottomSheetModal,
-  BottomSheetScrollView,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
 import React, {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -24,21 +21,6 @@ import {
   View,
 } from "react-native";
 
-interface Room {
-  id: string;
-  title: string;
-  description: string;
-  seats: number;
-  size: number;
-  type: "classroom" | "meeting_room" | "auditorium" | "lab";
-  floor: string;
-  room_number: string;
-  building: string;
-  equipment: string[];
-  image_url: string;
-  is_accessible: boolean;
-}
-
 export interface RoomModalSheetMethods {
   open: (roomId: string) => void;
   close: () => void;
@@ -48,535 +30,347 @@ interface RoomModalSheetProps {
   onDismiss?: () => void;
 }
 
+const equipmentLabels: Record<string, string> = {
+  projector: "Projektori",
+  screen: "Näyttö",
+  whiteboard: "Valkotaulu",
+  computer: "Tietokone",
+  microphone: "Mikrofoni",
+  speakers: "Kaiuttimet",
+  document_camera: "Dokumenttikamera",
+  hearing_loop: "Induktiosilmukka",
+};
+
+const equipmentIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  projector: "videocam",
+  screen: "tv",
+  whiteboard: "dashboard",
+  computer: "computer",
+  microphone: "mic",
+  speakers: "speaker",
+  document_camera: "camera-alt",
+  hearing_loop: "hearing",
+};
+
+function formatEquipment(equipment: Room["equipment"]): string[] {
+  if (!equipment) return [];
+
+  if (Array.isArray(equipment)) {
+    return equipment
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return Object.entries(equipment)
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) => {
+      const label = equipmentLabels[key.toLowerCase()] ?? key.replaceAll("_", " ");
+      return typeof value === "string" && value.trim() && value !== "true"
+        ? `${label}: ${value.trim()}`
+        : label;
+    });
+}
+
+function getFloor(room: Room): string {
+  if (room.floor !== null && room.floor !== undefined) return String(room.floor);
+  const match = room.room_number?.match(/\d/);
+  return match?.[0] ?? "–";
+}
+
+function getRoomType(type: string | null): string {
+  const labels: Record<string, string> = {
+    classroom: "Luokkahuone",
+    meeting_room: "Neuvottelutila",
+    auditorium: "Auditorio",
+    lab: "Laboratorio",
+  };
+  return type ? labels[type.toLowerCase()] ?? type.replaceAll("_", " ") : "Tila";
+}
+
+function equipmentIcon(item: string): keyof typeof MaterialIcons.glyphMap {
+  const normalized = item.toLowerCase().replaceAll(" ", "_");
+  return equipmentIcons[normalized] ?? "check-circle";
+}
+
 const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
   ({ onDismiss }, ref) => {
-    const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    const sheetRef = useRef<BottomSheetModal>(null);
+    const activeRequestRef = useRef(0);
     const [room, setRoom] = useState<Room | null>(null);
+    const [roomId, setRoomId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isBookingEnabled, setIsBookingEnabled] = useState(false);
-
-    const [roomId, setRoomId] = useState<string | null>(null);
-
-    const { rooms, fetchRooms } = useRoomStore();
-
+    const [imageFailed, setImageFailed] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const { fetchRooms } = useRoomStore();
     const isDark = useColorScheme() === "dark";
+    const snapPoints = useMemo(() => ["45%", "70%", "94%"], []);
 
     useEffect(() => {
-      const checkBookingFeature = async () => {
-        const enabled = await isFeatureEnabled("booking");
-        setIsBookingEnabled(enabled);
-      };
-      checkBookingFeature();
-    }, []);
+      setImageFailed(false);
+      setImageLoaded(false);
+    }, [room?.id, room?.image_url]);
 
-    const fetchRoomDetails = async (id: string) => {
-      try {
+    const fetchRoomDetails = useCallback(
+      async (id: string) => {
+        const requestId = ++activeRequestRef.current;
         setLoading(true);
         setError(null);
 
-        // First, check if the room is already in the store
-        const existingRoom = rooms.find((room) => room.id === id);
+        try {
+          const cachedRoom = useRoomStore.getState().rooms.find((item) => item.id === id);
+          if (cachedRoom) {
+            if (requestId === activeRequestRef.current) setRoom(cachedRoom);
+            return;
+          }
 
-        if (existingRoom) {
-          setRoom(existingRoom as any);
-          bottomSheetModalRef.current?.present();
-          return;
+          await fetchRooms(true);
+          const fetchedRoom = useRoomStore.getState().rooms.find((item) => item.id === id);
+          if (!fetchedRoom) throw new Error("Room not found");
+          if (requestId === activeRequestRef.current) setRoom(fetchedRoom);
+        } catch (fetchError) {
+          console.error("Error fetching room details:", fetchError);
+          if (requestId === activeRequestRef.current) {
+            setError("Tilan tietoja ei voitu ladata. Yritä uudelleen.");
+          }
+        } finally {
+          if (requestId === activeRequestRef.current) setLoading(false);
         }
+      },
+      [fetchRooms]
+    );
 
-        // If not in the store, fetch all rooms and try again
-        await fetchRooms();
-        const updatedRoom = useRoomStore
-          .getState()
-          .rooms.find((room) => room.id === id);
+    const open = useCallback(
+      (id: string) => {
+        setRoomId(id);
+        setRoom(useRoomStore.getState().rooms.find((item) => item.id === id) ?? null);
+        setError(null);
+        sheetRef.current?.present();
+        sheetRef.current?.snapToIndex(1);
+        void fetchRoomDetails(id);
+      },
+      [fetchRoomDetails]
+    );
 
-        if (updatedRoom) {
-          setRoom(updatedRoom as any);
-          bottomSheetModalRef.current?.present();
-        } else {
-          throw new Error("Room not found");
-        }
-      } catch (err) {
-        console.error("Error fetching room details:", err);
-        setError("Failed to load room details. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    const close = useCallback(() => {
+      sheetRef.current?.dismiss();
+    }, []);
 
-    const open = (id: string) => {
-      setRoomId(id);
-      fetchRoomDetails(id);
-    };
+    useImperativeHandle(ref, () => ({ open, close }), [close, open]);
 
-    const close = () => {
-      bottomSheetModalRef.current?.dismiss();
-      onDismiss?.();
-    };
-
-    useImperativeHandle(ref, () => ({
-      open,
-      close,
-    }));
-
-    const getFloor = (room: Room) => {
-      if (room.floor) return room.floor;
-      const match = room.room_number?.match(/\d/);
-      return match ? match[0] : "?";
-    };
-
-    const renderStars = (rating: number) => {
-      return Array(5)
-        .fill(0)
-        .map((_, i) => {
-          const iconName: "star" | "star-outline" =
-            i < Math.floor(rating) ? "star" : "star-outline";
-          return (
-            <MaterialIcons key={i} name={iconName} size={16} color="#FFD700" />
-          );
-        });
-    };
-
-    const renderAmenityIcon = (amenity: string) => {
-      // Map amenities to MaterialIcons names
-      const iconMap: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-        wifi: "wifi",
-        tv: "tv",
-        ac: "ac-unit",
-        minibar: "local-bar",
-        safe: "security",
-        shower: "shower",
-      };
-
-      const iconName = iconMap[amenity.toLowerCase()] || "check";
-
-      return (
-        <View key={amenity} style={styles.amenityItem}>
-          <MaterialIcons name={iconName} size={20} color="#4A89EE" />
-          <Text style={styles.amenityText}>{amenity}</Text>
-        </View>
-      );
-    };
-
-    if (loading) {
-      return (
-        <BottomSheetModal
-          ref={bottomSheetModalRef}
-          style={[styles.background, isDark && { backgroundColor: "#1e1e1e" }]}
-          snapPoints={[500, "100%"]}
-          enablePanDownToClose={true}
-        >
-          <View
-            style={[
-              styles.loadingContainer,
-              isDark && { backgroundColor: "#1e1e1e" },
-            ]}
-          >
-            <ActivityIndicator size="large" color="#4A89EE" />
-            <Text style={[styles.loadingText, isDark && { color: "#fff" }]}>
-              Loading room details...
-            </Text>
-          </View>
-        </BottomSheetModal>
-      );
-    }
-
-    if (error) {
-      return (
-        <BottomSheetModal
-          ref={bottomSheetModalRef}
-          style={[styles.background, isDark && { backgroundColor: "#1e1e1e" }]}
-          snapPoints={[300, "100%"]}
-          enablePanDownToClose={true}
-        >
-          <View style={styles.errorContainer}>
-            <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable
-              style={styles.retryButton}
-              onPress={() => roomId && fetchRoomDetails(roomId)}
-            >
-              <Text
-                style={[styles.retryButtonText, isDark && { color: "#fff" }]}
-              >
-                Try Again
-              </Text>
-            </Pressable>
-          </View>
-        </BottomSheetModal>
-      );
-    }
-
-    if (!room) return null;
+    const equipment = useMemo(() => formatEquipment(room?.equipment ?? null), [room?.equipment]);
+    const background = isDark ? "#16181C" : "#F7F8FA";
+    const card = isDark ? "#23262C" : "#FFFFFF";
+    const primaryText = isDark ? "#F5F7FA" : "#14171C";
+    const secondaryText = isDark ? "#AEB4BE" : "#657080";
+    const accent = "#397BE8";
+    const hasImage = Boolean(room?.image_url) && !imageFailed;
 
     return (
       <BottomSheetModal
-        ref={bottomSheetModalRef}
-        style={[styles.background, isDark && { backgroundColor: "#1e1e1e" }]}
-        snapPoints={["43%", "60%", "80%"]}
-        enablePanDownToClose={true}
-        onDismiss={onDismiss}
-        handleStyle={{
-          backgroundColor: isDark ? "#1e1e1e" : "#fff",
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
+        ref={sheetRef}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+        onDismiss={() => {
+          activeRequestRef.current += 1;
+          setRoomId(null);
+          setLoading(false);
+          onDismiss?.();
         }}
-        handleIndicatorStyle={{
-          backgroundColor: isDark ? "#666666" : "#cccccc",
-        }}
+        backgroundStyle={{ backgroundColor: background }}
+        handleStyle={{ backgroundColor: background }}
+        handleIndicatorStyle={{ backgroundColor: isDark ? "#626874" : "#C6CBD3" }}
       >
-        <BottomSheetView
-          style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+        <BottomSheetScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          <BottomSheetScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Room Image */}
-            <View style={styles.imageContainer}>
-              {room.image_url ? (
-                <Image
-                  source={{ uri: room.image_url }}
-                  style={styles.roomImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.roomImage, styles.imagePlaceholder, isDark && styles.imagePlaceholderDark]}>
-                  <MaterialIcons
-                    name="image-not-supported"
-                    size={50}
-                    color={isDark ? "#666" : "#ccc"}
-                  />
-                </View>
-              )}
-              <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.4)"]}
-                style={styles.imageGradient}
-              />
-              <Pressable style={styles.closeButton} onPress={close}>
-                <MaterialIcons name="close" size={24} color="white" />
+          <View style={styles.topBar}>
+            <View>
+              <Text style={[styles.eyebrow, { color: accent }]}>OTANIEMEN LUKIO</Text>
+              <Text style={[styles.sheetTitle, { color: primaryText }]}>Tilan tiedot</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sulje"
+              hitSlop={10}
+              onPress={close}
+              style={[styles.closeButton, { backgroundColor: card }]}
+            >
+              <MaterialIcons name="close" size={22} color={primaryText} />
+            </Pressable>
+          </View>
+
+          {loading && !room ? (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator size="large" color={accent} />
+              <Text style={[styles.stateTitle, { color: primaryText }]}>Ladataan tilaa…</Text>
+            </View>
+          ) : error && !room ? (
+            <View style={[styles.stateCard, { backgroundColor: card }]}>
+              <View style={styles.errorIcon}>
+                <MaterialIcons name="error-outline" size={28} color="#D84C4C" />
+              </View>
+              <Text style={[styles.stateTitle, { color: primaryText }]}>Tietojen lataus epäonnistui</Text>
+              <Text style={[styles.stateBody, { color: secondaryText }]}>{error}</Text>
+              <Pressable
+                style={[styles.retryButton, { backgroundColor: accent }]}
+                onPress={() => roomId && void fetchRoomDetails(roomId)}
+              >
+                <Text style={styles.retryText}>Yritä uudelleen</Text>
               </Pressable>
             </View>
-
-            {/* Room Details */}
-            <View style={styles.detailsContainer}>
-              <View style={styles.headerRow}>
-                <View style={styles.roomTitleContainer}>
-                  <Text style={[styles.roomName, isDark && { color: "#fff" }]}>
-                    {room.room_number ? `${room.room_number} ${room.title}` : room.title}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.roomLocation,
-                      isDark && { color: "#ffffff80" },
-                    ]}
-                  >
-                    Floor {getFloor(room)}
-                  </Text>
+          ) : room ? (
+            <>
+              <View style={[styles.hero, { backgroundColor: isDark ? "#202B3D" : "#DFEAFB" }]}>
+                <LinearGradient
+                  colors={isDark ? ["#253552", "#172034"] : ["#EDF4FF", "#C8DBF8"]}
+                  style={styles.fill}
+                />
+                <View style={styles.heroFallback}>
+                  <View style={[styles.roomIcon, { backgroundColor: isDark ? "#334766" : "#FFFFFFB8" }]}>
+                    <MaterialIcons name="meeting-room" size={44} color={accent} />
+                  </View>
                 </View>
-                <View
-                  style={[
-                    styles.roomTypeBadge,
-                    isDark && { backgroundColor: "#2c2c2c" },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.roomTypeText,
-                      isDark && { color: "#4A89EE" },
-                    ]}
-                  >
-                    {(room.type || "room")
-                      .split("_")
-                      .map(
-                        (word) => word.charAt(0).toUpperCase() + word.slice(1)
-                      )
-                      .join(" ")}
+                {hasImage ? (
+                  <Image
+                    source={{ uri: room.image_url! }}
+                    style={[styles.roomImage, !imageLoaded && styles.hiddenImage]}
+                    resizeMode="cover"
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => {
+                      setImageLoaded(false);
+                      setImageFailed(true);
+                    }}
+                  />
+                ) : null}
+                {hasImage && imageLoaded ? (
+                  <LinearGradient
+                    colors={["transparent", "rgba(7, 15, 28, 0.5)"]}
+                    style={styles.fill}
+                  />
+                ) : null}
+                {!hasImage ? (
+                  <View style={[styles.photoStatus, { backgroundColor: isDark ? "#111722CC" : "#FFFFFFD9" }]}>
+                    <MaterialIcons name="image-not-supported" size={15} color={secondaryText} />
+                    <Text style={[styles.photoStatusText, { color: secondaryText }]}>Kuva ei saatavilla</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.identityRow}>
+                <View style={styles.identityText}>
+                  <Text style={[styles.roomNumber, { color: primaryText }]}>{room.room_number || room.title || "Tila"}</Text>
+                  {room.title && room.title !== room.room_number ? (
+                    <Text style={[styles.roomName, { color: secondaryText }]}>{room.title}</Text>
+                  ) : null}
+                </View>
+                <View style={[styles.typeBadge, { backgroundColor: isDark ? "#263958" : "#E8F0FD" }]}>
+                  <Text style={[styles.typeText, { color: accent }]}>{getRoomType(room.type)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoGrid}>
+                <View style={[styles.infoCard, { backgroundColor: card }]}>
+                  <View style={[styles.infoIcon, { backgroundColor: isDark ? "#263958" : "#E8F0FD" }]}>
+                    <MaterialIcons name="layers" size={22} color={accent} />
+                  </View>
+                  <Text style={[styles.infoLabel, { color: secondaryText }]}>Kerros</Text>
+                  <Text style={[styles.infoValue, { color: primaryText }]}>{getFloor(room)}</Text>
+                </View>
+                <View style={[styles.infoCard, { backgroundColor: card }]}>
+                  <View style={[styles.infoIcon, { backgroundColor: isDark ? "#263958" : "#E8F0FD" }]}>
+                    <MaterialIcons name="people-outline" size={22} color={accent} />
+                  </View>
+                  <Text style={[styles.infoLabel, { color: secondaryText }]}>Paikkoja</Text>
+                  <Text style={[styles.infoValue, { color: primaryText }]}>{room.seats ?? "–"}</Text>
+                </View>
+                <View style={[styles.infoCard, { backgroundColor: card }]}>
+                  <View style={[styles.infoIcon, { backgroundColor: isDark ? "#263958" : "#E8F0FD" }]}>
+                    <MaterialIcons name="event-available" size={22} color={accent} />
+                  </View>
+                  <Text style={[styles.infoLabel, { color: secondaryText }]}>Varaus</Text>
+                  <Text style={[styles.infoValue, styles.compactValue, { color: primaryText }]}>
+                    {room.bookable ? "Varattavissa" : "Ei varattavissa"}
                   </Text>
                 </View>
               </View>
-              {/* Action Buttons */}
-              {/* <View style={styles.footerActions}>
-                <Pressable
-                  style={[styles.actionButton, styles.directionsButton]}
-                >
-                  <MaterialIcons name="directions" size={20} color="#4A89EE" />
-                  <Text style={[styles.actionButtonText, { color: "#4A89EE" }]}>
-                    Directions
-                  </Text>
-                </Pressable>
-                {isBookingEnabled && (
-                  <Pressable style={[styles.actionButton, styles.bookButton]}>
-                    <Text style={styles.actionButtonText}>
-                      Check Availability
-                    </Text>
-                  </Pressable>
-                )}
-              </View> */}
-              <View
-                style={[styles.roomInfo, isDark && { borderColor: "#444" }]}
-              >
-                <View style={styles.infoItem}>
-                  <MaterialIcons name="people" size={20} color="#666" />
-                  <Text style={[styles.infoText, isDark && { color: "#fff" }]}>
-                    Up to {room.seats} people
-                  </Text>
+
+              {room.description?.trim() ? (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: primaryText }]}>Tietoja tilasta</Text>
+                  <Text style={[styles.description, { color: secondaryText }]}>{room.description.trim()}</Text>
                 </View>
-                {room.size && room.size > 0 && (
-                  <View style={styles.infoItem}>
-                    <MaterialIcons name="straighten" size={20} color="#666" />
-                    <Text style={[styles.infoText, isDark && { color: "#fff" }]}>
-                      {room.size} m²
-                    </Text>
+              ) : null}
+
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: primaryText }]}>Varustelu</Text>
+                {equipment.length ? (
+                  <View style={styles.chips}>
+                    {equipment.map((item) => (
+                      <View key={item} style={[styles.chip, { backgroundColor: card }]}>
+                        <MaterialIcons name={equipmentIcon(item)} size={18} color={accent} />
+                        <Text style={[styles.chipText, { color: primaryText }]}>{item}</Text>
+                      </View>
+                    ))}
                   </View>
-                )}
-                {room.is_accessible && (
-                  <View style={styles.infoItem}>
-                    <MaterialIcons name="accessible" size={20} color="#666" />
-                    <Text
-                      style={[styles.infoText, isDark && { color: "#fff" }]}
-                    >
-                      Wheelchair accessible
-                    </Text>
+                ) : (
+                  <View style={[styles.emptyEquipment, { backgroundColor: card }]}>
+                    <MaterialIcons name="info-outline" size={20} color={secondaryText} />
+                    <Text style={[styles.emptyEquipmentText, { color: secondaryText }]}>Varustelutietoja ei ole saatavilla.</Text>
                   </View>
                 )}
               </View>
-
-              {room.description && room.description.trim() && (
-                <>
-                  <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
-                    About This Room
-                  </Text>
-                  <Text style={[styles.description, isDark && { color: "#fff" }]}>
-                    {room.description}
-                  </Text>
-                </>
-              )}
-
-              {room.equipment && room.equipment.length > 0 && (
-                <>
-                  <Text style={[styles.sectionTitle, isDark && { color: "#fff" }]}>
-                    Equipment
-                  </Text>
-                  <View style={styles.amenitiesContainer}>
-                    {room.equipment.map((item) => renderAmenityIcon(item))}
-                  </View>
-                </>
-              )}
-            </View>
-          </BottomSheetScrollView>
-        </BottomSheetView>
+            </>
+          ) : null}
+        </BottomSheetScrollView>
       </BottomSheetModal>
     );
   }
 );
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "white",
-    zIndex: 1000,
-  },
-  content: {
-    flex: 1,
-    paddingBottom: 100, // Space for the fixed button
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#FF3B30",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: "#4A89EE",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  imageContainer: {
-    height: 250,
-    width: "100%",
-    position: "relative",
-  },
-  roomImage: {
-    width: "100%",
-    height: "100%",
-  },
-  imagePlaceholder: {
-    backgroundColor: "#f5f5f5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  imagePlaceholderDark: {
-    backgroundColor: "#2c2c2c",
-  },
-  imageGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "40%",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  detailsContainer: {
-    padding: 24,
-    paddingTop: 12,
-    paddingBottom: 120, // Extra padding for the fixed button
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  roomTitleContainer: {
-    flex: 1,
-    marginRight: 16,
-  },
-  roomName: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  roomLocation: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  roomTypeBadge: {
-    backgroundColor: "#EFF4FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  roomTypeText: {
-    color: "#4A89EE",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  starsContainer: {
-    flexDirection: "row",
-    marginRight: 8,
-  },
-  ratingText: {
-    color: "#666",
-    fontSize: 14,
-  },
-  roomInfo: {
-    flexDirection: "row",
-    marginVertical: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 24,
-  },
-  infoText: {
-    marginLeft: 8,
-    color: "#666",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#444",
-  },
-  amenitiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-  amenityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  amenityText: {
-    marginLeft: 6,
-    fontSize: 13,
-    color: "#444",
-  },
-  footerActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  directionsButton: {
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#4A89EE",
-  },
-  bookButton: {
-    backgroundColor: "#4A89EE",
-  },
-  actionButtonText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  background: {
-    zIndex: 1000,
-  },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 56 },
+  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 2 },
+  sheetTitle: { fontSize: 25, fontWeight: "800", letterSpacing: -0.5 },
+  closeButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  stateContainer: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 14 },
+  stateCard: { minHeight: 260, borderRadius: 24, padding: 28, alignItems: "center", justifyContent: "center" },
+  errorIcon: { marginBottom: 12 },
+  stateTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
+  stateBody: { fontSize: 14, lineHeight: 20, textAlign: "center", marginTop: 6 },
+  retryButton: { borderRadius: 14, paddingHorizontal: 22, paddingVertical: 12, marginTop: 18 },
+  retryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  hero: { height: 220, borderRadius: 26, overflow: "hidden", position: "relative" },
+  fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  heroFallback: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center" },
+  roomIcon: { width: 86, height: 86, borderRadius: 43, alignItems: "center", justifyContent: "center" },
+  roomImage: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
+  hiddenImage: { opacity: 0 },
+  photoStatus: { position: "absolute", right: 12, bottom: 12, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 6 },
+  photoStatusText: { fontSize: 12, fontWeight: "600" },
+  identityRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginTop: 20, gap: 12 },
+  identityText: { flex: 1 },
+  roomNumber: { fontSize: 29, lineHeight: 34, fontWeight: "800", letterSpacing: -0.7 },
+  roomName: { fontSize: 15, lineHeight: 21, marginTop: 3 },
+  typeBadge: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, maxWidth: "42%" },
+  typeText: { fontSize: 12, fontWeight: "700", textTransform: "capitalize" },
+  infoGrid: { flexDirection: "row", gap: 10, marginTop: 20 },
+  infoCard: { flex: 1, minHeight: 124, borderRadius: 20, padding: 13 },
+  infoIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 11 },
+  infoLabel: { fontSize: 11, fontWeight: "600", marginBottom: 3 },
+  infoValue: { fontSize: 20, fontWeight: "800" },
+  compactValue: { fontSize: 13, lineHeight: 17 },
+  section: { marginTop: 28 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 12 },
+  description: { fontSize: 15, lineHeight: 23 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, paddingVertical: 10, borderRadius: 16 },
+  chipText: { fontSize: 13, fontWeight: "600" },
+  emptyEquipment: { flexDirection: "row", alignItems: "center", gap: 10, padding: 15, borderRadius: 17 },
+  emptyEquipmentText: { flex: 1, fontSize: 14, lineHeight: 20 },
 });
 
 RoomModalSheet.displayName = "RoomModalSheet";
