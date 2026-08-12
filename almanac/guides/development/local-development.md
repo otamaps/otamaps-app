@@ -9,15 +9,9 @@ sources:
   - id: eas-config
     type: file
     path: eas.json
-  - id: repo-notes
+  - id: tsconfig
     type: file
-    path: chatgpt.md
-  - id: typecheck-reference
-    type: file
-    path: almanac/reference/testing/typecheck-status.md
-  - id: test-reference
-    type: file
-    path: almanac/reference/testing/test-coverage.md
+    path: tsconfig.json
   - id: sdk57-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/08/rollout-2026-08-08T17-37-34-019fe1ce-cd4f-7ee1-b1a8-46157360f6f8.jsonl
@@ -28,7 +22,7 @@ sources:
 
 # Local Development
 
-Use this guide when starting or validating the local OtaMaps Expo app. The repository is an Expo Router React Native app with package scripts for starting Expo, running platform helpers, linting, and running the targeted BLE test suite [@package] [@repo-notes]. App-wide TypeScript checking remains a manual command rather than a package script, and the August 2026 SDK 57 upgrade made that command pass cleanly in the upgraded dependency graph [@package] [@typecheck-reference] [@sdk57-session].
+Use this guide when starting or validating the local OtaMaps Expo app. The repository is an Expo Router React Native app with package scripts for starting Expo, running platform helpers, linting, and running the targeted BLE test suite [@package]. App-wide TypeScript checking remains a manual command rather than a package script, and the August 2026 SDK 57 upgrade made that command pass cleanly in the upgraded dependency graph [@package] [@tsconfig] [@sdk57-session].
 
 ## Run The App
 
@@ -69,13 +63,13 @@ Run lint through the package script [@package]:
 npm run lint
 ```
 
-Run the targeted BLE parser, selection, retry-coalescing, and native-config tests with [@package] [@test-reference]:
+Run the targeted BLE parser, selection, retry-coalescing, and native-config tests with [@package]:
 
 ```bash
 npm run test:ble
 ```
 
-Run broad TypeScript checking manually [@typecheck-reference]:
+Run broad TypeScript checking manually [@package] [@tsconfig]:
 
 ```bash
 npx tsc --noEmit

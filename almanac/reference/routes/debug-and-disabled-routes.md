@@ -37,11 +37,11 @@ OtaMaps keeps several route-like files that are useful for development context b
 
 `app/(tabs)/debug.tsx.dis`, `app/(tabs)/find.tsx.dis`, and `app/(tabs)/wilma.tsx.dis` look like tab routes but are disabled by extension [@debug-tab] [@find-disabled-tab] [@wilma-disabled-tab]. `tsconfig.json` still explicitly includes `app/(tabs)/debug.tsx.dis` and `app/(tabs)/wilma.tsx.dis`, so broad TypeScript checks can inspect some disabled code even though Expo Router does not treat those files as normal `.tsx` pages [@tsconfig].
 
-The disabled debug tab is an old menu for `/debug/ble`, `/debug/geoJsonImport`, `/debug/lang`, and `/debug/supabase` [@debug-tab]. The disabled Wilma tab uses direct Otawilma REST helpers, an AsyncStorage `wilma_saved_credentials` key, and debug-mode BLE display, so it is not the active OtaMaps API GraphQL Wilma surface [@wilma-disabled-tab]. The disabled find tab performs direct room searches and feature filters outside the active tab set [@find-disabled-tab].
+The disabled debug tab is an old menu for `/debug/ble`, `/debug/geoJsonImport`, `/debug/lang`, and `/debug/supabase` [@debug-tab]. Use [geoJSON debug import](../../guides/map/geojson-debug-import) for the debug import task and [BLE background location](../../architecture/location/ble-background-location) for the scanner runtime behind BLE diagnostics. The disabled Wilma tab uses direct Otawilma REST helpers, an AsyncStorage `wilma_saved_credentials` key, and debug-mode BLE display, so it is not the active OtaMaps API GraphQL Wilma surface [@wilma-disabled-tab]. The disabled find tab performs direct room searches and feature filters outside the active tab set [@find-disabled-tab].
 
 ## Active Debug Surfaces
 
-The active app directory includes debug routes under `(app)`, including BLE diagnostics and Supabase debug screens [@app-dir]. The Me tab can route to `/(app)/debug2/ble`, and that route re-exports the main BLE diagnostics implementation rather than creating a second scanner [@me-screen] [@app-dir]. Use [BLE background location](../../architecture/location/ble-background-location) for the runtime boundary behind that screen.
+The active app directory includes debug routes under `(app)`, including BLE diagnostics and Supabase debug screens [@app-dir]. The Me tab can route to `/(app)/debug2/ble`, and that route re-exports the main BLE diagnostics implementation rather than creating a second scanner [@me-screen] [@app-dir]. Use [BLE background location](../../architecture/location/ble-background-location) for the runtime boundary behind that screen and [test coverage](../testing/test-coverage) for the targeted BLE test scope.
 
 ## Placeholder Surfaces
 

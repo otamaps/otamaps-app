@@ -15,11 +15,17 @@ sources:
   - id: fablab-types
     type: file
     path: lib/fablabTypes.ts
+  - id: tabs-layout
+    type: file
+    path: app/(tabs)/_layout.tsx
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
 ---
 
 # Print Upload And Status
 
-Print upload and status is the client-side FabLab architecture for creating and observing [print jobs](../../concepts/fablab/print-jobs). The new-print route owns file picking, option loading, Supabase Storage upload, and `print_jobs` insertion; the list and detail routes own authenticated reads and realtime refresh [@new-print] [@jobs-list] [@job-detail]. This shape matters because the mobile app creates the initial job record directly in Supabase, while later status, cost, review, payment, and completion updates are expected to arrive through database changes rather than through local state transitions [@fablab-types] [@job-detail].
+Print upload and status is the client-side FabLab architecture for creating and observing [print jobs](../../concepts/fablab/print-jobs). The route code is present, but the current tab layout hides the FabLab trigger while `FABLAB_VISIBLE` is false; use [enable and test FabLab](../../guides/fablab/enable-and-test-fablab) before treating the flow as visible in a normal build [@tabs-layout] [@feature-constants]. The new-print route owns file picking, option loading, Supabase Storage upload, and `print_jobs` insertion; the list and detail routes own authenticated reads and realtime refresh [@new-print] [@jobs-list] [@job-detail]. This shape matters because the mobile app creates the initial job record directly in Supabase, while later status, cost, review, payment, and completion updates are expected to arrive through database changes rather than through local state transitions [@fablab-types] [@job-detail].
 
 ## Upload Entry Point
 

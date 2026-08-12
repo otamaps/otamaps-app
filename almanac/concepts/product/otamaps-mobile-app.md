@@ -9,9 +9,6 @@ sources:
   - id: package
     type: file
     path: package.json
-  - id: project-notes
-    type: file
-    path: chatgpt.md
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
@@ -31,7 +28,7 @@ sources:
 
 # OtaMaps Mobile App
 
-OtaMaps is the mobile campus app implemented in this repository. It is an Expo and React Native application named `OtaMaps`, with app slug `otamaps`, iOS bundle `fi.otamaps.ios`, Android package `fi.otamaps.app`, and the custom URL scheme `otamapsapp` [@app-config]. Its product surface is broader than a map: the maintained project notes describe tab routes, authenticated nested routes, onboarding, Supabase-backed data, BLE location, friends, Wilma, and FabLab/SumUp checkout as core areas of the app [@project-notes]. The current code makes the map, home, FabLab, and profile tabs the main user-facing neighborhoods [@tabs-layout].
+OtaMaps is the mobile campus app implemented in this repository. It is an Expo and React Native application named `OtaMaps`, with app slug `otamaps`, iOS bundle `fi.otamaps.ios`, Android package `fi.otamaps.app`, and the custom URL scheme `otamapsapp` [@app-config]. Its product surface is broader than a map: the current tab code declares map, home, FabLab, and profile neighborhoods, while the route screens connect those neighborhoods to Wilma school data, Supabase-backed map and social data, BLE location, queue status, and FabLab/SumUp checkout [@tabs-layout] [@map-route] [@home-route] [@fablab-route].
 
 ## Product Neighborhoods
 
