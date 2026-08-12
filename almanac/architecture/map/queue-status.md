@@ -21,6 +21,9 @@ sources:
   - id: queue-migration
     type: file
     path: supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql
+  - id: queue-grant-migration
+    type: file
+    path: supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
@@ -30,6 +33,9 @@ sources:
   - id: map-ui-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
+  - id: queue-grant-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
 ---
 
 # Queue Status
@@ -38,7 +44,7 @@ Queue status is the OtaMaps "Vilkkaus" feature for showing the current Ruokalinj
 
 ## Public Map Flow
 
-The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. Every 30 seconds it refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The people tab header inside the map bottom sheet names Ruokalinjasto, uses the queue color/label helpers, disables itself until a queue status exists, focuses the queue area when pressed, and snaps the sheet to its minimum height so the map overlay stays visible [@queue-service] [@map-route].
+The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. The service first asks Supabase Auth for the current session and returns an empty list when no session exists, so startup or signed-out renders do not call the queue RPC as `anon` [@queue-service]. Every 30 seconds the route refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The people tab header inside the map bottom sheet names Ruokalinjasto, uses the queue color/label helpers, disables itself until a queue status exists, focuses the queue area when pressed, and snaps the sheet to its minimum height so the map overlay stays visible [@queue-service] [@map-route].
 
 The feature deliberately lives inside the existing map renderer. It reuses the same room geometry and floor filter described in [geospatial rendering](geospatial-rendering), so queue rendering should not introduce a second map, a separate coordinate model, or a room lookup path outside the current room data flow [@map-route].
 
@@ -53,6 +59,12 @@ Queue labels are fixed in the client as five Finnish levels: `Olematon`, `Lyhyt`
 The admin queue screen is under the authenticated Me stack at `app/(app)/me/admin/queue.tsx`, and the Me tab shows the `Jonotilanteen hallinta` link only when the client reads `users.role === "admin"` [@admin-screen] [@me-screen] [@me-layout]. That link is presentation only. The migration removes client write access to `users.role`, makes the role non-null with a `user|admin` check, and replaces the old public `is_admin(uuid)` helper with `private.is_admin()` using `auth.uid()` and a fixed empty `search_path` [@queue-migration].
 
 Admins record observations by inserting only `queue_area_id` and `level` into `queue_observations` through `recordQueueObservation()` [@queue-service]. A trigger stamps `admin_user_id`, `observed_at`, and the 10-minute anonymous sample count server-side, and RLS allows observation reads and inserts only for `private.is_admin()` [@queue-migration]. New admins are therefore an operations task through trusted database access, not an app-side profile edit [@queue-migration] [@implementation-session].
+
+## RPC Grants And Startup Races
+
+The queue aggregate is not public. The grant-repair migration explicitly revokes all execution on `public.get_queue_statuses()` from `public` and `anon`, then grants execution only to `authenticated` and `service_role` [@queue-grant-migration]. This matches the client-side session guard in `getQueueStatuses()` and keeps the privacy boundary on the RPC instead of widening anonymous access to hide startup errors [@queue-service] [@queue-grant-migration].
+
+The August 12, 2026 production update fixed a Sentry issue reported as `permission denied for function get_queue_statuses` by adding the authenticated-session guard before the RPC call and preparing the grant-repair migration for privilege drift [@queue-grant-session]. Future queue work should preserve both sides: anonymous clients should skip the RPC, and production database privileges should allow authenticated map sessions to execute it [@queue-service] [@queue-grant-migration].
 
 ## Privacy Boundary
 
