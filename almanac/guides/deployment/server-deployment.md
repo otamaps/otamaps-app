@@ -30,6 +30,9 @@ sources:
   - id: eas-config
     type: file
     path: eas.json
+  - id: shared-schedule-migration
+    type: file
+    path: supabase/migrations/20260811232612_share_weekly_schedule_with_friends.sql
 ---
 
 # Server Deployment
@@ -96,6 +99,12 @@ Use that shape for future Wilma API changes: test the sibling backend build and 
 During the deployment discussion, the Supabase installer failed with `curl 60 ssl certificate problem unable to get local issuer certificate`, and the direct raw GitHub installer URL failed the same way [@deployment-session]. Treat that symptom as an Ubuntu or network trust-store problem, not as proof that the Supabase installer URL is wrong [@deployment-session].
 
 Do not use `curl -k` for the installer. First check which `curl` binary and CA bundle are in use, clear CA override environment variables such as `SSL_CERT_FILE`, `SSL_CERT_DIR`, `CURL_CA_BUNDLE`, and `REQUESTS_CA_BUNDLE`, and test `/usr/bin/curl --cacert /etc/ssl/certs/ca-certificates.crt` against the raw Supabase Docker installer URL [@deployment-session]. If the failure remains, reinstall and refresh Ubuntu's `ca-certificates`, `openssl`, and `curl` packages, then inspect the certificate issuer with `openssl s_client` to distinguish a broken local CA bundle from TLS interception [@deployment-session].
+
+## Schedule-Sharing Schema Release
+
+Schedule sharing is a Supabase schema release as much as a mobile feature. The August 12, 2026 production incident showed the failure mode: the client correctly reported the feature unavailable because `shared_weekly_schedules` and `user_preferences.schedule_sharing_enabled` were missing from the live database, even though the app bundle and the public service health checks were otherwise healthy [@wilma-schema-session]. The fix was to apply the already committed migration, reload PostgREST's schema cache with `notify pgrst, 'reload schema'`, and then verify the exact REST surfaces and RLS behavior the app uses [@wilma-schema-session].
+
+For a future schedule-sharing rollout, prove all of these before calling the server side done: an authenticated `user_preferences` REST query can read `schedule_sharing_enabled`, an authenticated `shared_weekly_schedules` REST query returns HTTP 200, the owner role can enable sharing and upsert the current-week snapshot, an accepted friend can read that row, and an unrelated authenticated user cannot read it [@wilma-schema-session] [@shared-schedule-migration]. Keep the privacy boundary explicit during recovery: backend tests may use rolled-back transactions or temporary sessions, but operators should not leave the user's own `schedule_sharing_enabled` flag enabled unless the user has made that consent choice [@wilma-schema-session].
 
 ## Release Proof
 
