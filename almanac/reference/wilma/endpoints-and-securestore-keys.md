@@ -39,6 +39,9 @@ sources:
   - id: course-tray-rollout
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
+  - id: production-schema-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
 ---
 
 # Wilma Endpoints And SecureStore Keys
@@ -85,8 +88,8 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `fetchMe` | `{ me { studentId role baseUrl firstName lastName displayName studentClass } }` | none | Student profile used for greeting and guidance group/class display [@graphql-client] [@home-route]. |
 | `fetchSchedule` | `query Schedule($date: String)` | optional `date` | Lessons under `schedule.schedule` and exams under `schedule.exams` [@graphql-client]. |
 | `fetchCoursework` | `query Coursework($date: String)` | optional `date` | Courses with teachers, homework, diary entries, and course exams under `schedule.courses` [@graphql-client]. |
-| `fetchMessages` | anonymous `{ messages { messages { ... } } }` query | none | Inbox message rows with sender, event, reply, and applying fields [@graphql-client]. |
-| `fetchMessage` | `query Message($id: Int!)` | `id` | Message id, subject, and HTML body [@graphql-client]. |
+| `fetchMessages` | `query Messages($folder: MessageFolder!)` | `folder: INBOX \| OUTBOX \| APPOINTMENTS` | Message rows with sender, recipient, unread, event, reply count, and applying fields for the selected folder [@graphql-client]. |
+| `fetchMessage` | `query Message($id: Int!)` | `id` | Message id, subject, timestamp, sender, recipient, HTML body, and, when the backend exposes it, chronological reply bodies [@graphql-client]. |
 | `fetchMessageRecipients` | anonymous `{ messageRecipients { ... } }` query | none | Recipient rows with id, school id, name, code, category, and own-teacher flag [@graphql-client]. |
 | `sendWilmaMessage` | `mutation SendMessage($recipientId: Int!, $schoolId: Int!, $subject: String!, $body: String!)` | `recipientId`, `schoolId`, `subject`, `body` | Boolean send confirmation [@graphql-client]. |
 | `replyToWilmaMessage` | `mutation ReplyMessage($messageId: Int!, $body: String!)` | `messageId`, `body` | Boolean reply confirmation [@graphql-client]. |
@@ -98,6 +101,8 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `fetchMatriculationResults` | anonymous `{ matriculationResults { ... } }` query | none | Matriculation rows with subject, completion date, compulsory flag, grade, rejected reason, and points [@graphql-client]. |
 | `fetchWilmaRooms` | anonymous `{ rooms { id code name } }` query | none | Wilma room profiles, separate from the Supabase campus-map room table [@graphql-client]. |
 | `fetchWilmaRoomSchedule` | `query RoomSchedule($roomId: Int!, $date: String)` | `roomId`, optional `date` | Room profile and lessons with groups and teachers [@graphql-client]. |
+| `fetchWilmaTeacherSchedule` | `query TeacherSchedule($teacherId: Int!, $date: String)` | `teacherId`, optional `date` | Teacher profile and weekly lessons; route UI capability-gates this surface before showing the schedule button [@graphql-client]. |
+| `fetchWilmaQueryCapabilities` | `query TypeCapabilities($name: String!)` for `Query` | none | Root GraphQL field set used to capability-gate staggered app/API rollouts [@graphql-client]. |
 | `fetchSelectedCourses` | anonymous `{ selectedCourses { ... } }` query | none | Selected course group code, period, bar, and tray rows [@graphql-client]. |
 | `fetchCourseTrays` | anonymous `{ courseTrays { ... } }` query | none | Course tray id, category, name, status, and closed flag [@graphql-client]. |
 | `fetchCourseTray` | `query CourseTray($id: String!)` | `id` | One tray with bars and courses, including course code, name, teacher, selected, locked, full, completed, and grade fields [@graphql-client]. |
@@ -108,7 +113,7 @@ Every active GraphQL helper uses the same timeout-aware POST path through the cl
 
 This reference lists client helpers, not a guarantee that the deployed or sibling backend exposes every helper's field. Client helpers added in `lib/wilma/graphqlClient.ts` require backend schema verification before they are treated as production-supported [@graphql-client]. This matters most for helpers whose root GraphQL fields were added after the original login, schedule, message, attendance, news, and recipient surfaces, because app-side support can land before the production API field does [@graphql-client] [@course-tray-rollout].
 
-Production schema support can lag behind this client reference. The 2026-08-09 course-tray-detail implementation recorded app-side support for `fetchCourseTray` and a sibling backend branch, while production `api.otamaps.fi` still lacked the `courseTray` field until that backend branch is deployed [@course-tray-rollout].
+Production schema support can lag behind this client reference. The 2026-08-09 course-tray-detail implementation recorded app-side support for `fetchCourseTray` and a sibling backend branch, while production `api.otamaps.fi` still lacked the `courseTray` field until that backend branch is deployed [@course-tray-rollout]. The 2026-08-11 production incident showed the same risk for message folders: production rejected the client's `messages(folder: MessageFolder!)` shape until the full-schema Wilma API image was deployed and a credentialed read sweep passed all app queries [@production-schema-session].
 
 ## Direct REST Leftovers
 

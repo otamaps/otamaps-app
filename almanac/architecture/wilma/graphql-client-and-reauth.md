@@ -21,6 +21,9 @@ sources:
   - id: message-route
     type: file
     path: app/(app)/wilma/message.tsx
+  - id: message-thread
+    type: file
+    path: lib/wilma/messageThread.ts
   - id: schedule-route
     type: file
     path: app/(app)/wilma/schedule.tsx
@@ -63,6 +66,9 @@ sources:
   - id: course-tray-rollout
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
+  - id: production-schema-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
 ---
 
 # Wilma GraphQL Client And Reauth
@@ -97,7 +103,9 @@ The data helpers define the active Wilma data model for screens. `fetchMe` retur
 
 `fetchSchedule` runs `query Schedule($date: String)` and returns lessons plus exams, including reservation ids, weekday numbers, start/end times, lesson groups, teachers, rooms, exam ids, exam dates, exam times, and teachers [@graphql-client]. The schedule route builds on this by fetching month data with `fetchSchedule("1.<month>.<year>")`, caching each month in module memory, and merging two months when the visible week crosses a month boundary [@schedule-route]. `fetchCoursework` uses the same `schedule(date:)` query family to return course metadata, teachers, homework, diary entries, and exams; the coursework route flattens those nested rows into dated schoolwork items [@graphql-client] [@coursework-route].
 
-`fetchMessages` requests inbox message rows with ids, subjects, timestamps, folders, senders, event flags, reply counts, and applying status [@graphql-client]. The message list route calls it on load and refresh, while the home dashboard slices the result to the latest five messages [@messages-route] [@home-route]. `fetchMessage` runs `query Message($id: Int!)` for a selected message's id, subject, and HTML body, and the detail route renders that HTML in a WebView [@graphql-client] [@message-route].
+`fetchMessages` requests message rows by `MessageFolder`, with ids, subjects, timestamps, folders, senders, event flags, reply counts, and applying status [@graphql-client]. The message list route exposes inbox, outbox, and appointments folders through that helper, while the home dashboard slices the inbox result to the latest five messages [@messages-route] [@home-route]. The August 11, 2026 production outage showed why that folder argument must be deployed on the backend before the client relies on it: production initially rejected `messages(folder: MessageFolder!)`, and a full-schema backend image was required before all app read queries passed [@production-schema-session].
+
+`fetchMessage` supports a staggered thread rollout. It first introspects `MessageDetail` fields; when `replies` is absent it requests only the single-message fields and returns an empty `replies` array, and when `replies` is present it requests reply id, timestamp, sender, and HTML body [@graphql-client]. The detail route renders the original message plus replies through `buildMessageThreadHtml()`, disables WebView JavaScript and DOM storage, and opens external links with `Linking.openURL` instead of navigating inside the WebView [@message-route] [@message-thread]. This keeps the released app compatible with the existing single-message backend until the thread schema is deployed [@production-schema-session].
 
 `fetchMessageRecipients` returns the authenticated recipient directory with recipient ids, school ids, names, codes, categories, and an `isOwnTeacher` flag [@graphql-client]. The teacher directory route fetches that list, filters by name/code/category with Finnish locale lowercasing, sorts own teachers first, and routes a selected recipient to compose with both ids in params [@teachers-route]. `sendWilmaMessage` submits recipient id, school id, subject, and body, and the compose screen validates params, requires non-empty subject and body, and shows a confirmation dialog before sending [@graphql-client] [@compose-route].
 
@@ -111,4 +119,6 @@ The data helpers define the active Wilma data model for screens. `fetchMe` retur
 
 The GraphQL URL is environment-configured with a production default, not a route-local constant [@graphql-client]. Any change to `EXPO_PUBLIC_OTAMAPS_API_URL` must update the client, the auth broker, and the lookup reference together, because screens currently assume this client is the single active GraphQL boundary [@graphql-client] [@env-example]. The endpoint and SecureStore contract are listed in [Wilma endpoints and SecureStore keys](../../reference/wilma/endpoints-and-securestore-keys), and route placement is summarized in the [main route map](../app/main-route-map).
 
-Verify backend schema support before relying on newly added GraphQL helpers in production. The 2026-08-09 course-tray-detail implementation recorded the app-side `courseTray(id)` client and an isolated sibling backend branch, but also recorded that production `api.otamaps.fi` did not yet expose `courseTray` until that backend branch is deployed [@course-tray-rollout]. The current client helper list and the backend field list are tracked separately in [Wilma endpoints and SecureStore keys](../../reference/wilma/endpoints-and-securestore-keys), because adding a client helper can otherwise make screens look more production-ready than the API schema actually is.
+Verify backend schema support before relying on newly added GraphQL helpers in production. The 2026-08-09 course-tray-detail implementation recorded the app-side `courseTray(id)` client and an isolated sibling backend branch, but also recorded that production `api.otamaps.fi` did not yet expose `courseTray` until that backend branch is deployed [@course-tray-rollout]. The August 11, 2026 schema-drift incident broadened that rule: the app contained more read queries than production exposed, and the fix was to run a production contract sweep, deploy `otamaps/wilma-api:f2de54a-full-20260812`, verify `/health`, and then prove credentialed GraphQL login plus every read endpoint before calling Wilma login fixed [@production-schema-session].
+
+Use the client's introspection helpers for capability gates when app and API deployment can be staggered. `fetchWilmaQueryCapabilities()` reads the `Query` field list, and `fetchMessage()` uses the same type-capability mechanism to keep message reading available while `MessageDetail.replies` rolls out [@graphql-client]. The current client helper list and the backend field list are tracked separately in [Wilma endpoints and SecureStore keys](../../reference/wilma/endpoints-and-securestore-keys), because adding a client helper can otherwise make screens look more production-ready than the API schema actually is.

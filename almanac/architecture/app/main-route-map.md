@@ -27,9 +27,15 @@ sources:
   - id: welcome-layout
     type: file
     path: app/welcome/_layout.tsx
+  - id: post-welcome-layout
+    type: file
+    path: app/welcome/(post)/_layout.tsx
   - id: tsconfig
     type: file
     path: tsconfig.json
+  - id: header-fix-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-13-03-019ff275-0483-77d1-946f-cbe15fb6eee3.jsonl
 ---
 
 # Main Route Map
@@ -50,7 +56,9 @@ This split matters for product work. The active home tab contains the main [Wilm
 
 ## Welcome And Root Redirects
 
-The `welcome` group has its own layout that declares the `(pre)` stack with headers hidden [@welcome-layout]. The route tree includes `welcome/splash.tsx`, post-onboarding screens under `welcome/(post)`, and pre-auth screens under `welcome/(pre)` [@app-dir]. The pre-auth index is also the entrypoint for the [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) flow when Wilma primary auth is enabled. Root navigation should be considered together with the index route described in [Expo Router shell](expo-router-shell), because the route tree alone does not show session-based redirects [@index-route].
+The `welcome` group has its own layout that declares both `(pre)` and `(post)` as headerless stack screens [@welcome-layout]. The pre-auth group also has its own layout with `screenOptions={{ headerShown: false }}`, while the post-login group now has a matching `app/welcome/(post)/_layout.tsx` that returns a headerless `Stack` [@post-welcome-layout]. That nested layout is required for the permissions route: the August 11, 2026 header fix found that without a `(post)` layout, `permissions.tsx` was flattened into the parent navigator and the parent `Stack.Screen name="(post)"` option did not reliably suppress the default title bar [@header-fix-session]. When adding a new welcome subgroup, give the subgroup its own layout if its children must share header, gesture, or presentation behavior.
+
+The route tree includes `welcome/splash.tsx`, post-onboarding screens under `welcome/(post)`, and pre-auth screens under `welcome/(pre)` [@app-dir]. The pre-auth index is also the entrypoint for the [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) flow when Wilma primary auth is enabled. Root navigation should be considered together with the index route described in [Expo Router shell](expo-router-shell), because the route tree alone does not show session-based redirects [@index-route].
 
 The root index route separately handles the first redirect after the custom splash and Supabase session check. Signed-in users are sent to `/home`, the Wilma dashboard tab, only when `isOnboardingComplete()` returns true; otherwise they are sent to `/welcome/(post)/permissions`, and unauthenticated users are sent to `/welcome` [@index-route] [@user-preferences]. That redirect is not visible from the directory shape alone, so route work should read `app/index.tsx` with the route tree and the [onboarding and consent preferences](../auth/onboarding-and-consent-preferences) boundary [@index-route] [@app-dir].
 

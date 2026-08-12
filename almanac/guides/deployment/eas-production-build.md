@@ -18,12 +18,18 @@ sources:
   - id: package
     type: file
     path: package.json
+  - id: eas-ignore
+    type: file
+    path: .easignore
   - id: google-modular-plugin
     type: file
     path: plugins/withIosGoogleModularHeaders.js
   - id: sumup-patch
     type: file
     path: patches/sumup-react-native-alpha+0.1.36.patch
+  - id: message-thread-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
 ---
 
 # EAS Production Build
@@ -38,7 +44,7 @@ Start by creating the exact production archive that EAS will upload:
 node_modules/.bin/eas build:inspect --platform android --stage archive --output /private/tmp/otamaps-eas-archive --profile production --force
 ```
 
-The August 2026 release run used `build:inspect` before upload, then scanned the archive for dotenv files, keystores, private keys, provisioning profiles, certificates, and package artifacts [@release-session]. A safe archive may still contain `.env.example`; it must not contain real `.env` files or private signing material [@release-session].
+The August 2026 release run used `build:inspect` before upload, then scanned the archive for dotenv files, keystores, private keys, provisioning profiles, certificates, and package artifacts [@release-session]. A safe archive may still contain `.env.example`; it must not contain real `.env` files or private signing material [@release-session]. `.easignore` excludes local dotenv files, `node_modules`, Expo output, native Pods and Xcode build products, signing material, local artifacts, and `almanac/` from EAS archives [@eas-ignore]. The August 11 message-thread build proved why this matters: after excluding local Pods, build output, and machine-specific Xcode paths, the corrected iOS upload dropped from roughly 558 MB to about 3 MB [@message-thread-session].
 
 After archive creation, check the archive's `eas.json`, `lib/supabase.ts`, and `.env.example` for the intended public hosts and public variable names [@release-session] [@eas-config]. The production profile currently declares `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_OTAMAPS_API_URL`, `EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED`, Google client ids, and map tokens for native builds [@eas-config]. If those names or hosts change, update [runtime and build config](../../reference/configuration/runtime-and-build-config) and confirm the matching server state before building.
 

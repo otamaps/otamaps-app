@@ -1,7 +1,7 @@
 ---
 title: "Friends And Shared Location"
-summary: "Friends and shared location is the social layer that connects six-digit friend codes, relation rows, friend lists, live map markers, removal, blocking, and reports."
-topics: [concepts, social, location, supabase]
+summary: "Friends and shared location is the social layer that connects six-digit friend codes, relation rows, friend lists, live map markers, shared weekly schedules, removal, blocking, and reports."
+topics: [concepts, social, location, supabase, wilma, privacy]
 sources:
   - id: friends-handler
     type: file
@@ -21,11 +21,23 @@ sources:
   - id: friend-modal
     type: file
     path: components/sheets/friendModalSheet.tsx
+  - id: friend-profile-sheet
+    type: file
+    path: components/friends/FriendProfileSheetContent.tsx
+  - id: shared-schedule
+    type: file
+    path: lib/sharedSchedule.ts
+  - id: shared-schedule-core
+    type: file
+    path: lib/sharedScheduleCore.ts
+  - id: shared-schedule-migration
+    type: file
+    path: supabase/migrations/20260811232612_share_weekly_schedule_with_friends.sql
 ---
 
 # Friends And Shared Location
 
-Friends and shared location is the OtaMaps social model for finding classmates by a six-digit code, creating a relation, showing app friend records in the map bottom sheet, and rendering friends with live coordinates on the selected floor. The implementation spans the friend-code screens, relation helpers, friend list cache, location overlay, and friend action modal [@add-friend] [@friends-handler] [@map-screen]. It is social identity plus map presence, not a separate chat or contact system.
+Friends and shared location is the OtaMaps social model for finding classmates by a six-digit code, creating a relation, showing app friend records in the map bottom sheet, rendering friends with live coordinates on the selected floor, and optionally showing a friend's shared current-week schedule. The implementation spans the friend-code screens, relation helpers, friend list cache, location overlay, shared schedule helpers, and friend action modal [@add-friend] [@friends-handler] [@map-screen] [@shared-schedule]. It is social identity plus consented presence/schedule sharing, not a separate chat or contact system.
 
 ## Friend Codes And Requests
 
@@ -49,6 +61,12 @@ The bottom-sheet row is a compact presence summary. `FriendItem` shows the profi
 
 The modal container itself is a reusable bottom sheet with minimum, middle, and maximum snap heights derived from screen height [@friend-modal]. The map supplies the actual friend actions and status content inside that sheet [@map-screen].
 
+## Shared Weekly Schedule
+
+Friend profile content can load `fetchFriendSharedSchedule(friend.id)` and render `Tämän viikon lukujärjestys` with day-grouped lesson rows for the current week [@friend-profile-sheet] [@shared-schedule]. An empty state means the friend has not shared a schedule for that week or the RLS policy did not expose one; the UI does not fall back to the friend's full Wilma account or live schedule endpoint [@friend-profile-sheet] [@shared-schedule-migration].
+
+The shared record is sanitized before it reaches Supabase. `buildSharedWeek()` emits only lesson id, date, start, end, subject, and room for Monday through Friday of the selected school week, collapses duplicate reservation/date pairs, and sorts the result before syncing [@shared-schedule-core]. Database read access is friend-scoped: the `shared_weekly_schedules` RLS policy lets owners read their own rows and lets accepted friends read only when the owner still has `schedule_sharing_enabled` true in `user_preferences` [@shared-schedule-migration]. This makes schedule sharing closer to friend location than to Wilma messaging: it is a consented social projection, not general Wilma data access.
+
 ## Removal, Blocking, And Reports
 
 Removing a friend deletes `relations` rows whose status is `friends` in either subject-object direction [@friends-handler]. The helper named `handleBlockFriend` first deletes any relation in either direction and then inserts a new `relations` row from the current user to the friend with `status: "blocked"` [@friends-handler].
@@ -59,4 +77,4 @@ Reporting is separate from relation status. The modal prompts for a reason and i
 
 ## Related Pages
 
-Use [friend relations](../../architecture/social/friend-relations) for the relation status transitions and symmetric query boundary. Use [live location overlays](../../architecture/location/live-location-overlays) for the map overlay flow, [map social and location tables](../../reference/supabase/map-social-and-location-tables) for table-name lookup, and [edit profile and sign out](../../guides/account/edit-profile-and-sign-out) for the account surface that exposes the user's own friend code.
+Use [friend relations](../../architecture/social/friend-relations) for the relation status transitions and symmetric query boundary. Use [live location overlays](../../architecture/location/live-location-overlays) for the map overlay flow, [map social and location tables](../../reference/supabase/map-social-and-location-tables) for table-name lookup, [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences) for the sharing toggles, and [edit profile and sign out](../../guides/account/edit-profile-and-sign-out) for the account surface that exposes the user's own friend code.
