@@ -27,6 +27,9 @@ sources:
   - id: account-route
     type: file
     path: app/(app)/me/wilma/index.tsx
+  - id: teacher-schedule-route
+    type: file
+    path: app/(app)/wilma/teacher-schedule.tsx
   - id: disabled-tab
     type: file
     path: app/(tabs)/wilma.tsx.dis
@@ -62,7 +65,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 
 | Path | Method | Owner | Purpose |
 | --- | --- | --- | --- |
-| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, coursework, messages, message detail, recipients, compose, reply, attendance, news, news-detail, past-exam, gradebook, matriculation, room, room-schedule, selected-course, course-tray list, and course-tray detail GraphQL requests [@graphql-client]. |
+| `/graphql` | POST | `lib/wilma/graphqlClient.ts` | Sends login, logout, `me`, schedule, coursework, messages, message detail, recipients, teacher-schedule, compose, reply, attendance, news, news-detail, past-exam, gradebook, matriculation, room, room-schedule, selected-course, course-tray list, and course-tray detail GraphQL requests [@graphql-client]. |
 | `/v1/auth/wilma/start` | POST | `lib/wilma/authBroker.ts` | Starts Wilma credential verification and returns either a Supabase session exchange or a legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/create` | POST | `lib/wilma/authBroker.ts` | Creates a new OtaMaps account from a Wilma-authenticated legacy-match attempt token [@auth-broker]. |
 | `/v1/auth/wilma/link-legacy` | POST with Supabase bearer token | `lib/wilma/authBroker.ts` | Links a pending Wilma attempt to an already signed-in legacy Supabase account [@auth-broker]. |
@@ -101,7 +104,7 @@ The active GraphQL URL is not a hardcoded LAN address. It is `${(EXPO_PUBLIC_OTA
 | `fetchMatriculationResults` | anonymous `{ matriculationResults { ... } }` query | none | Matriculation rows with subject, completion date, compulsory flag, grade, rejected reason, and points [@graphql-client]. |
 | `fetchWilmaRooms` | anonymous `{ rooms { id code name } }` query | none | Wilma room profiles, separate from the Supabase campus-map room table [@graphql-client]. |
 | `fetchWilmaRoomSchedule` | `query RoomSchedule($roomId: Int!, $date: String)` | `roomId`, optional `date` | Room profile and lessons with groups and teachers [@graphql-client]. |
-| `fetchWilmaTeacherSchedule` | `query TeacherSchedule($teacherId: Int!, $date: String)` | `teacherId`, optional `date` | Teacher profile and weekly lessons; route UI capability-gates this surface before showing the schedule button [@graphql-client]. |
+| `fetchWilmaTeacherSchedule` | `query TeacherSchedule($teacherId: Int!, $date: String)` | `teacherId`, optional `date` | Teacher profile and weekly lessons; route UI capability-gates this surface before showing the schedule button, then `/wilma/teacher-schedule` fetches the selected teacher and week [@graphql-client] [@teacher-schedule-route]. |
 | `fetchWilmaQueryCapabilities` | `query TypeCapabilities($name: String!)` for `Query` | none | Root GraphQL field set used to capability-gate staggered app/API rollouts [@graphql-client]. |
 | `fetchSelectedCourses` | anonymous `{ selectedCourses { ... } }` query | none | Selected course group code, period, bar, and tray rows [@graphql-client]. |
 | `fetchCourseTrays` | anonymous `{ courseTrays { ... } }` query | none | Course tray id, category, name, status, and closed flag [@graphql-client]. |

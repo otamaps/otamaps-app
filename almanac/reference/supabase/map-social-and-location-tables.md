@@ -1,7 +1,7 @@
 ---
 title: "Map, Social, Location, Queue, And Consent Tables"
 summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, shared weekly schedules, BLE beacon lookup, live locations, queue status, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
-topics: [reference, supabase, map, social, location, queue, privacy, wilma]
+topics: [reference, supabase, map, social, location, queue, privacy, wilma, schedule-sharing]
 sources:
   - id: room-service
     type: file

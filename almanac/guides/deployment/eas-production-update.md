@@ -37,7 +37,7 @@ sources:
 
 # EAS Production Update
 
-Use this guide when an OtaMaps change can be delivered to already installed production builds with EAS Update. An update is appropriate for JavaScript, TypeScript, and bundled-asset behavior that does not require a new native binary; native dependencies, Expo plugins, permissions, identifiers, version changes, and build-profile changes still belong in [EAS production build](eas-production-build) [@app-config] [@eas-config]. Because `app.json` uses `runtimeVersion.policy: appVersion`, a production update can only reach installed binaries whose runtime version matches the app version used by the published bundle [@app-config].
+Use this guide when an OtaMaps change can be delivered to already installed production builds with EAS Update. An update is appropriate for JavaScript, TypeScript, and bundled-asset behavior that does not require a new native binary; native dependencies, Expo plugins, permissions, identifiers, version changes, and build-profile changes still belong in [EAS production build](eas-production-build) [@app-config] [@eas-config]. Because `app.json` pins `runtimeVersion` to `0.4.0`, a production update can only reach installed binaries that use that exact runtime unless a new native build changes the runtime value [@app-config].
 
 ## Preflight
 

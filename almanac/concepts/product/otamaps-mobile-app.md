@@ -15,6 +15,9 @@ sources:
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
   - id: map-route
     type: file
     path: app/(tabs)/map.tsx
@@ -38,7 +41,7 @@ The map also surfaces [queue status](../../architecture/map/queue-status) for Ru
 
 The [Wilma](../integrations/wilma) neighborhood is currently surfaced through the home tab. The route imports the Wilma GraphQL client, handles login and logout state, and displays schedule, messages, attendance, and exams with Finnish UI copy [@home-route]. The app also contains disabled or auxiliary Wilma route files, so route work should use the [main route map](../../architecture/app/main-route-map) before assuming every Wilma-looking file is active.
 
-The [print jobs](../fablab/print-jobs) neighborhood is optional from the tab bar. The tab layout reads `fablabEnabled` from `AsyncStorage` and hides the FabLab tab when the value is not `"true"` [@tabs-layout]. When visible, the FabLab list reads the signed-in user's `print_jobs`, joins filament data, subscribes to realtime changes, and opens the new-print or job-detail routes [@fablab-route].
+The [print jobs](../fablab/print-jobs) neighborhood is optional from the tab bar. The tab layout declares a FabLab trigger, but the current committed feature constant sets `FABLAB_VISIBLE` to false, so the visible tab bar hides FabLab until that static gate changes [@tabs-layout] [@feature-constants]. When visible, the FabLab list reads the signed-in user's `print_jobs`, joins filament data, subscribes to realtime changes, and opens the new-print or job-detail routes [@fablab-route].
 
 ## Native App Boundary
 

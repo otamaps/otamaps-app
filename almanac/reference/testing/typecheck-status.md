@@ -15,6 +15,9 @@ sources:
   - id: ble-config-test
     type: file
     path: tests/bleConfig.test.mjs
+  - id: tests-dir
+    type: file
+    path: tests/
   - id: sdk57-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/08/rollout-2026-08-08T17-37-34-019fe1ce-cd4f-7ee1-b1a8-46157360f6f8.jsonl
@@ -32,7 +35,7 @@ The package-managed validation commands are `npm run lint` and `npm run test:ble
 npx tsc --noEmit
 ```
 
-That command is not wired into `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@package-scripts]. `npm run test:ble` compiles only the named BLE core, type, estimator, and catalog modules into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
+That command is not wired into `package.json`, so a future agent should not expect `npm run typecheck` or `npm test` to exist unless those scripts are added later [@package-scripts]. `npm run test:ble` compiles only the named BLE core, type, estimator, and catalog modules into `.expo/ble-test-build` before running Node tests, so it is not a substitute for app-wide TypeScript validation [@package-scripts] [@ble-core-test] [@ble-config-test]. Other helper tests now exist under `tests/`, but they do not change the package-managed command surface until a package script or CI target runs them [@tests-dir] [@package-scripts]. The local development guide should use this page as the lookup source for TypeScript command status: [local development](../../guides/development/local-development).
 
 ## Compiler Scope
 

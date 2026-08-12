@@ -24,6 +24,9 @@ sources:
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
   - id: app-layout
     type: file
     path: app/(app)/_layout.tsx
@@ -47,7 +50,7 @@ The same file creates an Algolia lite client and wraps the app in `InstantSearch
 
 The root stack declares `(tabs)`, `(app)/me`, `welcome`, and `+not-found` screens with headers disabled for the main app groups [@root-layout]. The index route is the first redirector: it checks the Supabase session, waits for a short custom splash, sends completed signed-in users to `/home`, sends incomplete signed-in users or preference-load failures to `/welcome/(post)/permissions`, and sends unauthenticated users to `/welcome` [@index-route] [@user-preferences]. The detailed route inventory is in [main route map](main-route-map), and the preference gate is explained in [onboarding and consent preferences](../auth/onboarding-and-consent-preferences).
 
-The tab layout nests another provider boundary. It wraps tabs with `AuthProvider`, sets `home` as the initial tab, labels that tab `Wilma`, defines FabLab, map, and me tabs, and hides the FabLab tab unless `AsyncStorage` key `fablabEnabled` is `"true"` [@tabs-layout]. The authenticated auxiliary stack under `(app)` is a simple headerless `Stack`, so nested account, friends, Wilma, and debug screens inherit the root providers rather than defining their own app shell [@app-layout].
+The tab layout nests another provider boundary. It wraps tabs with `AuthProvider`, sets `home` as the initial tab, labels that tab `Wilma`, defines FabLab, map, and me triggers, and hides the FabLab trigger while static `FABLAB_VISIBLE` is false [@tabs-layout] [@feature-constants]. The authenticated auxiliary stack under `(app)` is a simple headerless `Stack`, so nested account, friends, Wilma, and debug screens inherit the root providers rather than defining their own app shell [@app-layout].
 
 ## BLE Background Lifecycle
 

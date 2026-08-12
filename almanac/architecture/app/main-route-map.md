@@ -15,6 +15,9 @@ sources:
   - id: tabs-layout
     type: file
     path: app/(tabs)/_layout.tsx
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
   - id: app-layout
     type: file
     path: app/(app)/_layout.tsx
@@ -44,13 +47,13 @@ The OtaMaps route map is organized by Expo Router groups rather than by a single
 
 ## Primary Tabs
 
-The active tab bar defines four tab names: `home`, `fablab`, `map`, and `me`, with `home` as the initial route [@tabs-layout]. The visible home tab is titled `Wilma`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. All four tabs use `MaterialIcons`: Wilma uses `school`, FabLab uses `precision-manufacturing`, map uses `map`, and profile uses `person` [@tabs-layout]. The FabLab tab is declared but hidden from the tab bar unless `AsyncStorage` key `fablabEnabled` is set to `"true"` [@tabs-layout]. This makes FabLab a runtime opt-in route surface, not a separate build flavor.
+The active tab layout declares four tab trigger names: `home`, `fablab`, `map`, and `me`, with `home` as the initial route [@tabs-layout]. The visible home tab is titled `Wilma`, map is titled `Kartta`, and profile is titled `Minä` [@tabs-layout]. The FabLab trigger is declared but hidden while static `FABLAB_VISIBLE` is false, so the current committed code exposes three visible tabs unless that feature constant changes [@tabs-layout] [@feature-constants]. All declared triggers use platform symbols or Material icon names: Wilma uses `graduationcap` or `school`, FabLab uses `printer` or `precision_manufacturing`, map uses `map`, and profile uses `person` [@tabs-layout].
 
 The `app/` directory also contains disabled tab files, including `app/(tabs)/debug.tsx.dis`, `app/(tabs)/find.tsx.dis`, and `app/(tabs)/wilma.tsx.dis` [@app-dir]. The TypeScript config explicitly includes two disabled tab files, `debug.tsx.dis` and `wilma.tsx.dis`, even though the `.dis` suffix keeps them outside the normal `.tsx` route shape [@tsconfig]. Use [debug and disabled routes](../../reference/routes/debug-and-disabled-routes) before treating those files as active navigation.
 
 ## Auxiliary Authenticated Stack
 
-The `(app)` group is a headerless stack [@app-layout]. Its route neighborhood includes debug screens, Supabase debug screens, friend add/request screens, profile auxiliary screens, a FabLab enablement screen under `me`, an admin queue screen under `me/admin/queue`, an active Wilma account connection screen under `me/wilma`, a redirecting compatibility login route under `me/wilma/login`, and active Wilma schedule, coursework, message, reply, compose, teacher-directory, news, news-detail, past-exam, grades, room, room-schedule, and course-selection screens under `wilma` [@app-dir] [@me-layout]. These routes are not tabs, but they still inherit the root shell providers and can be pushed from tab surfaces.
+The `(app)` group is a headerless stack [@app-layout]. Its route neighborhood includes debug screens, Supabase debug screens, friend add/request screens, profile auxiliary screens, a FabLab enablement screen under `me`, an admin queue screen under `me/admin/queue`, an active Wilma account connection screen under `me/wilma`, a redirecting compatibility login route under `me/wilma/login`, and active Wilma schedule, coursework, message, reply, compose, teacher-directory, teacher-schedule, news, news-detail, past-exam, grades, room, room-schedule, and course-selection screens under `wilma` [@app-dir] [@me-layout]. These routes are not tabs, but they still inherit the root shell providers and can be pushed from tab surfaces.
 
 This split matters for product work. The active home tab contains the main [Wilma](../../concepts/integrations/wilma) dashboard, while auxiliary Wilma routes live under `(app)/wilma` and `(app)/me/wilma` [@app-dir]. FabLab similarly has a visible tab neighborhood for [print jobs](../../concepts/fablab/print-jobs) plus a separate `me/fablab` enablement route [@app-dir]. The Me tab only shows `Jonotilanteen hallinta` to users whose profile role is admin, but authorization for [queue status](../map/queue-status) is enforced by Supabase RLS rather than by that hidden route link [@me-screen].
 

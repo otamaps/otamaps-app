@@ -99,6 +99,10 @@ topics:
     title: Social
     description: Friend codes, friend relations, reports, blocking, and shared-location consumers
     parents: [architecture, product]
+  - slug: schedule-sharing
+    title: Schedule Sharing
+    description: Consented weekly Wilma schedule projection shown to accepted friends
+    parents: [social, privacy, wilma]
   - slug: fablab
     title: FabLab
     description: FabLab print-job product flow, storage, realtime status, and payment surfaces
@@ -118,7 +122,7 @@ topics:
   - slug: supabase
     title: Supabase
     description: Supabase Auth, data tables, storage, realtime channels, and client contracts
-    parents: [integrations, storage]
+    parents: [integrations]
   - slug: realtime
     title: Realtime
     description: Supabase realtime subscriptions used by profile and print-job flows
