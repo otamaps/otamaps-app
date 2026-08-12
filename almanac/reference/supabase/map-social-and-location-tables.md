@@ -1,7 +1,7 @@
 ---
 title: "Map, Social, Location, Queue, And Consent Tables"
-summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, BLE beacon lookup, live locations, queue status, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
-topics: [reference, supabase, map, social, location, queue, privacy]
+summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, shared weekly schedules, BLE beacon lookup, live locations, queue status, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
+topics: [reference, supabase, map, social, location, queue, privacy, wilma]
 sources:
   - id: room-service
     type: file
@@ -30,12 +30,18 @@ sources:
   - id: user-preferences
     type: file
     path: lib/userPreferences.ts
+  - id: shared-schedule
+    type: file
+    path: lib/sharedSchedule.ts
   - id: onboarding-migration
     type: file
     path: supabase/migrations/20260808105737_onboarding_and_consents.sql
   - id: consent-migration
     type: file
     path: supabase/migrations/20260808114122_enforce_identified_location_consent.sql
+  - id: shared-schedule-migration
+    type: file
+    path: supabase/migrations/20260811232612_share_weekly_schedule_with_friends.sql
   - id: queue-service
     type: file
     path: lib/queueService.ts
@@ -52,7 +58,7 @@ sources:
 
 # Map, Social, And Location Tables
 
-This reference lists Supabase table, view, and RPC names that appear in the map, social, BLE location, queue status, and consent code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, queue status reads aggregate RPC output, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@location-service] [@user-preferences] [@queue-service]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), [queue status](../../architecture/map/queue-status), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
+This reference lists Supabase table, view, and RPC names that appear in the map, social, BLE location, queue status, consent, and shared schedule code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, weekly schedule sharing writes sanitized Wilma lesson snapshots, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, queue status reads aggregate RPC output, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@shared-schedule] [@location-service] [@user-preferences] [@queue-service]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), [queue status](../../architecture/map/queue-status), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
 
 ## Map Data
 
@@ -73,6 +79,7 @@ This reference lists Supabase table, view, and RPC names that appear in the map,
 | `users_ff` | `lib/friendsHandler.ts` | Friend-list profile lookup joined client-side with live locations [@friends-handler]. |
 | `relations` | `lib/friendsHandler.ts`, friend add/request screens, `lib/bleLocationService.ts` | Friend request, friend, and blocked relation rows, plus current user's friend ids for location sharing [@friends-handler] [@friend-add] [@friend-requests] [@location-service]. |
 | `reports` | `app/(tabs)/map.tsx` | User reports submitted from the map route [@map-route]. |
+| `shared_weekly_schedules` | `lib/sharedSchedule.ts`, schedule-sharing migration | Sanitized current-week Wilma lesson snapshots keyed by `(user_id, week_start)`; owner writes and deletes are allowed, and accepted friends can read only when the owner's `schedule_sharing_enabled` preference is true [@shared-schedule] [@shared-schedule-migration]. |
 
 The relations code uses statuses such as `"request"`, `"friends"`, and `"blocked"` in the social flows [@friends-handler]. See [friend relations](../../architecture/social/friend-relations) for behavioral details.
 
@@ -92,9 +99,9 @@ The active identified live sharing path is `locations`, not `user_locations` [@l
 | Table | Owner | Use |
 | --- | --- | --- |
 | `user_preferences` | `lib/userPreferences.ts`, onboarding/settings screens, consent migrations | Current per-user onboarding state, Wilma profile source, privacy choices, and consent policy version; client inserts and updates omit `profile_source`, while a Wilma identity trigger can mark that source server-side [@user-preferences] [@onboarding-migration]. |
-| `user_consent_events` | `lib/userPreferences.ts`, `supabase/migrations/20260808105737_onboarding_and_consents.sql` | Append-only consent decision history for `friend_location`, `anonymous_crowd_analytics`, and `background_tracking` by policy version [@user-preferences] [@onboarding-migration]. |
+| `user_consent_events` | `lib/userPreferences.ts`, consent migrations | Append-only consent decision history for `friend_location`, `weekly_schedule`, `anonymous_crowd_analytics`, and `background_tracking` by policy version [@user-preferences] [@onboarding-migration] [@shared-schedule-migration]. |
 
-`user_preferences_background_requires_purpose` prevents background tracking from being true unless friend location or anonymous analytics is also true [@consent-migration]. This matches the client behavior in [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences): background tracking is a native runtime mode for an enabled tracking purpose, not an independent data use.
+`user_preferences_background_requires_purpose` prevents background tracking from being true unless friend location or anonymous analytics is also true [@consent-migration]. `schedule_sharing_enabled` is independent from that tracking constraint because it controls read access to a sanitized weekly Wilma snapshot, not BLE collection [@shared-schedule-migration]. This matches the client behavior in [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences): background tracking is a native runtime mode for an enabled tracking purpose, while schedule sharing is a separate social consent.
 
 ## Queue And Admin Data
 
