@@ -2,21 +2,19 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "0.4.1",
     "updates": {
       "url": "https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fi.otamaps.ios",
-      "buildNumber": "4",
+      "buildNumber": "8",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "OtaMaps uses GPS and nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in.",
@@ -56,6 +54,7 @@
     "plugins": [
       "expo-router",
       "./plugins/withNotifeeAndroid",
+      "./plugins/withIosGoogleModularHeaders",
       [
         "expo-splash-screen",
         {

@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react-native";
+import { isFetchCancellation } from "./networkErrors";
 import { supabase } from "./supabase";
 
 const DEFAULT_SENTRY_DSN =
@@ -111,6 +112,17 @@ function requestMethod(
   return "GET";
 }
 
+function requestSignal(
+  input: FetchInput,
+  init?: Parameters<typeof fetch>[1]
+): AbortSignal | null | undefined {
+  if (init?.signal) return init.signal;
+  if (input && typeof input === "object" && "signal" in input) {
+    return input.signal as AbortSignal | null | undefined;
+  }
+  return undefined;
+}
+
 function normalizeError(error: unknown): Error {
   if (error instanceof Error) return error;
   if (typeof error === "string") return new Error(error);
@@ -179,11 +191,15 @@ function installRejectedFetchTracking(): void {
   globalThis.fetch = (async (input, init) => {
     const url = requestUrl(input);
     const method = requestMethod(input, init);
+    const signal = requestSignal(input, init);
     const startedAt = Date.now();
     try {
       return await originalFetch(input, init);
     } catch (error) {
-      if (!isSentryRequest(url)) {
+      // AbortController cancellations are expected control flow. SDK 57's
+      // native fetch reports them as a generic FetchError, so check both the
+      // signal and error chain before treating the rejection as a failure.
+      if (!isSentryRequest(url) && !isFetchCancellation(error, signal)) {
         reportHandledError(error, {
           area: "network",
           operation: "fetch",

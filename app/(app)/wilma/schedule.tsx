@@ -1,4 +1,12 @@
 import { Exam, fetchSchedule, ScheduleData, ScheduleLesson } from "@/lib/wilma/graphqlClient";
+import {
+  formatLocalISO,
+  getInitialSchoolDay,
+  getISOWeekNumber,
+  getMondayOfWeek,
+  getSchoolWeekDays,
+  weekMonthLabel,
+} from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,10 +24,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
-function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
 function formatTime(t: string) {
   return t.slice(0, 5);
 }
@@ -34,55 +38,12 @@ function finnishToISO(d: string): string {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
-/** ISO week number (1–53). */
-function getISOWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7; // 1=Mon … 7=Sun
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum); // Thursday of this week
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-}
-
-/** Monday of (today + weekOffset weeks) at midnight. */
-function getMondayOfWeek(weekOffset: number): Date {
-  const today = new Date();
-  const dow = today.getDay(); // 0 = Sun
-  const toMonday = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + toMonday + weekOffset * 7);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
-
-/** ISO strings for Mon … Sun of a week. */
-function getWeekDays(monday: Date): string[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d.toISOString().split("T")[0];
-  });
-}
-
 const WEEKDAY_SHORT = ["Su", "Ma", "Ti", "Ke", "To", "Pe", "La"];
 function weekdayShort(iso: string): string {
   return WEEKDAY_SHORT[new Date(iso + "T00:00:00").getDay()];
 }
 function dayNum(iso: string): string {
   return String(parseInt(iso.split("-")[2], 10));
-}
-
-function weekMonthLabel(monday: Date, sunday: Date): string {
-  const sy = monday.getFullYear() === sunday.getFullYear();
-  const sm = sy && monday.getMonth() === sunday.getMonth();
-  if (sm) return monday.toLocaleDateString("fi-FI", { month: "long", year: "numeric" });
-  if (sy) {
-    const a = monday.toLocaleDateString("fi-FI", { month: "short" });
-    const b = sunday.toLocaleDateString("fi-FI", { month: "long", year: "numeric" });
-    return `${a} – ${b}`;
-  }
-  const a = monday.toLocaleDateString("fi-FI", { month: "short", year: "numeric" });
-  const b = sunday.toLocaleDateString("fi-FI", { month: "short", year: "numeric" });
-  return `${a} – ${b}`;
 }
 
 // ── Schedule cache (module-level, keyed by "YYYY-MM") ─────────────────────────
@@ -219,10 +180,10 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
 export default function ScheduleScreen() {
   const router = useRouter();
   const isDark = useColorScheme() === "dark";
-  const today = todayISO();
+  const today = formatLocalISO(new Date());
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState(today);
+  const [selectedDay, setSelectedDay] = useState(() => getInitialSchoolDay());
   const [data, setData] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -230,26 +191,26 @@ export default function ScheduleScreen() {
 
   // Derived values (pure, recalculated each render)
   const monday = getMondayOfWeek(weekOffset);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const weekDays = getWeekDays(monday);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const weekDays = getSchoolWeekDays(monday);
   const weekNum = getISOWeekNumber(monday);
 
   const load = useCallback(
     async (isRefresh = false) => {
       const mon = getMondayOfWeek(weekOffset);
-      const sun = new Date(mon);
-      sun.setDate(mon.getDate() + 6);
+      const fri = new Date(mon);
+      fri.setDate(mon.getDate() + 4);
 
       const monYear = mon.getFullYear();
       const monMonth = mon.getMonth() + 1;
-      const sunYear = sun.getFullYear();
-      const sunMonth = sun.getMonth() + 1;
-      const sameMonth = monYear === sunYear && monMonth === sunMonth;
+      const friYear = fri.getFullYear();
+      const friMonth = fri.getMonth() + 1;
+      const sameMonth = monYear === friYear && monMonth === friMonth;
 
       if (isRefresh) {
         invalidateMonth(monYear, monMonth);
-        if (!sameMonth) invalidateMonth(sunYear, sunMonth);
+        if (!sameMonth) invalidateMonth(friYear, friMonth);
       }
 
       setLoading(true);
@@ -262,7 +223,7 @@ export default function ScheduleScreen() {
         } else {
           const [a, b] = await Promise.all([
             fetchMonthCached(monYear, monMonth, isRefresh),
-            fetchMonthCached(sunYear, sunMonth, isRefresh),
+            fetchMonthCached(friYear, friMonth, isRefresh),
           ]);
           combined = mergeScheduleData(a, b);
         }
@@ -288,7 +249,7 @@ export default function ScheduleScreen() {
 
   const prevWeek = () => {
     const newOffset = weekOffset - 1;
-    const newDays = getWeekDays(getMondayOfWeek(newOffset));
+    const newDays = getSchoolWeekDays(getMondayOfWeek(newOffset));
     const idx = Math.max(0, weekDays.indexOf(selectedDay));
     setWeekOffset(newOffset);
     setSelectedDay(newDays[idx]);
@@ -296,7 +257,7 @@ export default function ScheduleScreen() {
 
   const nextWeek = () => {
     const newOffset = weekOffset + 1;
-    const newDays = getWeekDays(getMondayOfWeek(newOffset));
+    const newDays = getSchoolWeekDays(getMondayOfWeek(newOffset));
     const idx = Math.max(0, weekDays.indexOf(selectedDay));
     setWeekOffset(newOffset);
     setSelectedDay(newDays[idx]);
@@ -359,7 +320,7 @@ export default function ScheduleScreen() {
             Viikko {weekNum}
           </Text>
           <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
-            {weekMonthLabel(monday, sunday)}
+            {weekMonthLabel(monday, friday)}
           </Text>
         </View>
         <Pressable onPress={nextWeek} style={styles.navBtn} hitSlop={12}>

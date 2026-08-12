@@ -1,6 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { sha256 } from "js-sha256";
+import {
+  createFetchTimeoutError,
+  isFetchCancellation,
+} from "../networkErrors";
 import { reportHandledError } from "../sentry";
 
 const API_BASE_URL = (
@@ -28,6 +32,8 @@ const CACHE_TTL = {
   grades: 60 * 60_000,
   rooms: 24 * 60 * 60_000,
   roomSchedule: 15 * 60_000,
+  teacherSchedule: 15 * 60_000,
+  capabilities: 5 * 60_000,
   courseSelections: 30 * 60_000,
 } as const;
 
@@ -177,8 +183,11 @@ async function fetchWithTimeout(
     const res = await fetch(url, { ...options, signal: controller.signal });
     return res;
   } catch (err) {
-    if ((err as Error).name === "AbortError") {
-      throw new Error("Yhteyden muodostaminen aikakatkaistiin – tarkista, että palvelin on käynnissä ja olet samassa verkossa.");
+    if (isFetchCancellation(err, controller.signal)) {
+      throw createFetchTimeoutError(
+        "Yhteyden muodostaminen aikakatkaistiin – tarkista verkkoyhteys ja yritä uudelleen.",
+        err
+      );
     }
     throw err;
   } finally {
@@ -347,6 +356,14 @@ async function gqlFetch<T>(
       body: JSON.stringify({ query, variables }),
     });
   } catch (err) {
+    reportGraphqlFailure(err, query, {
+      kind:
+        err instanceof Error &&
+        (err as Error & { code?: string }).code === "ETIMEDOUT"
+          ? "timeout"
+          : "transport_error",
+      retry: _isRetry,
+    });
     return retryAfterReauth(err);
   }
 
@@ -661,18 +678,59 @@ export async function fetchMessages(
 export type MessageDetail = {
   id: number | null;
   subject: string | null;
+  timestamp: string;
+  sender: string;
+  recipient: string;
   htmlBody: string | null;
+  replies: {
+    id: number;
+    timestamp: string;
+    sender: string;
+    htmlBody: string | null;
+  }[];
 };
 
 export async function fetchMessage(
   id: number,
   options: WilmaFetchOptions = {}
 ): Promise<MessageDetail> {
+  let supportsThreads = false;
+  try {
+    const fields = await fetchWilmaTypeCapabilities("MessageDetail", options);
+    supportsThreads = fields.has("replies");
+  } catch {
+    // Keep message reading available during a staggered app/API rollout.
+  }
+
+  if (!supportsThreads) {
+    const legacy = await cachedGqlFetch<{
+      message: Pick<MessageDetail, "id" | "subject" | "htmlBody">;
+    }>(
+      `message:${id}:legacy`,
+      CACHE_TTL.messageDetail,
+      `query Message($id: Int!) {
+        message(id: $id) { id subject htmlBody }
+      }`,
+      { id },
+      options
+    );
+    return {
+      ...legacy.message,
+      timestamp: "",
+      sender: "",
+      recipient: "",
+      replies: [],
+    };
+  }
+
   const data = await cachedGqlFetch<{ message: MessageDetail }>(
     `message:${id}`,
     CACHE_TTL.messageDetail,
     `query Message($id: Int!) {
-      message(id: $id) { id subject htmlBody }
+      message(id: $id) {
+        id subject timestamp sender recipient htmlBody
+        replies { id timestamp sender htmlBody }
+      }
     }`,
     { id },
     options
@@ -961,6 +1019,67 @@ export async function fetchWilmaRoomSchedule(
     options
   );
   return data.roomSchedule;
+}
+
+export type WilmaTeacherSchedule = {
+  teacher: { id: number; code: string; name: string };
+  lessons: {
+    day: number;
+    start: string;
+    end: string;
+    groups: {
+      code: string;
+      name: string;
+      rooms: { id: number; code: string; name: string }[];
+    }[];
+  }[];
+};
+
+export async function fetchWilmaTeacherSchedule(
+  teacherId: number,
+  date?: string,
+  options: WilmaFetchOptions = {}
+): Promise<WilmaTeacherSchedule> {
+  const data = await cachedGqlFetch<{ teacherSchedule: WilmaTeacherSchedule }>(
+    `teacherSchedule:${teacherId}:${date ?? "current"}`,
+    CACHE_TTL.teacherSchedule,
+    `query TeacherSchedule($teacherId: Int!, $date: String) {
+      teacherSchedule(teacherId: $teacherId, date: $date) {
+        teacher { id code name }
+        lessons {
+          day start end
+          groups { code name rooms { id code name } }
+        }
+      }
+    }`,
+    date ? { teacherId, date } : { teacherId },
+    options
+  );
+  return data.teacherSchedule;
+}
+
+export async function fetchWilmaQueryCapabilities(
+  options: WilmaFetchOptions = {}
+): Promise<Set<string>> {
+  return fetchWilmaTypeCapabilities("Query", options);
+}
+
+async function fetchWilmaTypeCapabilities(
+  typeName: string,
+  options: WilmaFetchOptions = {}
+): Promise<Set<string>> {
+  const data = await cachedGqlFetch<{
+    __type: { fields: { name: string }[] } | null;
+  }>(
+    `typeCapabilities:${typeName}`,
+    CACHE_TTL.capabilities,
+    `query TypeCapabilities($name: String!) {
+      __type(name: $name) { fields { name } }
+    }`,
+    { name: typeName },
+    options
+  );
+  return new Set(data.__type?.fields.map((field) => field.name) ?? []);
 }
 
 export type WilmaSelectedCourse = {

@@ -1,4 +1,9 @@
 import * as SecureStore from "expo-secure-store";
+import {
+  createFetchTimeoutError,
+  isFetchCancellation,
+} from "../networkErrors";
+import { reportHandledError } from "../sentry";
 import { supabase } from "../supabase";
 import { clearAll, saveCredentials, saveSession } from "./graphqlClient";
 
@@ -6,6 +11,11 @@ const API_BASE_URL = (
   process.env.EXPO_PUBLIC_OTAMAPS_API_URL || "https://api.otamaps.fi"
 ).replace(/\/$/, "");
 const PENDING_LINK_KEY = "wilma_legacy_link_attempt";
+// A successful Wilma-primary sign-in includes the upstream Wilma login,
+// profile parsing, identity lookup/creation, and Supabase token minting. Those
+// steps can exceed the shorter timeout used for ordinary GraphQL reads when a
+// backend route is cold.
+const AUTH_REQUEST_TIMEOUT_MS = 45_000;
 
 export const WILMA_PRIMARY_AUTH_ENABLED =
   process.env.EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED !== "false";
@@ -46,7 +56,10 @@ async function postJson<T>(
   accessToken?: string
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    AUTH_REQUEST_TIMEOUT_MS
+  );
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
@@ -67,8 +80,20 @@ async function postJson<T>(
     }
     return payload;
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Kirjautumispalvelun yhteys aikakatkaistiin.");
+    if (isFetchCancellation(error, controller.signal)) {
+      const timeoutError = createFetchTimeoutError(
+        "Kirjautumispalvelun yhteys aikakatkaistiin.",
+        error
+      );
+      reportHandledError(timeoutError, {
+        area: "wilma.auth",
+        operation: path,
+        tags: {
+          "network.failure_kind": "timeout",
+          "network.timeout_ms": AUTH_REQUEST_TIMEOUT_MS,
+        },
+      });
+      throw timeoutError;
     }
     throw error;
   } finally {

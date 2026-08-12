@@ -1,4 +1,4 @@
-import { fmstyles } from "@/assets/styles/friendModalStyles";
+import FriendProfileSheetContent from "@/components/friends/FriendProfileSheetContent";
 import useBLEScanner, {
   LocalUserLocation,
 } from "@/components/functions/bleScanner";
@@ -19,6 +19,7 @@ import {
   Friend,
   getFriends,
   getRequests,
+  handleBlockFriend,
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
 import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
@@ -59,7 +60,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -68,7 +68,7 @@ import {
   View,
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
-import FriendItem, { formatLastSeen } from "../../components/friendItem";
+import FriendItem from "../../components/friendItem";
 
 // Define the shape of our room feature properties
 type RoomFeatureProperties = {
@@ -362,35 +362,11 @@ export default function HomeScreen() {
     }
   }, [getCurrentLocation]);
 
-  const handleReportFriend = async (friendId: string) => {
-    Alert.prompt(
-      "Ilmoita käyttäjästä",
-      "Miksi haluat ilmoittaa tästä käyttäjästä?",
-      [
-        {
-          text: "Peruuta",
-          style: "cancel",
-        },
-        {
-          text: "Ilmoita",
-          onPress: async (reason?: string) => {
-            if (reason) {
-              try {
-                const { error } = await supabase
-                  .from("reports")
-                  .insert([{ user_id: friendId, reason }]);
-                if (error) throw error;
-                Alert.alert("Ilmoitus lähetetty", "Kiitos ilmoituksesta!");
-              } catch (err) {
-                console.error("Error reporting friend:", err);
-                Alert.alert("Virhe", "Ilmoituksen lähettäminen epäonnistui.");
-              }
-            }
-          },
-        },
-      ],
-      "plain-text"
-    );
+  const handleReportFriend = async (friendId: string, reason: string) => {
+    const { error } = await supabase
+      .from("reports")
+      .insert([{ user_id: friendId, reason }]);
+    if (error) throw error;
   };
 
   // Fetch friend locations when friends change or component mounts
@@ -476,6 +452,15 @@ export default function HomeScreen() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const fetchRoomsRef = useRef(fetchRooms);
   const [friendId, setFriendId] = useState("");
+  const selectedFriend = useMemo(
+    () => friends.find((friend) => friend.id === friendId) ?? null,
+    [friendId, friends]
+  );
+
+  const refreshFriends = useCallback(async () => {
+    const refreshedFriends = await getFriends(true);
+    setFriends(refreshedFriends);
+  }, []);
 
   const handleTabPress = (tab: string) => {
     if (selectedTab === tab) {
@@ -1540,142 +1525,22 @@ export default function HomeScreen() {
 
           <FriendModalSheet
             ref={friendModalRef}
-            onDismiss={() => {
-              // Any cleanup when modal is dismissed
-            }}
+            onDismiss={() => setFriendId("")}
             initialSnap="mid"
           >
-            <View
-              style={[
-                fmstyles.headerContainer,
-                isDark && { backgroundColor: "#1e1e1e" },
-                {
-                  borderBottomColor: isDark ? "#333" : "#e5e5e5",
-                  borderBottomWidth: 1,
-                  paddingBottom: 24,
-                },
-              ]}
-            >
-              <View style={fmstyles.headerLeft}>
-                <Text style={[fmstyles.name, isDark && { color: "white" }]}>
-                  {friends.find((f) => f.id === friendId)?.name}
-                </Text>
-                <Text style={fmstyles.status}>
-                  {"Luokassa "}
-                  {friends.find((f) => f.id === friendId)
-                    ?.user_friendly_location || "Unknown location"}{" "}
-                  •{" "}
-                  {formatLastSeen(
-                    friends.find((f) => f.id === friendId)?.lastSeen || ""
-                  )}
-                </Text>
-              </View>
-              <Pressable onPress={() => friendModalRef.current?.close()}>
-                <PlatformSymbol
-                  ios="xmark"
-                  android="close"
-                  size={24}
-                  tintColor="#666"
-                />
-              </Pressable>
-            </View>
-            {/* <View style={[fmstyles.navigateButton, { opacity: 0.5 }]}>
-              <Text style={fmstyles.navigateButtonText}>Reittiohjeet</Text>
-              <MaterialIcons name="directions" size={24} color="white" />
-            </View> */}
-
-            {/* <Pressable style={[fmstyles.button, { opacity: 0.3 }]}>
-              <MaterialIcons
-                name="edit"
-                size={20}
-                color={isDark ? "#e5e5e5" : "black"}
-              />
-              <Text
-                style={[fmstyles.buttonText, isDark && { color: "#e5e5e5" }]}
-              >
-                Muokkaa nimeä (Tulossa pian....)
-              </Text>
-            </Pressable> */}
-
-            <View style={{ height: 8 }} />
-
-            {/* <Pressable
-              style={fmstyles.redButton}
-              onPress={() => {
-                handleStopSharing(friendId);
-                friendModalRef.current?.close();
+            <FriendProfileSheetContent
+              friend={selectedFriend}
+              onClose={() => friendModalRef.current?.close()}
+              onRemove={async (id) => {
+                await handleRemoveFriend(id);
+                await refreshFriends();
               }}
-            >
-              <Text style={fmstyles.redButtonText}>
-                Lopeta oman sijainnin jako
-              </Text>
-            </Pressable> */}
-            <Pressable
-              style={fmstyles.redButton}
-              onPress={() => {
-                Alert.alert(
-                  `Poista ${friends.find((f) => f.id === friendId)?.name}`,
-                  "Haluatko varmasti poistaa kaverin?",
-                  [
-                    {
-                      text: "Kumoa",
-                      onPress: () => console.log("Cancel Pressed"),
-                      style: "cancel",
-                    },
-                    {
-                      text: "Kyllä",
-                      style: "destructive",
-                      onPress: () => {
-                        handleRemoveFriend(friendId);
-                        getFriends(true);
-                        friendModalRef.current?.close();
-                      },
-                    },
-                  ]
-                );
+              onBlock={async (id) => {
+                await handleBlockFriend(id);
+                await refreshFriends();
               }}
-            >
-              <Text style={fmstyles.redButtonText}>Poista kaveri</Text>
-            </Pressable>
-            <Pressable
-              style={fmstyles.redButton}
-              onPress={() => {
-                Alert.alert(
-                  `Estä ${friends.find((f) => f.id === friendId)?.name}`,
-                  "Haluatko varmasti estää kaverin?",
-                  [
-                    {
-                      text: "Kumoa",
-                      onPress: () => console.log("Cancel Pressed"),
-                      style: "cancel",
-                    },
-                    {
-                      text: "Kyllä",
-                      style: "destructive",
-                      onPress: () => {
-                        handleRemoveFriend(friendId);
-                        getFriends(true);
-                        friendModalRef.current?.close();
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <Text style={fmstyles.redButtonText}>
-                Estä {friends.find((f) => f.id === friendId)?.name}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={fmstyles.redButton}
-              onPress={() => {
-                handleReportFriend(friendId);
-              }}
-            >
-              <Text style={fmstyles.redButtonText}>
-                Ilmianna {friends.find((f) => f.id === friendId)?.name}
-              </Text>
-            </Pressable>
+              onReport={handleReportFriend}
+            />
           </FriendModalSheet>
 
           <MapBottomSheet ref={mapBottomSheetRef} initialSnap="mid">
@@ -1852,16 +1717,7 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                       <FriendItem
-                        friend={
-                          item as {
-                            id: string;
-                            name: string;
-                            status?: "ei sijaintia" | "busy" | string;
-                            lastSeen?: string | number;
-                            isFavorite?: boolean;
-                            color?: string;
-                          }
-                        }
+                        friend={item}
                         onPress={() => {
                           handleFriendOpen(item.id);
                           if (
@@ -1869,8 +1725,12 @@ export default function HomeScreen() {
                             Array.isArray(item.location) &&
                             item.location.length === 2
                           ) {
-                            // setSelectedFloor(3);
-                            setSelectedFloor(parseInt(item.status[0], 10));
+                            if (
+                              typeof item.floor === "number" &&
+                              Number.isFinite(item.floor)
+                            ) {
+                              setSelectedFloor(item.floor);
+                            }
                             setCameraConfig({
                               centerCoordinate: [
                                 item.location[0],

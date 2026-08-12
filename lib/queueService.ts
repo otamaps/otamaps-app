@@ -63,6 +63,13 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
 });
 
 export async function getQueueStatuses(): Promise<QueueStatus[]> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session) return [];
+
   const { data, error } = await supabase.rpc("get_queue_statuses");
   if (error) throw error;
   return ((data ?? []) as Record<string, unknown>[]).map(normalizeStatus);

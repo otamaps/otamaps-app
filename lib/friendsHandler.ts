@@ -15,9 +15,37 @@ export type Friend = {
   color: string;
   lastSeen: string | null;
   location: [number, number] | null;
+  floor: number | null;
   status: string;
   user_friendly_location?: string;
 };
+
+type FriendLocationRow = {
+  user_id: string;
+  x: number | null;
+  y: number | null;
+  floor: number | null;
+  updated_at: string | null;
+  beacons: unknown;
+};
+
+function strongestBeaconId(beacons: unknown): string | null {
+  if (!Array.isArray(beacons) || beacons.length === 0) return null;
+  const candidates = beacons.filter(
+    (beacon): beacon is { id: string | number; distance: number } =>
+      Boolean(beacon) &&
+      typeof beacon === "object" &&
+      "id" in beacon &&
+      "distance" in beacon &&
+      typeof beacon.distance === "number"
+  );
+  if (candidates.length === 0) return null;
+  return String(
+    candidates.reduce((closest, candidate) =>
+      candidate.distance < closest.distance ? candidate : closest
+    ).id
+  );
+}
 
 // fetch and combine from Supabase
 const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
@@ -28,28 +56,29 @@ const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
 
   const { data: locations, error: locationError } = await supabase
     .from("locations")
-    .select("*");
+    .select("user_id,x,y,floor,updated_at,beacons")
+    .returns<FriendLocationRow[]>();
 
   if (locationError) throw locationError;
 
   //console.log("Locations:", locations);
   const combined: Friend[] = await Promise.all(
-    users.map(async (user) => {
-      const location = locations.find((loc) => loc.user_id === user.id);
-
-      // Get the beacon with the strongest signal (lowest distance)
-      const strongestBeacon = location?.beacons?.reduce(
-        (prev: any, current: any) =>
-          prev.distance < current.distance ? prev : current
-      );
-      const beaconId = strongestBeacon?.id || "";
+    (users ?? []).map(async (user) => {
+      const location = (locations ?? []).find((loc) => loc.user_id === user.id);
+      const beaconId = strongestBeaconId(location?.beacons);
+      const friendlyLocation = beaconId
+        ? await getRoomIdFromBleId(beaconId)
+        : undefined;
+      const hasCoordinates =
+        typeof location?.x === "number" && typeof location?.y === "number";
 
       return {
         ...user,
         lastSeen: location?.updated_at || null,
-        location: location ? [location.x, location.y] : null,
-        status: (await getRoomIdFromBleId(beaconId)) || "ei sijaintia",
-        user_friendly_location: await getRoomIdFromBleId(beaconId),
+        location: hasCoordinates ? [location.x!, location.y!] : null,
+        floor: typeof location?.floor === "number" ? location.floor : null,
+        status: friendlyLocation || "ei sijaintia",
+        user_friendly_location: friendlyLocation,
       };
     })
   );
@@ -147,8 +176,7 @@ export const getRequests = async () => {
 export const handleBlockFriend = async (friendId: string) => {
   const user = await getUser();
   if (!user) {
-    console.log("No authenticated user found");
-    return;
+    throw new Error("Käyttäjä ei ole kirjautunut sisään.");
   }
 
   const { error: removeError } = await supabase
@@ -159,8 +187,7 @@ export const handleBlockFriend = async (friendId: string) => {
     );
 
   if (removeError) {
-    console.log("Error removing friend relation:", removeError);
-    return;
+    throw removeError;
   }
 
   const { error: blockError } = await supabase.from("relations").insert({
@@ -170,15 +197,14 @@ export const handleBlockFriend = async (friendId: string) => {
   });
 
   if (blockError) {
-    console.log("Error blocking friend:", blockError);
+    throw blockError;
   }
 };
 
 export const handleRemoveFriend = async (friendId: string) => {
   const user = await getUser();
   if (!user) {
-    console.log("No authenticated user found");
-    return;
+    throw new Error("Käyttäjä ei ole kirjautunut sisään.");
   }
 
   const { error: removeError } = await supabase
@@ -190,6 +216,6 @@ export const handleRemoveFriend = async (friendId: string) => {
     );
 
   if (removeError) {
-    console.log("Error removing friend relation:", removeError);
+    throw removeError;
   }
 };

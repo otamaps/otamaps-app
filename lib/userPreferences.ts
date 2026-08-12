@@ -1,8 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  isMissingScheduleSharingSchema,
+  scheduleSharingUnavailableError,
+} from "./scheduleSharingSchema";
 import { supabase } from "./supabase";
 
 export const CURRENT_ONBOARDING_VERSION = 1;
-export const CURRENT_CONSENT_POLICY_VERSION = 1;
+export const CURRENT_CONSENT_POLICY_VERSION = 2;
 
 export type ProfileSource = "legacy" | "wilma";
 
@@ -12,6 +16,7 @@ export type UserPreferences = {
   onboarding_version: number;
   onboarding_completed_at: string | null;
   friend_location_enabled: boolean;
+  schedule_sharing_enabled: boolean;
   anonymous_analytics_enabled: boolean;
   background_tracking_enabled: boolean;
   consent_policy_version: number;
@@ -21,12 +26,15 @@ export type UserPreferences = {
 export type ConsentChoices = Pick<
   UserPreferences,
   | "friend_location_enabled"
+  | "schedule_sharing_enabled"
   | "anonymous_analytics_enabled"
   | "background_tracking_enabled"
 >;
 
 const CACHE_PREFIX = "user_preferences_v1:";
 const PREFERENCE_COLUMNS =
+  "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,schedule_sharing_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at";
+const LEGACY_PREFERENCE_COLUMNS =
   "user_id,profile_source,onboarding_version,onboarding_completed_at,friend_location_enabled,anonymous_analytics_enabled,background_tracking_enabled,consent_policy_version,updated_at";
 
 type PreferenceWritePayload = {
@@ -34,6 +42,7 @@ type PreferenceWritePayload = {
   onboarding_version?: number;
   onboarding_completed_at?: string | null;
   friend_location_enabled: boolean;
+  schedule_sharing_enabled: boolean;
   anonymous_analytics_enabled: boolean;
   background_tracking_enabled: boolean;
   consent_policy_version: number;
@@ -47,10 +56,21 @@ function defaultPreferences(userId: string): UserPreferences {
     onboarding_version: 0,
     onboarding_completed_at: null,
     friend_location_enabled: false,
+    schedule_sharing_enabled: false,
     anonymous_analytics_enabled: false,
     background_tracking_enabled: false,
     consent_policy_version: CURRENT_CONSENT_POLICY_VERSION,
     updated_at: new Date(0).toISOString(),
+  };
+}
+
+function normalizePreferences(
+  preferences: Omit<UserPreferences, "schedule_sharing_enabled"> &
+    Partial<Pick<UserPreferences, "schedule_sharing_enabled">>
+): UserPreferences {
+  return {
+    ...preferences,
+    schedule_sharing_enabled: preferences.schedule_sharing_enabled ?? false,
   };
 }
 
@@ -63,7 +83,9 @@ async function readCachedPreferences(
 ): Promise<UserPreferences | null> {
   try {
     const raw = await AsyncStorage.getItem(cacheKey(userId));
-    return raw ? (JSON.parse(raw) as UserPreferences) : null;
+    return raw
+      ? normalizePreferences(JSON.parse(raw) as UserPreferences)
+      : null;
   } catch {
     return null;
   }
@@ -77,17 +99,22 @@ async function cachePreferences(preferences: UserPreferences): Promise<void> {
 }
 
 async function updateExistingPreferences(
-  payload: PreferenceWritePayload
+  payload: PreferenceWritePayload,
+  legacySchema = false
 ): Promise<UserPreferences | null> {
   const { user_id: userId, ...allowedUpdates } = payload;
+  const updates = legacySchema
+    ? (({ schedule_sharing_enabled: _schedule, ...legacyUpdates }) =>
+        legacyUpdates)(allowedUpdates)
+    : allowedUpdates;
   const { data, error } = await supabase
     .from("user_preferences")
-    .update(allowedUpdates)
+    .update(updates)
     .eq("user_id", userId)
-    .select(PREFERENCE_COLUMNS)
+    .select(legacySchema ? LEGACY_PREFERENCE_COLUMNS : PREFERENCE_COLUMNS)
     .maybeSingle<UserPreferences>();
   if (error) throw error;
-  return data;
+  return data ? normalizePreferences(data) : null;
 }
 
 /**
@@ -101,23 +128,42 @@ async function updateExistingPreferences(
 async function writePreferences(
   payload: PreferenceWritePayload
 ): Promise<UserPreferences> {
-  const updated = await updateExistingPreferences(payload);
+  let updated: UserPreferences | null;
+  try {
+    updated = await updateExistingPreferences(payload);
+  } catch (error) {
+    if (!isMissingScheduleSharingSchema(error)) throw error;
+    if (payload.schedule_sharing_enabled) throw scheduleSharingUnavailableError();
+    updated = await updateExistingPreferences(payload, true);
+  }
   if (updated) return updated;
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("user_preferences")
     .insert(payload)
     .select(PREFERENCE_COLUMNS)
     .single<UserPreferences>();
 
-  if (!error) return data;
+  if (error && isMissingScheduleSharingSchema(error)) {
+    if (payload.schedule_sharing_enabled) throw scheduleSharingUnavailableError();
+    const { schedule_sharing_enabled: _schedule, ...legacyPayload } = payload;
+    const legacyResult = await supabase
+      .from("user_preferences")
+      .insert(legacyPayload)
+      .select(LEGACY_PREFERENCE_COLUMNS)
+      .single<UserPreferences>();
+    data = legacyResult.data;
+    error = legacyResult.error;
+  }
+
+  if (!error && data) return normalizePreferences(data);
 
   // A Wilma identity can create the row between our UPDATE and INSERT.
-  if (error.code === "23505") {
+  if (error?.code === "23505") {
     const retried = await updateExistingPreferences(payload);
     if (retried) return retried;
   }
-  throw error;
+  throw error ?? new Error("Tietosuoja-asetusten tallennus epäonnistui.");
 }
 
 async function requireUserId(): Promise<string> {
@@ -138,18 +184,30 @@ export async function getUserPreferences(options: {
   const cached = await readCachedPreferences(userId);
   if (!options.forceRefresh && cached) return cached;
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("user_preferences")
     .select(PREFERENCE_COLUMNS)
     .eq("user_id", userId)
     .maybeSingle<UserPreferences>();
+
+  if (error && isMissingScheduleSharingSchema(error)) {
+    const legacyResult = await supabase
+      .from("user_preferences")
+      .select(LEGACY_PREFERENCE_COLUMNS)
+      .eq("user_id", userId)
+      .maybeSingle<UserPreferences>();
+    data = legacyResult.data;
+    error = legacyResult.error;
+  }
 
   if (error) {
     if (cached) return cached;
     throw error;
   }
 
-  const preferences = data ?? defaultPreferences(userId);
+  const preferences = data
+    ? normalizePreferences(data)
+    : defaultPreferences(userId);
   await cachePreferences(preferences);
   return preferences;
 }
@@ -167,6 +225,11 @@ async function recordConsentEvents(
       next: next.friend_location_enabled,
     },
     {
+      purpose: "weekly_schedule",
+      previous: previous.schedule_sharing_enabled,
+      next: next.schedule_sharing_enabled,
+    },
+    {
       purpose: "anonymous_crowd_analytics",
       previous: previous.anonymous_analytics_enabled,
       next: next.anonymous_analytics_enabled,
@@ -179,14 +242,26 @@ async function recordConsentEvents(
   ].filter((decision) => recordUnchanged || decision.previous !== decision.next);
 
   if (decisions.length === 0) return;
-  const { error } = await supabase.from("user_consent_events").insert(
-    decisions.map((decision) => ({
+  const rows = decisions.map((decision) => ({
       user_id: userId,
       purpose: decision.purpose,
       granted: decision.next,
       policy_version: CURRENT_CONSENT_POLICY_VERSION,
-    }))
-  );
+    }));
+  let { error } = await supabase.from("user_consent_events").insert(rows);
+
+  if (error && isMissingScheduleSharingSchema(error)) {
+    const scheduleDecision = decisions.find(
+      (decision) => decision.purpose === "weekly_schedule"
+    );
+    if (scheduleDecision?.next) throw scheduleSharingUnavailableError();
+    const legacyRows = rows.filter((row) => row.purpose !== "weekly_schedule");
+    if (legacyRows.length === 0) return;
+    const legacyResult = await supabase
+      .from("user_consent_events")
+      .insert(legacyRows);
+    error = legacyResult.error;
+  }
   if (error) throw error;
 }
 
@@ -201,6 +276,7 @@ export async function saveOnboardingChoices(
     onboarding_version: CURRENT_ONBOARDING_VERSION,
     onboarding_completed_at: now,
     friend_location_enabled: choices.friend_location_enabled,
+    schedule_sharing_enabled: choices.schedule_sharing_enabled,
     anonymous_analytics_enabled: choices.anonymous_analytics_enabled,
     background_tracking_enabled: choices.background_tracking_enabled,
     consent_policy_version: CURRENT_CONSENT_POLICY_VERSION,
@@ -220,6 +296,8 @@ export async function updateConsentChoices(
   const next: ConsentChoices = {
     friend_location_enabled:
       patch.friend_location_enabled ?? previous.friend_location_enabled,
+    schedule_sharing_enabled:
+      patch.schedule_sharing_enabled ?? previous.schedule_sharing_enabled,
     anonymous_analytics_enabled:
       patch.anonymous_analytics_enabled ?? previous.anonymous_analytics_enabled,
     background_tracking_enabled:
@@ -245,7 +323,14 @@ export async function isOnboardingComplete(): Promise<boolean> {
   return preferences.onboarding_version >= CURRENT_ONBOARDING_VERSION;
 }
 
-export async function getTrackingConsentChoices(): Promise<ConsentChoices> {
+export type TrackingConsentChoices = Pick<
+  ConsentChoices,
+  | "friend_location_enabled"
+  | "anonymous_analytics_enabled"
+  | "background_tracking_enabled"
+>;
+
+export async function getTrackingConsentChoices(): Promise<TrackingConsentChoices> {
   const preferences = await getUserPreferences();
   return {
     friend_location_enabled: preferences.friend_location_enabled,
