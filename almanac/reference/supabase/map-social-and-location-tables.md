@@ -48,6 +48,9 @@ sources:
   - id: queue-migration
     type: file
     path: supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql
+  - id: queue-grant-migration
+    type: file
+    path: supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql
   - id: id-translation
     type: file
     path: lib/idTranslation.ts
@@ -109,8 +112,8 @@ The active identified live sharing path is `locations`, not `user_locations` [@l
 | --- | --- | --- |
 | `queue_areas` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Database-managed queue locations shown to authenticated users; the initial active row is `ruokalinjasto`, linked to the matching `rooms` row [@queue-migration] [@queue-service]. |
 | `queue_observations` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Append-only manual queue ratings. Authenticated admins can insert only `queue_area_id` and `level`; a trigger sets admin id, server timestamp, and 10-minute anonymous sample count [@queue-migration] [@queue-service]. |
-| `get_queue_statuses()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Authenticated aggregate used by the map. It prefers a manual rating from the last 20 minutes, otherwise derives an automatic level from 10-minute anonymous sample counts [@queue-migration] [@queue-service]. |
+| `get_queue_statuses()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql`, `lib/queueService.ts` | Authenticated aggregate used by the map. It prefers a manual rating from the last 20 minutes, otherwise derives an automatic level from 10-minute anonymous sample counts; the grant repair revokes execution from `public` and `anon` and grants it to `authenticated` and `service_role` [@queue-migration] [@queue-grant-migration] [@queue-service]. |
 | `get_admin_queue_activity()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Admin aggregate that returns 10-minute sample counts and last sample time without exposing raw anonymous sample rows [@queue-migration] [@queue-service]. |
 | `private.is_admin()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql` | Security-definer role check based on `auth.uid()` and `public.users.role`; it replaces the older public `is_admin(uuid)` helper and is used by admin RLS policies [@queue-migration]. |
 
-The same migration hardens `public.users.role`: ordinary clients can read their role through the profile path but cannot insert or update it, role values are constrained to `user` or `admin`, and the default is `user` [@queue-migration]. New queue admins must therefore be assigned through trusted database access rather than through the mobile app [@queue-migration].
+The same migration hardens `public.users.role`: ordinary clients can read their role through the profile path but cannot insert or update it, role values are constrained to `user` or `admin`, and the default is `user` [@queue-migration]. New queue admins must therefore be assigned through trusted database access rather than through the mobile app [@queue-migration]. `lib/queueService.ts` also skips `get_queue_statuses()` unless Supabase Auth has a session, so an unauthenticated startup render should return no queue rows rather than invoking the authenticated-only RPC as `anon` [@queue-service] [@queue-grant-migration].

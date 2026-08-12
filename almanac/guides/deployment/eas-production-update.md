@@ -15,6 +15,12 @@ sources:
   - id: package
     type: file
     path: package.json
+  - id: root-layout
+    type: file
+    path: app/_layout.tsx
+  - id: required-update-gate
+    type: file
+    path: components/updates/RequiredUpdateGate.tsx
   - id: wilma-auth-broker
     type: file
     path: lib/wilma/authBroker.ts
@@ -24,6 +30,9 @@ sources:
   - id: sentry-runtime
     type: file
     path: lib/sentry.ts
+  - id: required-update-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
 ---
 
 # EAS Production Update
@@ -65,6 +74,19 @@ npx eas update \
 
 Use the project-local EAS CLI path through `npx` so the command follows the repository dependency graph; `package.json` declares `eas-cli` as a project dependency [@package]. The `production` channel is mapped to the `production` branch, so this command changes the update served to installed production-channel builds that match the runtime version [@eas-config] [@update-session].
 
+If `eas update` stalls before the export or upload output appears, retry with Node's IPv4-first DNS ordering instead of treating the silent process as a publish. In the August 12, 2026 update session, the plain publish attempt hung with no upload output, `update:list` showed that no new group had appeared, and the successful retry used this prefix [@required-update-session]:
+
+```bash
+NODE_OPTIONS=--dns-result-order=ipv4first npx eas update \
+  --branch production \
+  --platform all \
+  --environment production \
+  --message "Prevent anonymous queue RPC permission errors" \
+  --non-interactive
+```
+
+After any stalled attempt, stop the hanging process and verify the branch before retrying so an operator does not accidentally publish the same dirty tree twice [@required-update-session].
+
 ## Verify
 
 After publishing, query the production channel and branch instead of trusting the upload output alone:
@@ -80,6 +102,6 @@ The August 11, 2026 update produced group `01fe7db7-34c8-4ffd-b686-585ab233b049`
 
 ## Device Activation
 
-Expo Updates normally downloads a production update on one launch and activates it on the next launch. For the Wilma login fix, the operator instruction was to force-close OtaMaps, open it with internet access for about ten seconds, force-close and reopen it, then retry Wilma login [@update-session]. Keep that two-launch activation model in user-facing release instructions unless the app adds an explicit in-app reload prompt.
+The app now has an explicit in-app reload prompt. `app/_layout.tsx` renders `RequiredUpdateGate` at the root, and that component checks for an EAS update on mount and when the app returns to active, fetches an available update or rollback, and blocks the UI with a non-dismissible Finnish modal until the user presses `Päivitä nyt`, which calls `Updates.reloadAsync()` [@root-layout] [@required-update-gate]. User-facing release instructions should therefore tell users to open the app online and accept the required update prompt when it appears.
 
-Do not call an OTA release fully proven from manifest checks alone. The Wilma timeout update was published and remotely visible, but a real successful Wilma login still needed an on-device test; if login failed again, the new telemetry was expected to distinguish a 45-second auth timeout from a server response error [@update-session] [@wilma-auth-broker] [@sentry-runtime].
+Do not call an OTA release fully proven from manifest checks alone. The Wilma timeout update was published and remotely visible, but a real successful Wilma login still needed an on-device test; if login failed again, the new telemetry was expected to distinguish a 45-second auth timeout from a server response error [@update-session] [@wilma-auth-broker] [@sentry-runtime]. The August 12, 2026 update was also remotely visible on the production branch with HTTP 200 manifest probes, but no iOS simulator was used and the schedule-sharing table was still absent in the public production schema probe [@required-update-session].

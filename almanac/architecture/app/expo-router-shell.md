@@ -9,6 +9,9 @@ sources:
   - id: root-layout
     type: file
     path: app/_layout.tsx
+  - id: required-update-gate
+    type: file
+    path: components/updates/RequiredUpdateGate.tsx
   - id: sentry-runtime
     type: file
     path: lib/sentry.ts
@@ -28,7 +31,7 @@ sources:
 
 # Expo Router Shell
 
-The Expo Router shell is the app-wide runtime boundary for OtaMaps. The package entrypoint is `expo-router/entry`, so files under `app/` define navigation rather than a manually assembled React Navigation tree [@package]. The root layout imports the BLE background task first, initializes Sentry immediately after that native entrypoint, loads Figtree fonts before hiding the splash screen, mounts SumUp, user, gesture, stack, Algolia InstantSearch, and status-bar providers, and listens to Supabase auth events to start or stop BLE background location [@root-layout] [@sentry-runtime]. Route-specific code should be read against this shell because payment, search, mobile observability, auth-adjacent background services, and font readiness are established before individual screens render.
+The Expo Router shell is the app-wide runtime boundary for OtaMaps. The package entrypoint is `expo-router/entry`, so files under `app/` define navigation rather than a manually assembled React Navigation tree [@package]. The root layout imports the BLE background task first, initializes Sentry immediately after that native entrypoint, loads Figtree fonts before hiding the splash screen, mounts SumUp, user, gesture, stack, Algolia InstantSearch, the required EAS update gate, and status-bar providers, and listens to Supabase auth events to start or stop BLE background location [@root-layout] [@required-update-gate] [@sentry-runtime]. Route-specific code should be read against this shell because payment, search, mobile observability, auth-adjacent background services, update activation, and font readiness are established before individual screens render.
 
 ## Root Runtime Responsibilities
 
@@ -37,6 +40,8 @@ The Expo Router shell is the app-wide runtime boundary for OtaMaps. The package 
 The root layout also exports `Sentry.wrap(function RootLayout() { ... })`, so React errors at and below the root shell enter the shared [mobile observability](../runtime/mobile-observability) path [@root-layout]. Keep the BLE background task import before the Sentry import because Notifee foreground-service registration must stay the first native background entrypoint [@root-layout].
 
 The same file creates an Algolia lite client and wraps the app in `InstantSearch` with index name `rooms_rows` [@root-layout]. That is the app-wide search boundary used by map search flows, not a provider that belongs only to one search component. The root also wraps navigation with `SumUpProvider`, passing `process.env.EXPO_PUBLIC_SUMUP_API_KEY || ''` as the public key [@root-layout]. See [SumUp payment boundary](../fablab/sumup-payment-boundary) before changing this provider or the FabLab checkout surfaces.
+
+`RequiredUpdateGate` is rendered beside the root navigation rather than inside one route, so an already authenticated app and a pre-authentication screen both share the same EAS update activation path [@root-layout]. The gate skips development and builds where Expo Updates is disabled, checks for updates when the app mounts and whenever `AppState` returns to active, downloads an available update or rollback, then shows a non-dismissible modal that calls `Updates.reloadAsync()` when the user presses `Päivitä nyt` [@required-update-gate]. Check and reload failures are reported through the shared Sentry helper under `area: "eas_update"` [@required-update-gate].
 
 ## Navigation Shape
 
