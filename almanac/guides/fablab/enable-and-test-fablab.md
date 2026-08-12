@@ -3,6 +3,9 @@ title: "Enable And Test FabLab"
 summary: "This guide explains how to expose the local FabLab tab and verify the print-job upload, status, and payment surfaces in the mobile app."
 topics: [guides, fablab, print-jobs, payments, supabase]
 sources:
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
   - id: fablab-settings
     type: file
     path: app/(app)/me/fablab.tsx
@@ -22,7 +25,7 @@ sources:
 
 # Enable And Test FabLab
 
-Use this guide when you need to expose the FabLab tab on a device or simulator and verify that the print-job flow is wired through the current app. The expected result is that `fablabEnabled` is set in local AsyncStorage, the bottom tab bar shows "Fablab", a signed-in user can reach "My Prints", the new-print wizard can upload a file and create a Supabase job row, and payment UI appears for jobs whose status and estimate fields make payment possible [@fablab-settings] [@tab-layout] [@jobs-list] [@new-print] [@job-detail]. For the model behind the flow, read [FabLab print jobs](../../concepts/fablab/print-jobs) first.
+Use this guide when you need to expose the FabLab tab on a device or simulator and verify that the print-job flow is wired through the current app. The current committed code has a static feature gate first: `FABLAB_VISIBLE` is false, the tab trigger is hidden, and the FabLab settings route redirects back to Me before its local switch can be used [@feature-constants] [@tab-layout] [@fablab-settings]. The expected result after deliberately enabling that static gate is that the bottom tab bar shows "Fablab", a signed-in user can reach "My Prints", the new-print wizard can upload a file and create a Supabase job row, and payment UI appears for jobs whose status and estimate fields make payment possible [@tab-layout] [@jobs-list] [@new-print] [@job-detail]. For the model behind the flow, read [FabLab print jobs](../../concepts/fablab/print-jobs) first.
 
 ## Preconditions
 
@@ -34,9 +37,9 @@ Payment testing also needs runtime configuration and a backend checkout route. T
 
 ## Enable The Tab
 
-Open the FabLab settings route under the Me area and turn on the switch labeled "Ota Fablab käyttöön" [@fablab-settings]. The settings screen writes the string value of the switch to AsyncStorage under `fablabEnabled`; if saving fails, it restores the previous visible state [@fablab-settings].
+First confirm that `constants/features.ts` exports `FABLAB_VISIBLE = true`; with the committed false value, the tab layout hides the trigger and `app/(app)/me/fablab.tsx` redirects to `/(tabs)/me` [@feature-constants] [@tab-layout] [@fablab-settings].
 
-Return to another tab or route if the tab does not appear immediately. The tab layout reads `fablabEnabled` from AsyncStorage in an effect keyed by the current route segments, and the FabLab tab sets `href` to `null` when the stored value is not `"true"` [@tab-layout]. This is a local device opt-in, not a server-side entitlement.
+When that static gate is enabled, the current tab layout exposes the FabLab trigger directly [@tab-layout]. The FabLab settings screen still reads and writes the string value of its switch to AsyncStorage under `fablabEnabled`, but the current tab layout does not read that key for visibility [@fablab-settings] [@tab-layout].
 
 ## Verify The Job List
 
@@ -58,6 +61,6 @@ To verify payment UI, put a job into `cost_estimated` with estimate fields or `a
 
 ## Recovery Notes
 
-If the tab is missing, check the local `fablabEnabled` key first. The settings screen and tab layout both use that exact key, and only the string `"true"` exposes the tab [@fablab-settings] [@tab-layout].
+If the tab is missing, check `FABLAB_VISIBLE` first. The committed false value hides the tab and blocks the settings route regardless of the local `fablabEnabled` value [@feature-constants] [@tab-layout] [@fablab-settings].
 
 If uploads fail after the object is created, inspect the `print_jobs` insert separately. The current upload function has no cleanup path for a successful storage upload followed by a failed row insert [@new-print]. If payment fails before the SumUp sheet appears, check `EXPO_PUBLIC_BACKEND_URL`, the `/jobs/:id/checkout` backend response, and the Supabase bearer token accepted by that backend [@job-detail].

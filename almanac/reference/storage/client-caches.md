@@ -27,6 +27,12 @@ sources:
   - id: feature-flags
     type: file
     path: lib/featureFlagService.ts
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
+  - id: tab-layout
+    type: file
+    path: app/(tabs)/_layout.tsx
   - id: fablab-settings
     type: file
     path: app/(app)/me/fablab.tsx
@@ -70,7 +76,7 @@ Client caches in OtaMaps are local device stores spread across AsyncStorage and 
 | `ble_background_consent_v1` | `lib/bleTrackingRuntime.ts` | String `"true"` or `"false"` for explicit background BLE tracking consent | Written by `setBackgroundTrackingConsent`; stop and sign-out manager paths clear consent by writing false [@ble-runtime] [@ble-background-manager]. |
 | `cached_friends` | `lib/friendsHandler.ts` | JSON array of friend records joined with location/status data | Returned by `getFriends()` unless a force refresh is requested; no TTL is enforced in this helper [@friends-handler]. |
 | `@feature_flags` | `lib/featureFlagService.ts` | JSON array of enabled feature flag records | Replaced when `fetchAndStoreFeatureFlags()` fetches all flags from Supabase and stores only enabled ones [@feature-flags]. |
-| `fablabEnabled` | `app/(app)/me/fablab.tsx` | String `"true"` or `"false"` for local FabLab tab opt-in | Read on focus and written when the FabLab settings switch changes [@fablab-settings]. |
+| `fablabEnabled` | `app/(app)/me/fablab.tsx` | String `"true"` or `"false"` from the FabLab settings switch | Read on focus and written when the settings switch changes, but the current tab layout does not read this key; tab exposure is controlled by static `FABLAB_VISIBLE` [@fablab-settings] [@tab-layout] [@feature-constants]. |
 | `wilma_read_cache_v1:<scope>:<cacheKey>` | `lib/wilma/graphqlClient.ts` | JSON `{ version: 1, storedAt, data }` envelope for cached Wilma GraphQL reads, scoped by a SHA-256 digest of API base URL and Wilma username | TTL depends on the helper: message lists are shortest at two minutes, profile/rooms/recipients and detail reads are longest at hours; `forceRefresh` bypasses cache-first behavior, auth errors do not fall back to cached data, message send/reply invalidates message keys, and `clearAll()` removes entries for the current scope [@wilma-graphql]. |
 The `user` keys belong to [session and identity](../../architecture/auth/session-and-identity), and the `user_preferences_v1:<user_id>` key belongs to [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences). The room and feature keys belong to [room feature data](../../architecture/map/room-feature-data), while the BLE keys belong to [BLE background location](../../architecture/location/ble-background-location). `useBLEScanner` no longer owns AsyncStorage cache keys directly; it reads the shared runtime snapshot instead [@ble-scanner] [@ble-runtime].
 

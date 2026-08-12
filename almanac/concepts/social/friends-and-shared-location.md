@@ -1,7 +1,7 @@
 ---
 title: "Friends And Shared Location"
 summary: "Friends and shared location is the social layer that connects six-digit friend codes, relation rows, friend lists, live map markers, shared weekly schedules, removal, blocking, and reports."
-topics: [concepts, social, location, supabase, wilma, privacy]
+topics: [concepts, social, location, supabase, wilma, privacy, schedule-sharing]
 sources:
   - id: friends-handler
     type: file
