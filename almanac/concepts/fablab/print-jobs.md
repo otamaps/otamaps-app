@@ -15,6 +15,12 @@ sources:
   - id: fablab-types
     type: file
     path: lib/fablabTypes.ts
+  - id: tabs-layout
+    type: file
+    path: app/(tabs)/_layout.tsx
+  - id: feature-constants
+    type: file
+    path: constants/features.ts
   - id: fablab-terms
     type: file
     path: assets/fablab/terms.md
@@ -22,7 +28,7 @@ sources:
 
 # FabLab Print Jobs
 
-FabLab print jobs are the OtaMaps model for submitting and following 3D prints from the mobile app. A job begins when a signed-in user picks a `.gcode`, `.stl`, or `.obj` file, chooses an available filament, optionally chooses an idle printer, uploads the file to Supabase Storage, and inserts a `print_jobs` row with status `pending_upload` [@new-print]. After that, the user sees the job in "My Prints" and follows its staff, payment, and printing lifecycle through status labels and realtime updates [@jobs-list] [@job-detail]. The concept matters because FabLab rules describe supervised, safe, and accountable use of equipment, while the app models each print as a durable record with a file, owner, material, cost fields, review note, timestamps, and status [@fablab-terms] [@fablab-types].
+FabLab print jobs are the OtaMaps model for submitting and following 3D prints from the mobile app. The flow is hidden from the current visible tab bar while `FABLAB_VISIBLE` is false, even though the FabLab tab route and job screens remain in the repository [@tabs-layout] [@feature-constants]. When deliberately exposed, a job begins when a signed-in user picks a `.gcode`, `.stl`, or `.obj` file, chooses an available filament, optionally chooses an idle printer, uploads the file to Supabase Storage, and inserts a `print_jobs` row with status `pending_upload` [@new-print]. After that, the user sees the job in "My Prints" and follows its staff, payment, and printing lifecycle through status labels and realtime updates [@jobs-list] [@job-detail]. The concept matters because FabLab rules describe supervised, safe, and accountable use of equipment, while the app models each print as a durable record with a file, owner, material, cost fields, review note, timestamps, and status [@fablab-terms] [@fablab-types].
 
 ## Product Surface
 

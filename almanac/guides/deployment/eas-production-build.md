@@ -74,7 +74,7 @@ node_modules/.bin/eas build --platform android --profile production --non-intera
 node_modules/.bin/eas build --platform ios --profile production --non-interactive --no-wait
 ```
 
-`package.json` pins `eas-cli` as a project dependency, while the release run showed EAS recommending an explicit `cli.version` field in `eas.json` and warning that `cli.appVersionSource` will become required [@package] [@release-session]. Add those fields deliberately when stabilizing the release pipeline; do not hide the warning by switching to an arbitrary global CLI.
+`package.json` pins `eas-cli` as a project dependency, and `eas.json` now sets `cli.appVersionSource` to `remote` [@package] [@eas-config]. The release run also showed EAS recommending an explicit `cli.version` field, so add that deliberately when stabilizing the release pipeline; do not hide CLI drift by switching to an arbitrary global CLI [@release-session].
 
 EAS loaded the same public variable names from both the remote production environment and the production profile `env` block, then used the profile values when both existed [@release-session] [@eas-config]. That precedence matters: changing a value only in the EAS web environment is not enough if `eas.json` still defines the same key.
 

@@ -3,9 +3,6 @@ title: "OtaMaps Almanac"
 summary: "Repository-owned Almanac entry point for the OtaMaps Expo mobile app."
 topics: [wiki, product, app-shell]
 sources:
-  - id: project-notes
-    type: file
-    path: chatgpt.md
   - id: package
     type: file
     path: package.json
@@ -25,7 +22,7 @@ sources:
 
 # OtaMaps Almanac
 
-OtaMaps is an Expo Router React Native app for an Otaniemi school/campus map, Wilma school data, account/profile flows, BLE-based indoor location, friends and shared location, Ruokalinjasto queue status, and optional FabLab print workflows [@project-notes] [@map-route] [@home-route] [@fablab-route]. The app entrypoint is `expo-router/entry`, and the dependency graph includes native Mapbox, Supabase, Google sign-in, BLE, Notifee, Algolia, SumUp, and Sentry packages [@package].
+OtaMaps is an Expo Router React Native app for an Otaniemi school/campus map, Wilma school data, account/profile flows, BLE-based indoor location, friends and shared location, Ruokalinjasto queue status, and optional FabLab print workflows [@map-route] [@home-route] [@fablab-route]. The app entrypoint is `expo-router/entry`, and the dependency graph includes native Mapbox, Supabase, Google sign-in, BLE, Notifee, Algolia, SumUp, and Sentry packages [@package].
 
 Use [Getting Started](getting-started) as the reading map for this wiki. It routes first-time agents toward product shape, app-shell ownership, route boundaries, Wilma, map/location behavior, FabLab, deployment, and validation caveats.
 
@@ -33,7 +30,7 @@ Use [Getting Started](getting-started) as the reading map for this wiki. It rout
 
 Start with [OtaMaps mobile app](concepts/product/otamaps-mobile-app), [Expo Router shell](architecture/app/expo-router-shell), and [main route map](architecture/app/main-route-map). The root layout wraps the app with SumUp, user state, gesture handling, Algolia search, splash/font loading, and BLE lifecycle wiring before individual screens render [@root-layout].
 
-For feature work, read the owning cluster before editing code: [Wilma](concepts/integrations/wilma), [campus map model](concepts/map/campus-map-model), [BLE background location](architecture/location/ble-background-location), [friends and shared location](concepts/social/friends-and-shared-location), [queue status](architecture/map/queue-status), or [print jobs](concepts/fablab/print-jobs).
+For feature work, read the owning cluster before editing code: [Wilma](concepts/integrations/wilma), [campus map model](concepts/map/campus-map-model), [BLE background location](architecture/location/ble-background-location), [friends and shared location](concepts/social/friends-and-shared-location), [schedule sharing](architecture/social/schedule-sharing), [queue status](architecture/map/queue-status), or [print jobs](concepts/fablab/print-jobs).
 
 ## Maintenance Bar
 
