@@ -60,6 +60,12 @@ sources:
   - id: location-migration
     type: file
     path: database/migrations/001_create_user_locations_table.sql
+  - id: location-query-migration
+    type: file
+    path: supabase/migrations/20260813094204_optimize_location_queries.sql
+  - id: location-performance-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T12-25-53-019ffa71-3d38-7ad0-b45b-aee8355a0812.jsonl
 ---
 
 # Map, Social, And Location Tables
@@ -87,7 +93,7 @@ This reference lists Supabase table, view, and RPC names that appear in the map,
 | `reports` | `app/(tabs)/map.tsx` | User reports submitted from the map route [@map-route]. |
 | `shared_weekly_schedules` | `lib/sharedSchedule.ts`, schedule-sharing migration | Sanitized current-week Wilma lesson snapshots keyed by `(user_id, week_start)`; owner writes and deletes are allowed, and accepted friends can read only when the owner's `schedule_sharing_enabled` preference is true [@shared-schedule] [@shared-schedule-migration]. |
 
-The relations code uses statuses such as `"request"`, `"friends"`, and `"blocked"` in the social flows [@friends-handler]. See [friend relations](../../architecture/social/friend-relations) for behavioral details.
+The relations code uses statuses such as `"request"`, `"friends"`, and `"blocked"` in the social flows [@friends-handler]. The location-query optimization migration adds partial indexes for `"friends"` rows in both lookup directions, so performance-sensitive friend/profile/location reads should keep the symmetric accepted-friend predicate aligned with those indexes [@location-query-migration]. See [friend relations](../../architecture/social/friend-relations) for behavioral details.
 
 ## Location Data
 
@@ -99,6 +105,8 @@ The relations code uses statuses such as `"request"`, `"friends"`, and `"blocked
 | `anonymous_crowd_samples` | `lib/bleLocationService.ts`, `supabase/migrations/20260808105737_onboarding_and_consents.sql` | Short-lived coarse crowd observations written when anonymous analytics consent is enabled; rows store room, floor, and observed time without user id, class, exact coordinates, or beacon ids [@location-service] [@onboarding-migration]. |
 
 The active identified live sharing path is `locations`, not `user_locations` [@location-service]. The `locations` table is now guarded by a consent trigger that rejects authenticated identified-location writes unless the user's `friend_location_enabled` preference is active [@consent-migration]. The older migration and helper methods remain important because they explain why some code and docs still mention history rows or the `latest_user_locations` view [@location-migration] [@location-service].
+
+The location-query optimization migration rewrites the `locations` SELECT policy and the `users` SELECT policy behind `users_ff` to use an indexed accepted-friend `exists` predicate instead of per-row `are_friends()` or `can_access_user_data()` helper calls [@location-query-migration]. A rollback-only validation session measured the same visible rows before and after the change and saw `locations` query time drop from about 530 ms to about 2.5 ms, while `users_ff` dropped from about 46 ms to about 1.8 ms [@location-performance-session]. Treat those numbers as validation evidence for the migration, not as current production proof until the migration is applied and `pg_stat_statements` is reset and rechecked [@location-performance-session].
 
 ## Consent Data
 

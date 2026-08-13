@@ -27,6 +27,12 @@ sources:
   - id: friends-handler
     type: file
     path: lib/friendsHandler.ts
+  - id: location-query-migration
+    type: file
+    path: supabase/migrations/20260813094204_optimize_location_queries.sql
+  - id: location-performance-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T12-25-53-019ffa71-3d38-7ad0-b45b-aee8355a0812.jsonl
 ---
 
 # Live Location Overlays
@@ -43,7 +49,9 @@ The map only renders the local user when the estimate has coordinates, has a non
 
 ## Friend Location Overlay
 
-Friend locations use server state. The map screen polls Supabase `locations` every 30 seconds, combines each friend with the matching `locations.user_id`, and stores `[x, y]` as `[longitude, latitude]` [@map-screen]. The `friendsHandler` fetch path also combines `users_ff` rows with `locations`, uses the strongest beacon in a location row to derive a user-friendly room string, and caches friends in AsyncStorage [@friends-handler].
+Friend locations use server state. The map screen refreshes the shared friend list every 30 seconds through `getFriends(true)` and treats that result as both the bottom-sheet list and the map overlay source [@map-screen]. `friendsHandler` first reads accepted `relations` in either direction, extracts the other user ids, and then fetches only matching `users_ff` profiles and `locations` rows in parallel [@friends-handler]. This keeps the map from performing a separate all-`locations` read for overlays and preserves the privacy boundary in the Supabase policies [@friends-handler] [@location-query-migration].
+
+The friend rows store `[x, y]` as `[longitude, latitude]` when a live row has numeric coordinates [@friends-handler]. The same fetch path uses the strongest beacon in a location row to derive a user-friendly room string and caches the combined friend list in AsyncStorage [@friends-handler].
 
 Rendering filters friends to those with a location whose `floor` matches the selected floor [@map-screen]. Friends with identical rounded coordinates are grouped; one friend renders at the stored point, while multiple friends at the same point are spread in a two-meter circle before rendering [@map-screen]. The Mapbox source enables clustering at lower zooms, draws gray cluster bubbles with counts, and draws individual friend circles with initials and friend colors [@map-screen].
 
@@ -55,6 +63,8 @@ The friend modal header shows the selected friend's name, user-friendly location
 
 ## Storage And Reference Boundary
 
-The active overlay table is `locations`. `BLELocationService.updateLocation` delegates to `updateLocationFix`, which writes an identified live user position row to `locations` only when `friend_location_enabled` is true [@location-service] [@user-preferences]. `getCurrentLocation` reads the current user's row from `locations`, `getFriendsLocations` reads friend ids and selects matching rows from `locations`, and realtime subscriptions watch the `locations` table [@location-service]. The map screen also performs its own `locations` fetch for friend overlays [@map-screen].
+The active overlay table is `locations`. `BLELocationService.updateLocation` delegates to `updateLocationFix`, which writes an identified live user position row to `locations` only when `friend_location_enabled` is true [@location-service] [@user-preferences]. `getCurrentLocation` reads the current user's row from `locations`, `getFriendsLocations` reads accepted friend ids before selecting matching rows from `locations`, and realtime subscriptions watch the `locations` table [@location-service]. The map screen consumes the friend rows returned by `friendsHandler` for overlays rather than issuing its own wildcard location query [@map-screen] [@friends-handler].
+
+The August 13, 2026 optimization migration replaces per-row friend-check helper calls in the `locations` read policy with an indexed symmetric `relations` predicate and adds partial indexes for accepted friendships [@location-query-migration]. Transaction-only validation against production data showed the same visible location rows before and after the policy change, and the transaction was rolled back, so the migration is validated evidence but not proof that production has applied it [@location-performance-session].
 
 Older history APIs in the same service still reference `user_locations`, and anonymous analytics uses `anonymous_crowd_samples`, so maintainers should avoid assuming one location table covers all code paths [@location-service]. The table and view details belong in [map, social, location, and consent tables](../../reference/supabase/map-social-and-location-tables); this page records how the active overlay code consumes the identified live records.

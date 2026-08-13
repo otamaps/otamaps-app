@@ -57,6 +57,7 @@ Keep the hostname split explicit:
 | --- | --- |
 | `api.otamaps.fi` | OtaMaps API container that implements `/graphql` and `/v1/auth/wilma/*` [@wilma-graphql-client] [@wilma-auth-broker]. |
 | `db.otamaps.fi` | Supabase Auth, REST, Realtime, Storage, and Postgres gateway, matching `EXPO_PUBLIC_SUPABASE_URL` in mobile builds [@supabase-client] [@env-example] [@eas-config]. |
+| `supa.otamaps.fi` | Supabase Studio route through the same Kong gateway, protected by HTTP Basic Auth before Studio loads [@wilma-schema-session]. |
 
 EAS profiles currently set `https://db.otamaps.fi` for Supabase and `https://api.otamaps.fi` for the OtaMaps API in development, preview, and production [@eas-config]. If the deployment moves either service to a different hostname, update and verify the relevant EAS profile values together with [runtime and build config](../../reference/configuration/runtime-and-build-config).
 
@@ -79,6 +80,14 @@ Cloudflare Tunnel ingress for this deployment is remotely managed. Local `cloudf
 When DNS or HTTPS looks inconsistent, compare authoritative DNS, DNS-over-HTTPS, forced-edge requests with `curl --resolve`, and normal HTTPS before concluding that a hostname is unavailable [@cutover-session]. Public process health alone is also too shallow: always include authenticated SQL plus Auth, REST, Storage, API health, and GraphQL probes in release verification [@cutover-session].
 
 Access to `fablabserver` is an operational dependency, not a mobile build detail. The August 11, 2026 release work repeatedly found healthy public API responses while backend deployment was blocked by Tailscale timeouts or rejected SSH credentials, so a mobile OTA can be live while the matching Wilma API field is still undeployed [@wilma-schema-session]. If both Tailscale and `ssh.otamaps.fi` are unavailable, stop at the boundary and ask for restored server access rather than claiming backend rollout is complete.
+
+## Supabase Studio Access
+
+`supa.otamaps.fi` is not an OtaMaps user login, Supabase Auth login, or SSH credential surface. It is the self-hosted Supabase Studio route, and the live incident on August 13, 2026 verified that the Studio gateway accepted the configured HTTP Basic Auth credentials while deliberately wrong credentials returned 401 responses [@wilma-schema-session].
+
+The Studio Basic Auth username is `supabase`; the password comes from the active deployment's `DASHBOARD_PASSWORD` in `/home/fablab/supabase-project/.env` [@wilma-schema-session]. Do not trust a matching value found only in an older checkout such as `/home/fablab/supabase`; that stale copy can explain why a password appears correct but has no effect on the live gateway [@wilma-schema-session].
+
+Rotating the Studio password is a gateway operation. Update only the active stack's `.env`, create a timestamped backup first, recreate the `kong` service so the container receives the new value, and then verify the public Studio URL with the `supabase` username until it redirects into `/project/default` rather than returning 401 [@wilma-schema-session]. After a Kong recreate, also probe Supabase Auth and REST through `db.otamaps.fi` so a Studio credential repair does not silently break mobile traffic [@wilma-schema-session]. Never record a shared Studio password in the wiki; if a password was pasted into a chat, rotate to a new value rather than preserving it as operational reference material.
 
 ## Self-Hosted Google Auth
 
