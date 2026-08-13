@@ -50,7 +50,7 @@ Friend and local user locations are rendered as point GeoJSON overlays on top of
 
 Local user location is built from BLE scanner state. The renderer emits an empty feature collection unless the location has coordinates, a non-null floor, and a floor matching `selectedFloor`; when present, it draws an accuracy circle and a blue user dot [@map-screen].
 
-Queue status is a polygon overlay, not a point overlay. The map builds `queueGeoJSON` only when the Ruokalinjasto queue status exists and its floor matches `selectedFloor`, then draws a translucent fill plus a `Vilkkaus` label from the same room geometry used by ordinary room rendering [@map-screen]. The data and admin rules for that overlay are described in [queue status](queue-status).
+Queue status is a polygon overlay, not a point overlay. The map builds `queueGeoJSON` only when the Ruokalinjasto queue status exists, reporting is open, and the queue floor matches `selectedFloor`, then draws a translucent fill plus a `Vilkkaus` label from the same room geometry used by ordinary room rendering [@map-screen]. The bottom-sheet queue entry can remain visible outside the reporting window without emitting a map polygon [@map-screen]. The data and admin rules for that overlay are described in [queue status](queue-status).
 
 ## UI Coupling
 
