@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 export type QueueLevel = 1 | 2 | 3 | 4 | 5;
-export type QueueStatusSource = "manual" | "crowd" | "none";
+export type QueueStatusSource = "manual" | "community" | "crowd" | "none";
 
 export type QueueStatus = {
   area_id: string;
@@ -13,6 +13,12 @@ export type QueueStatus = {
   status_source: QueueStatusSource;
   status_observed_at: string | null;
   activity_level: QueueLevel | null;
+  reporting_open: boolean;
+  report_count: number;
+  contributor_count: number;
+  current_user_contributions: number;
+  current_user_reported: boolean;
+  current_slot_start: string | null;
 };
 
 export type QueueActivity = {
@@ -60,6 +66,13 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
     row.activity_level == null
       ? null
       : (Number(row.activity_level) as QueueLevel),
+  reporting_open: Boolean(row.reporting_open),
+  report_count: Number(row.report_count ?? 0),
+  contributor_count: Number(row.contributor_count ?? 0),
+  current_user_contributions: Number(row.current_user_contributions ?? 0),
+  current_user_reported: Boolean(row.current_user_reported),
+  current_slot_start:
+    row.current_slot_start == null ? null : String(row.current_slot_start),
 });
 
 export async function getQueueStatuses(): Promise<QueueStatus[]> {
@@ -131,6 +144,23 @@ export async function recordQueueObservation(
     level,
   });
   if (error) throw error;
+}
+
+export async function recordCanteenQueueReport(
+  level: QueueLevel
+): Promise<void> {
+  const { error } = await supabase.rpc("record_canteen_queue_report", {
+    input_level: level,
+  });
+  if (error) throw error;
+}
+
+export function getCanteenReportingText(status: QueueStatus | null): string {
+  if (!status?.reporting_open) return "Raportointi arkisin 10.45–12.30";
+  if (status.current_user_reported) {
+    return "Olet osallistunut tähän 15 min jaksoon";
+  }
+  return "Voit raportoida kerran jokaisessa 15 min jaksossa";
 }
 
 export function getQueueLabel(level: QueueLevel | null): string {

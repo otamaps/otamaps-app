@@ -1,3 +1,4 @@
+import CanteenStatusModal from "@/components/canteen/CanteenStatusModal";
 import FriendProfileSheetContent from "@/components/friends/FriendProfileSheetContent";
 import useBLEScanner, {
   LocalUserLocation,
@@ -114,19 +115,8 @@ type RoomItemData = {
   room_number: string;
 };
 
-type FriendLocation = {
-  id: string;
-  user_id: string;
-  floor: string | number | null; // Can be string or number
-  x: number; // longitude
-  y: number; // latitude
-  radius: number;
-  updated_at?: string;
-};
-
 type FriendWithLocation = Friend & {
   location: [number, number] | null; // [longitude, latitude]
-  locationData?: FriendLocation;
 };
 
 type RoomWithEquipment = {
@@ -284,13 +274,12 @@ export default function HomeScreen() {
   const [selectedTab, setSelectedTab] = useState("people");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<number>(1);
-  const [friendsWithLocations, setFriendsWithLocations] = useState<
-    FriendWithLocation[]
-  >([]);
+  const friendsWithLocations = friends as FriendWithLocation[];
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [localUserLocation, setLocalUserLocation] =
     useState<LocalUserLocation | null>(null);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
+  const [canteenVisible, setCanteenVisible] = useState(false);
 
   // Camera state for dynamic positioning
   const [cameraConfig, setCameraConfig] = useState({
@@ -305,47 +294,6 @@ export default function HomeScreen() {
   const currentLocation = useMemo(() => {
     return BLELocationService.getCurrentLocation();
   }, []);
-
-  // Fetch friend locations from Supabase
-  const fetchFriendLocations = useCallback(async () => {
-    try {
-      const { data: locations, error } = await supabase
-        .from("locations")
-        .select("*");
-
-      if (error) {
-        console.error("Error fetching friend locations:", error);
-        return;
-      }
-
-      // Combine friends with their locations
-      const friendsWithLocs: FriendWithLocation[] = friends.map((friend) => {
-        const friendLocation = locations?.find(
-          (loc) => loc.user_id === friend.id
-        );
-
-        return {
-          ...friend,
-          location: friendLocation
-            ? [friendLocation.x, friendLocation.y]
-            : null, // Fixed: x=longitude, y=latitude
-          locationData: friendLocation,
-        };
-      });
-
-      setFriendsWithLocations(friendsWithLocs);
-      console.log("🧑‍🤝‍🧑 Friend locations updated:", {
-        totalFriends: friends.length,
-        friendsWithLocations: friendsWithLocs.length,
-        friendsWithValidLocations: friendsWithLocs.filter((f) => f.location)
-          .length,
-        locationsData: locations?.length || 0,
-        sampleFriend: friendsWithLocs[0],
-      });
-    } catch (error) {
-      console.error("Error in fetchFriendLocations:", error);
-    }
-  }, [friends]);
 
   // Fetch local user location from BLE scanner
   const fetchLocalUserLocation = useCallback(async () => {
@@ -368,20 +316,6 @@ export default function HomeScreen() {
       .insert([{ user_id: friendId, reason }]);
     if (error) throw error;
   };
-
-  // Fetch friend locations when friends change or component mounts
-  useEffect(() => {
-    if (friends.length > 0) {
-      fetchFriendLocations();
-    }
-  }, [friends, fetchFriendLocations]);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchFriendLocations();
-    }, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [fetchFriendLocations]);
 
   // Update local user location periodically
   useEffect(() => {
@@ -461,6 +395,14 @@ export default function HomeScreen() {
     const refreshedFriends = await getFriends(true);
     setFriends(refreshedFriends);
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshFriends();
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [refreshFriends]);
 
   const handleTabPress = (tab: string) => {
     if (selectedTab === tab) {
@@ -769,7 +711,11 @@ export default function HomeScreen() {
   }, [filteredRoomsWithGeometry, selectedRoomId]);
 
   const queueGeoJSON = useMemo(() => {
-    if (!queueStatus || queueStatus.floor !== selectedFloor) {
+    if (
+      !queueStatus ||
+      !queueStatus.reporting_open ||
+      queueStatus.floor !== selectedFloor
+    ) {
       return emptyGeoJSON;
     }
     const room = roomsWithGeometry.find(
@@ -902,7 +848,7 @@ export default function HomeScreen() {
     // Filter friends to show on the selected floor and with valid location
     const friendsToShow = friendsWithLocations.filter((friend) => {
       const hasLocation = !!friend.location;
-      const friendFloor = Number(friend.locationData?.floor);
+      const friendFloor = Number(friend.floor);
       const selectedFloorNum = Number(selectedFloor);
       return hasLocation && friendFloor === selectedFloorNum;
     });
@@ -1543,6 +1489,14 @@ export default function HomeScreen() {
             />
           </FriendModalSheet>
 
+          <CanteenStatusModal
+            visible={canteenVisible}
+            status={queueStatus}
+            onClose={() => setCanteenVisible(false)}
+            onFocusMap={focusQueueArea}
+            onReported={fetchQueueStatus}
+          />
+
           <MapBottomSheet ref={mapBottomSheetRef} initialSnap="mid">
             {({ currentSnapIndex }) => (
               <BottomSheetView
@@ -1614,11 +1568,10 @@ export default function HomeScreen() {
                       <View style={styles.friendsListHeader}>
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel="Näytä Ruokalinjaston vilkkaus kartalla"
+                          accessibilityLabel="Avaa Ruokalinjaston vilkkaus ja ruokalista"
                           disabled={!queueStatus}
                           onPress={() => {
-                            focusQueueArea();
-                            mapBottomSheetRef.current?.snapToMin();
+                            setCanteenVisible(true);
                           }}
                           style={({ pressed }) => [
                             styles.queueListCard,
@@ -1656,7 +1609,9 @@ export default function HomeScreen() {
                               ]}
                             >
                               Vilkkaus · {queueStatus
-                                ? getQueueLabel(queueStatus.status_level)
+                                ? queueStatus.reporting_open
+                                  ? getQueueLabel(queueStatus.status_level)
+                                  : "arkisin 10.45–12.30"
                                 : "Ladataan…"}
                             </Text>
                           </View>

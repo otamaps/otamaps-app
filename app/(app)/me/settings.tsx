@@ -6,11 +6,15 @@ import {
 import { requestBleTrackingPermissions } from "@/lib/blePermissions";
 import { startForegroundTracking, stopAllTracking } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
-import { clearSharedWeeklySchedules } from "@/lib/sharedSchedule";
+import {
+  clearSharedWeeklySchedules,
+  syncSharedWeeklySchedule,
+} from "@/lib/sharedSchedule";
 import {
   getUserPreferences,
   updateConsentChoices,
 } from "@/lib/userPreferences";
+import { fetchSchedule } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
@@ -130,7 +134,20 @@ export default function Settings() {
         schedule_sharing_enabled: enabled,
       });
       setShareSchedule(preferences.schedule_sharing_enabled);
-      if (!enabled) await clearSharedWeeklySchedules();
+      if (!enabled) {
+        await clearSharedWeeklySchedules();
+      } else {
+        try {
+          const schedule = await fetchSchedule(undefined, { forceRefresh: true });
+          await syncSharedWeeklySchedule(schedule.schedule);
+        } catch (syncError) {
+          Alert.alert(
+            "Jakaminen on päällä",
+            "Asetus tallennettiin, mutta tämän viikon lukujärjestystä ei saatu vielä ladattua. Avaa Wilma-välilehti ja yritä uudelleen."
+          );
+          console.warn("Shared schedule initial sync failed", syncError);
+        }
+      }
     } catch (error) {
       Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
     } finally {

@@ -367,7 +367,7 @@ export class BLELocationService {
     if (!user) return null;
     const { data, error } = await supabase
       .from("locations")
-      .select("*")
+      .select("user_id,floor,x,y,radius,beacons,updated_at")
       .eq("user_id", user.id)
       .maybeSingle();
     return error || !data ? null : (data as LocationData);
@@ -378,7 +378,7 @@ export class BLELocationService {
     if (friendIds.length === 0) return [];
     const { data, error } = await supabase
       .from("locations")
-      .select("*")
+      .select("user_id,floor,x,y,radius,beacons,updated_at")
       .in("user_id", friendIds);
     return error ? [] : (data as LocationData[]);
   }

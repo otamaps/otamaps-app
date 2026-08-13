@@ -125,7 +125,9 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
         }
       }
 
-      const { data, error } = await supabase.from('features').select('*');
+      const { data, error } = await supabase
+        .from('features')
+        .select('id,geometry,floor,type,properties');
       if (error) throw new Error(error.message);
 
       await AsyncStorage.setItem(FEATURES_CACHE_KEY, JSON.stringify({ data, timestamp: now }));

@@ -29,6 +29,14 @@ type FriendLocationRow = {
   beacons: unknown;
 };
 
+type FriendProfileRow = {
+  id: string;
+  name: string;
+  class: string;
+  code: string;
+  color: string;
+};
+
 function strongestBeaconId(beacons: unknown): string | null {
   if (!Array.isArray(beacons) || beacons.length === 0) return null;
   const candidates = beacons.filter(
@@ -49,17 +57,42 @@ function strongestBeaconId(beacons: unknown): string | null {
 
 // fetch and combine from Supabase
 const fetchFriendsFromSupabase = async (): Promise<Friend[]> => {
-  const { data: users, error: userError } = await supabase
-    .from("users_ff")
-    .select("*");
-  if (userError) throw userError;
+  const user = await getUser();
+  if (!user) return [];
 
-  const { data: locations, error: locationError } = await supabase
-    .from("locations")
-    .select("user_id,x,y,floor,updated_at,beacons")
-    .returns<FriendLocationRow[]>();
+  const { data: relations, error: relationError } = await supabase
+    .from("relations")
+    .select("subject,object")
+    .eq("status", "friends")
+    .or(`subject.eq.${user.id},object.eq.${user.id}`);
+  if (relationError) throw relationError;
 
-  if (locationError) throw locationError;
+  const friendIds = Array.from(
+    new Set(
+      (relations ?? []).map((relation) =>
+        relation.subject === user.id ? relation.object : relation.subject
+      )
+    )
+  ).filter((id) => id !== user.id);
+  if (friendIds.length === 0) return [];
+
+  const [profileResult, locationResult] = await Promise.all([
+    supabase
+      .from("users_ff")
+      .select("id,name,class,code,color")
+      .in("id", friendIds)
+      .returns<FriendProfileRow[]>(),
+    supabase
+      .from("locations")
+      .select("user_id,x,y,floor,updated_at,beacons")
+      .in("user_id", friendIds)
+      .returns<FriendLocationRow[]>(),
+  ]);
+
+  if (profileResult.error) throw profileResult.error;
+  if (locationResult.error) throw locationResult.error;
+  const users = profileResult.data ?? [];
+  const locations = locationResult.data ?? [];
 
   //console.log("Locations:", locations);
   const combined: Friend[] = await Promise.all(

@@ -9,12 +9,16 @@ import {
   stopAllTracking,
 } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
-import { clearSharedWeeklySchedules } from "@/lib/sharedSchedule";
+import {
+  clearSharedWeeklySchedules,
+  syncSharedWeeklySchedule,
+} from "@/lib/sharedSchedule";
 import {
   getUserPreferences,
   saveOnboardingChoices,
   updateConsentChoices,
 } from "@/lib/userPreferences";
+import { fetchSchedule } from "@/lib/wilma/graphqlClient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
@@ -245,7 +249,20 @@ export default function PermissionsScreen() {
       if (!friendLocation && session) {
         await supabase.from("locations").delete().eq("user_id", session.user.id);
       }
-      if (!shareSchedule) await clearSharedWeeklySchedules();
+      if (!shareSchedule) {
+        await clearSharedWeeklySchedules();
+      } else {
+        try {
+          const schedule = await fetchSchedule(undefined, { forceRefresh: true });
+          await syncSharedWeeklySchedule(schedule.schedule);
+        } catch (syncError) {
+          console.warn("Shared schedule onboarding sync failed", syncError);
+          Alert.alert(
+            "Lukujärjestys jaetaan myöhemmin",
+            "Jakaminen on päällä. Lukujärjestys synkronoidaan seuraavan kerran, kun avaat Wilma-välilehden."
+          );
+        }
+      }
 
       if (!trackingPurposeEnabled) {
         await stopBLEBackgroundService();
