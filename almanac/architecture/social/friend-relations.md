@@ -15,6 +15,12 @@ sources:
   - id: map-screen
     type: file
     path: app/(tabs)/map.tsx
+  - id: location-query-migration
+    type: file
+    path: supabase/migrations/20260813094204_optimize_location_queries.sql
+  - id: location-performance-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T12-25-53-019ffa71-3d38-7ad0-b45b-aee8355a0812.jsonl
 ---
 
 # Friend Relations
@@ -43,9 +49,11 @@ No committed migration in the provided repo evidence defines a unique index for 
 
 ## Friend Lists And Location Consumers
 
-The active friend list is not fetched directly from `relations` in `friendsHandler`. `getFriends()` fetches from `users_ff`, joins those users to rows in `locations`, derives last-seen and room/status fields, caches the resulting array under `cached_friends`, and returns it to the map screen [@friends-handler] [@map-screen]. This makes `users_ff` part of the runtime social data path even though request and blocking transitions are written through `relations` [@friends-handler] [@add-friend].
+The active friend list now starts from `relations` in `friendsHandler`. `getFriends()` reads accepted relation rows where the current user is either `subject` or `object`, derives the opposite ids, then fetches only those ids from `users_ff` and `locations` in parallel [@friends-handler]. It derives last-seen and room/status fields, caches the resulting array under `cached_friends`, and returns it to the map screen [@friends-handler] [@map-screen]. This makes `relations` the friend-list filter and keeps `users_ff` plus `locations` as the profile and live-position data sources [@friends-handler].
 
-The map screen separately fetches all `locations` rows, joins them to the current friend list by user id, and renders only friends with coordinates on the selected floor [@map-screen]. Because that lookup is client-side, [friends and shared location](../../concepts/social/friends-and-shared-location) should be read together with the Supabase table reference before changing privacy or location visibility behavior.
+The map screen uses the returned friend rows as its overlay source and renders only friends with coordinates on the selected floor [@map-screen]. Because that lookup is still client-side after the Supabase policy has filtered readable rows, [friends and shared location](../../concepts/social/friends-and-shared-location) should be read together with the Supabase table reference before changing privacy or location visibility behavior.
+
+The performance migration adds accepted-friend partial indexes on `(subject, object)` and `(object, subject)`, then rewrites the `locations` and `users` read policies to use an indexed symmetric `exists` predicate instead of calling friend-check helper functions for every row [@location-query-migration]. The change was transaction-tested against production data with zero before/after visibility differences for location rows and friend-profile rows, but that session explicitly rolled back the transaction rather than applying the migration to production [@location-performance-session].
 
 ## Mismatches And Failure Modes
 
