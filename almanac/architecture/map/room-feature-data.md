@@ -15,6 +15,21 @@ sources:
   - id: room-modal
     type: file
     path: components/sheets/roomModalSheet.tsx
+  - id: day-schedule-section
+    type: file
+    path: components/schedule/DayScheduleSection.tsx
+  - id: graphql-client
+    type: file
+    path: lib/wilma/graphqlClient.ts
+  - id: schedule-dates
+    type: file
+    path: lib/wilma/scheduleDates.ts
+  - id: room-wilma-link-migration
+    type: file
+    path: supabase/migrations/20260813225236_link_map_rooms_to_wilma_rooms.sql
+  - id: room-wilma-link-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/abcc29d5-7f33-499d-a898-7e79cd83a0a8.jsonl
   - id: feature-service
     type: file
     path: lib/featureFlagService.ts
@@ -46,7 +61,9 @@ The map screen keeps refs to the current fetch functions and calls both on mount
 
 The map screen is the main consumer. It uses rooms for the bottom-sheet room list, selectable room polygons, WC symbols, and camera focus [@map-screen]. It uses features for wall and stairs extrusions after validating that each feature has a geometry type and coordinate array [@map-screen]. These rendering rules depend on the [campus map model](../../concepts/map/campus-map-model), especially numeric floors and Mapbox coordinate order.
 
-`RoomModalSheet` is the detail consumer. Its `open(id)` method first looks for the room in the current room store, presents the modal immediately when found, and otherwise calls `fetchRooms()` before searching the updated store [@room-modal]. That means a selected room can open without an extra network request after the map screen has already populated the cache. The same room detail surface also checks the cached `booking` feature flag before exposing booking UI, so room UI changes should be read together with [feature flags](../runtime/feature-flags) when they touch booking behavior [@room-modal] [@feature-service].
+`RoomModalSheet` is the detail consumer. Its `open(id)` method first looks for the room in the current room store, presents the modal immediately when found, and otherwise calls `fetchRooms()` before searching the updated store [@room-modal]. That means a selected room can open without an extra network request after the map screen has already populated the cache. For rooms whose `wilma_id` parses as a positive integer, the modal also checks for a stored Wilma session, fetches `fetchWilmaRoomSchedule(wilmaId, weekMonday)`, filters the result to the active school day, and renders it through the shared `DayScheduleSection` [@room-modal] [@graphql-client] [@schedule-dates] [@day-schedule-section]. Rooms without a Wilma id hide the schedule card rather than probing the Wilma room endpoint [@room-modal].
+
+The same room detail surface also checks the cached `booking` feature flag before exposing booking UI, so room UI changes should be read together with [feature flags](../runtime/feature-flags) when they touch booking behavior [@room-modal] [@feature-service].
 
 The Supabase debug route for rooms queries `rooms` directly and renders id, room number, title, description, seats, and equipment [@rooms-debug]. The feature debug route is currently only a placeholder screen, so it is not a live inspection tool for feature records yet [@features-debug].
 
@@ -57,6 +74,8 @@ The stores do not validate database shape beyond TypeScript declarations. If Sup
 Display fields need the same caution. `Room` currently types `room_number` and `title` as strings, but `fetchRooms` stores raw `select('*')` results without normalization, and a map-screen crash showed a live room with `room_number: null` reaching label sizing [@room-service] [@null-room-session]. Rendering code should normalize room numbers and titles at the consumer boundary instead of assuming those TypeScript declarations describe every live row [@map-screen].
 
 The floor field must stay numeric. The room list, room polygons, feature extrusions, friend overlays, local user overlay, and search floor switching all compare floor values against `selectedFloor` as a number [@map-screen]. If future migrations change floor representation, update the store types, map filters, search hits, and room modal display together rather than fixing only the renderer.
+
+`rooms.wilma_id` is the bridge from a Supabase map room to the Wilma room schedule query; it is not the Supabase room id [@room-service] [@graphql-client]. The August 13, 2026 backfill linked ten additional rooms and corrected `2339 Biologia` to `2239` before assigning Wilma id `5372`, with guards that avoid overwriting non-null `wilma_id` values and only rename the biology row while it still has the old room number [@room-wilma-link-migration]. After the migration was applied, production readback showed 50 linked rooms, every linked Wilma room code matched the trimmed map `room_number`, no linked id was dangling, and no Wilma id was used by more than one map room [@room-wilma-link-session]. Future room-link backfills should preserve that code-match and uniqueness invariant rather than linking by title alone.
 
 ## Relationship To References
 

@@ -21,6 +21,12 @@ sources:
   - id: friend-profile-sheet
     type: file
     path: components/friends/FriendProfileSheetContent.tsx
+  - id: day-schedule-section
+    type: file
+    path: components/schedule/DayScheduleSection.tsx
+  - id: schedule-dates
+    type: file
+    path: lib/wilma/scheduleDates.ts
   - id: onboarding-screen
     type: file
     path: app/welcome/(post)/permissions.tsx
@@ -64,7 +70,7 @@ The focused tests document the intended privacy boundary. `tests/sharedSchedule.
 
 ## Friend Read Path
 
-Friend profile content calls `fetchFriendSharedSchedule(friend.id)` when a friend sheet opens [@friend-profile-sheet]. The helper queries the current `week_start`, returns `null` when no row is visible, and normalizes stored lesson JSON back through a parser that accepts only date, start, end, subject, id, and room fields [@shared-schedule]. The UI groups visible lessons by day and shows an empty state when no current-week row is available [@friend-profile-sheet].
+Friend profile content resolves one active school day when a friend sheet opens, calls `fetchFriendSharedSchedule(friend.id, activeDay)`, and filters the returned lesson list to that date before rendering [@friend-profile-sheet] [@schedule-dates]. The active day is today on Monday through Friday and the upcoming Monday on weekends, so the friend sheet does not open on Saturday or Sunday to a stale Friday view [@schedule-dates]. The helper still queries by the matching week start, returns `null` when no row is visible, and normalizes stored lesson JSON back through a parser that accepts only date, start, end, subject, id, and room fields [@shared-schedule]. The UI renders that one day through `DayScheduleSection` and shows an empty state when no lessons are shared for the active day [@friend-profile-sheet] [@day-schedule-section].
 
 Database policy is the final visibility boundary. The migration enables RLS and defines `private.can_view_shared_weekly_schedule(owner_id)`, which allows the owner to read their own row and allows another authenticated user to read only when the owner still has `schedule_sharing_enabled` true and a `relations` row in either direction has `status = 'friends'` [@schedule-sharing-migration]. Owners can insert, update, and delete only their own rows [@schedule-sharing-migration].
 
