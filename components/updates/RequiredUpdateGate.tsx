@@ -1,4 +1,5 @@
 import { reportHandledError } from "@/lib/sentry";
+import { isTransientNetworkError } from "@/lib/networkErrors";
 import { MaterialIcons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
@@ -14,20 +15,30 @@ import {
   View,
 } from "react-native";
 
+const UPDATE_CHECK_MIN_INTERVAL_MS = 15 * 60_000;
+
 export default function RequiredUpdateGate() {
   const isDark = useColorScheme() === "dark";
   const releaseVersion = Constants.expoConfig?.version;
   const checkingRef = useRef(false);
   const updateReadyRef = useRef(false);
+  const lastCheckAtRef = useRef(0);
   const [updateReady, setUpdateReady] = useState(false);
   const [reloading, setReloading] = useState(false);
 
   const checkForRequiredUpdate = useCallback(async () => {
-    if (__DEV__ || !Updates.isEnabled || checkingRef.current || updateReadyRef.current) {
+    if (
+      __DEV__ ||
+      !Updates.isEnabled ||
+      checkingRef.current ||
+      updateReadyRef.current ||
+      Date.now() - lastCheckAtRef.current < UPDATE_CHECK_MIN_INTERVAL_MS
+    ) {
       return;
     }
 
     checkingRef.current = true;
+    lastCheckAtRef.current = Date.now();
     try {
       const check = await Updates.checkForUpdateAsync();
       if (!check.isAvailable && !check.isRollBackToEmbedded) return;
@@ -38,11 +49,13 @@ export default function RequiredUpdateGate() {
       updateReadyRef.current = true;
       setUpdateReady(true);
     } catch (error) {
-      reportHandledError(error, {
-        area: "eas_update",
-        operation: "check_and_download_required_update",
-        level: "warning",
-      });
+      if (!isTransientNetworkError(error)) {
+        reportHandledError(error, {
+          area: "eas_update",
+          operation: "check_and_download_required_update",
+          level: "warning",
+        });
+      }
     } finally {
       checkingRef.current = false;
     }

@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo, { NetInfoSubscription } from "@react-native-community/netinfo";
 import { AppState, Platform } from "react-native";
 import {
+  BleErrorCode,
   BleManager,
   Device,
   ScanMode,
@@ -283,6 +284,17 @@ function startScan(): void {
     (error, device) => {
       if (error) {
         scanActive = false;
+        if (error.errorCode === BleErrorCode.BluetoothPoweredOff) {
+          handleBluetoothState(BleState.PoweredOff);
+          emitSnapshot(true);
+          return;
+        }
+        if (
+          error.errorCode === BleErrorCode.OperationCancelled ||
+          error.errorCode === BleErrorCode.BluetoothManagerDestroyed
+        ) {
+          return;
+        }
         snapshot.diagnostics.status = "error";
         snapshot.diagnostics.lastError = sanitizeError(error);
         reportHandledError(error, {
@@ -589,7 +601,19 @@ export async function startTrackingRuntime(
   });
   stateSubscription?.remove();
   stateSubscription = bleManager.onStateChange(handleBluetoothState, true);
-  const state = await bleManager.state();
+  let state: BleState;
+  try {
+    state = await bleManager.state();
+  } catch (error) {
+    snapshot.diagnostics.status = "error";
+    snapshot.diagnostics.lastError = sanitizeError(error);
+    reportHandledError(error, {
+      area: "ble.state",
+      operation: "read_bluetooth_state",
+    });
+    emitSnapshot(true);
+    return { success: false, reason: "service_error" };
+  }
   handleBluetoothState(state);
 
   if (!runtimeTimer) {

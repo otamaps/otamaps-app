@@ -11,6 +11,8 @@ const API_BASE_URL = (
   process.env.EXPO_PUBLIC_OTAMAPS_API_URL || "https://api.otamaps.fi"
 ).replace(/\/$/, "");
 const PENDING_LINK_KEY = "wilma_legacy_link_attempt";
+const KEYCHAIN_UNAVAILABLE = /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
+let pendingLinkMemo: PendingLink | null | undefined;
 // A successful Wilma-primary sign-in includes the upstream Wilma login,
 // profile parsing, identity lookup/creation, and Supabase token minting. Those
 // steps can exceed the shorter timeout used for ordinary GraphQL reads when a
@@ -160,13 +162,23 @@ export async function savePendingLegacyLink(
     JSON.stringify({ attemptToken, username, password } satisfies PendingLink),
     { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }
   );
+  pendingLinkMemo = { attemptToken, username, password };
 }
 
 export async function getPendingLegacyLink(): Promise<PendingLink | null> {
-  const raw = await SecureStore.getItemAsync(PENDING_LINK_KEY);
+  let raw: string | null;
+  try {
+    raw = await SecureStore.getItemAsync(PENDING_LINK_KEY);
+  } catch (error) {
+    if (error instanceof Error && KEYCHAIN_UNAVAILABLE.test(error.message)) {
+      return pendingLinkMemo ?? null;
+    }
+    throw error;
+  }
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as PendingLink;
+    pendingLinkMemo = JSON.parse(raw) as PendingLink;
+    return pendingLinkMemo;
   } catch {
     await clearPendingLegacyLink();
     return null;
@@ -175,6 +187,7 @@ export async function getPendingLegacyLink(): Promise<PendingLink | null> {
 
 export async function clearPendingLegacyLink(): Promise<void> {
   await SecureStore.deleteItemAsync(PENDING_LINK_KEY);
+  pendingLinkMemo = null;
 }
 
 export async function completePendingLegacyLink(

@@ -1,8 +1,8 @@
 import { fetchMessage, MessageDetail } from "@/lib/wilma/graphqlClient";
 import { buildMessageThreadHtml, messageReplyCountLabel } from "@/lib/wilma/messageThread";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import * as Linking from "expo-linking";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -122,7 +122,7 @@ export default function MessageScreen() {
           onShouldStartLoadWithRequest={(request) => {
             if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
             if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
-              void Linking.openURL(request.url);
+              void openExternalUrl(request.url);
             }
             return false;
           }}

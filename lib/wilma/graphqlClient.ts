@@ -14,6 +14,7 @@ const GRAPHQL_URL = `${API_BASE_URL}/graphql`;
 const SESSION_KEY = "wilma_graphql_session";
 const CREDENTIALS_KEY = "wilma_graphql_credentials";
 const CACHE_PREFIX = "wilma_read_cache_v1:";
+const KEYCHAIN_UNAVAILABLE = /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
 
 export type WilmaFetchOptions = {
   /** Skip cache-first behavior and wait for a fresh network response. */
@@ -47,6 +48,17 @@ const cacheMemory = new Map<string, CacheEnvelope<unknown>>();
 const cacheFlights = new Map<string, Promise<unknown>>();
 const cacheRevisions = new Map<string, number>();
 let cacheScopeMemo: string | null | undefined;
+let sessionMemo: string | null | undefined;
+let credentialsMemo:
+  | { username: string; password: string }
+  | null
+  | undefined;
+
+function isTemporarilyUnavailableKeychain(error: unknown): boolean {
+  return (
+    error instanceof Error && KEYCHAIN_UNAVAILABLE.test(error.message)
+  );
+}
 
 function cacheScopeForUsername(username: string): string {
   return sha256(`${API_BASE_URL}|${username.trim().toLocaleLowerCase("fi-FI")}`).slice(0, 24);
@@ -201,14 +213,26 @@ export async function saveSession(token: string) {
   await SecureStore.setItemAsync(SESSION_KEY, token, {
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
   });
+  sessionMemo = token;
 }
 
 export async function getSession(): Promise<string | null> {
-  return SecureStore.getItemAsync(SESSION_KEY);
+  try {
+    sessionMemo = await SecureStore.getItemAsync(SESSION_KEY);
+    return sessionMemo;
+  } catch (error) {
+    // iOS denies Keychain interaction while the app is backgrounded. A token
+    // already read while active is still safe to use for background refreshes.
+    if (isTemporarilyUnavailableKeychain(error)) {
+      return sessionMemo ?? null;
+    }
+    throw error;
+  }
 }
 
 export async function clearSession() {
   await SecureStore.deleteItemAsync(SESSION_KEY);
+  sessionMemo = null;
 }
 
 // ── Credentials ───────────────────────────────────────────────────────────────
@@ -219,6 +243,7 @@ export async function saveCredentials(username: string, password: string) {
     JSON.stringify({ username, password }),
     { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }
   );
+  credentialsMemo = { username, password };
   const nextScope = cacheScopeForUsername(username);
   if (cacheScopeMemo !== undefined && cacheScopeMemo !== nextScope) cacheMemory.clear();
   cacheScopeMemo = nextScope;
@@ -228,10 +253,19 @@ export async function getCredentials(): Promise<{
   username: string;
   password: string;
 } | null> {
-  const raw = await SecureStore.getItemAsync(CREDENTIALS_KEY);
+  let raw: string | null;
+  try {
+    raw = await SecureStore.getItemAsync(CREDENTIALS_KEY);
+  } catch (error) {
+    if (isTemporarilyUnavailableKeychain(error)) {
+      return credentialsMemo ?? null;
+    }
+    throw error;
+  }
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    credentialsMemo = JSON.parse(raw);
+    return credentialsMemo ?? null;
   } catch {
     return null;
   }
@@ -239,6 +273,7 @@ export async function getCredentials(): Promise<{
 
 export async function clearCredentials() {
   await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
+  credentialsMemo = null;
   cacheScopeMemo = null;
 }
 
@@ -332,13 +367,21 @@ async function gqlFetch<T>(
   _isRetry = false,
   _reauthenticateOnFailure = true
 ): Promise<T> {
-  const retryAfterReauth = async (error: unknown): Promise<T> => {
+  const retryAfterReauth = async (
+    error: unknown,
+    details: {
+      kind: string;
+      status?: number;
+      code?: string;
+    }
+  ): Promise<T> => {
     if (!_isRetry && _reauthenticateOnFailure) {
       const ok = await reauthenticate();
       if (ok) {
         return gqlFetch<T>(query, variables, true, _reauthenticateOnFailure);
       }
     }
+    reportGraphqlFailure(error, query, { ...details, retry: _isRetry });
     throw error;
   };
 
@@ -356,15 +399,13 @@ async function gqlFetch<T>(
       body: JSON.stringify({ query, variables }),
     });
   } catch (err) {
-    reportGraphqlFailure(err, query, {
+    return retryAfterReauth(err, {
       kind:
         err instanceof Error &&
         (err as Error & { code?: string }).code === "ETIMEDOUT"
           ? "timeout"
           : "transport_error",
-      retry: _isRetry,
     });
-    return retryAfterReauth(err);
   }
 
   let json: {
@@ -381,12 +422,10 @@ async function gqlFetch<T>(
       `Palvelin palautti virheellisen vastauksen (HTTP ${res.status})`,
       { cause }
     );
-    reportGraphqlFailure(error, query, {
+    return retryAfterReauth(error, {
       kind: "invalid_response",
-      retry: _isRetry,
       status: res.status,
     });
-    return retryAfterReauth(error);
   }
 
   if (!res.ok || json.errors?.length) {
@@ -399,13 +438,6 @@ async function gqlFetch<T>(
     const requestError = new Error(
       err?.message ?? `GraphQL-pyyntö epäonnistui (HTTP ${res.status})`
     );
-    reportGraphqlFailure(requestError, query, {
-      kind: json.errors?.length ? "graphql_error" : "http_error",
-      retry: _isRetry,
-      status: res.status,
-      code,
-    });
-
     if (!_isRetry && _reauthenticateOnFailure) {
       const ok = await reauthenticate();
       if (ok) {
@@ -422,17 +454,21 @@ async function gqlFetch<T>(
       throw authError;
     }
 
+    reportGraphqlFailure(requestError, query, {
+      kind: json.errors?.length ? "graphql_error" : "http_error",
+      retry: _isRetry,
+      status: res.status,
+      code,
+    });
     throw requestError;
   }
 
   if (json.data === undefined) {
     const error = new Error("Palvelin ei palauttanut GraphQL-dataa");
-    reportGraphqlFailure(error, query, {
+    return retryAfterReauth(error, {
       kind: "missing_data",
-      retry: _isRetry,
       status: res.status,
     });
-    return retryAfterReauth(error);
   }
 
   return json.data;

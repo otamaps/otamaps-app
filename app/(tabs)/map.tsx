@@ -203,12 +203,11 @@ function getRoomNumberMaxTextSize(
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
-  const accessToken =
-    "REDACTED_MAPBOX_SECRET";
+  const accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN?.trim();
 
   useEffect(() => {
-    setAccessToken(accessToken);
-  }, []);
+    if (accessToken) setAccessToken(accessToken);
+  }, [accessToken]);
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);

@@ -1,11 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   Button,
-  Linking,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -88,7 +88,7 @@ const Settings = () => {
           )}
 
           <Button
-            onPress={() => Linking.openURL("https://manual.avolites.com/")}
+            onPress={() => void openExternalUrl("https://manual.avolites.com/")}
             title="Tap me"
           />
         </View>

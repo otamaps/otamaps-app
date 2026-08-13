@@ -1,6 +1,6 @@
 import { fetchNewsItem, WilmaNewsDetail } from "@/lib/wilma/graphqlClient";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
@@ -66,7 +66,7 @@ export default function WilmaNewsItemScreen() {
           onShouldStartLoadWithRequest={(request) => {
             if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
             if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
-              void Linking.openURL(request.url);
+              void openExternalUrl(request.url);
             }
             return false;
           }}

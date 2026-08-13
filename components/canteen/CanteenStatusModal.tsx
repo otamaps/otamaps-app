@@ -4,6 +4,7 @@ import {
   OTANIEMI_MENU_URL,
 } from "@/lib/canteenMenu";
 import type { CanteenDayMenu } from "@/lib/canteenMenuCore";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import {
   getCanteenReportingText,
   getQueueColor,
@@ -15,7 +16,6 @@ import {
   recordCanteenQueueReport,
 } from "@/lib/queueService";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -280,7 +280,7 @@ export default function CanteenStatusModal({
           )}
 
           <Pressable
-            onPress={() => void Linking.openURL(OTANIEMI_MENU_URL)}
+            onPress={() => void openExternalUrl(OTANIEMI_MENU_URL)}
             style={({ pressed }) => [styles.sourceButton, pressed && styles.pressed]}
           >
             <Text style={styles.sourceButtonText}>Avaa alkuperäinen ruokalista</Text>

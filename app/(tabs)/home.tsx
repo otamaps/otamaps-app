@@ -1,5 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { reportHandledError } from "@/lib/sentry";
+import { isTransientNetworkError } from "@/lib/networkErrors";
 import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
 import {
   AttendanceEntry,
@@ -362,11 +363,13 @@ function Dashboard({
           .slice(0, 8);
 
         void syncSharedWeeklySchedule(scheduleData.schedule).catch((error) => {
-          reportHandledError(error, {
-            area: "shared_schedule",
-            operation: "sync_current_week",
-            level: "warning",
-          });
+          if (!isTransientNetworkError(error)) {
+            reportHandledError(error, {
+              area: "shared_schedule",
+              operation: "sync_current_week",
+              level: "warning",
+            });
+          }
         });
 
         setData({
