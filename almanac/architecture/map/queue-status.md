@@ -1,6 +1,6 @@
 ---
 title: "Queue Status"
-summary: "Queue status adds a Ruokalinjasto crowd-status layer to the map, backed by privacy-preserving anonymous samples and admin-only manual observations."
+summary: "Queue status adds a Ruokalinjasto crowd-status layer to the map, backed by privacy-preserving anonymous samples, admin-only manual observations, and current-slot canteen reports."
 topics: [architecture, map, queue, supabase, privacy]
 sources:
   - id: queue-service
@@ -24,15 +24,27 @@ sources:
   - id: queue-grant-migration
     type: file
     path: supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql
+  - id: canteen-migration
+    type: file
+    path: supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql
+  - id: canteen-modal
+    type: file
+    path: components/canteen/CanteenStatusModal.tsx
+  - id: canteen-menu
+    type: file
+    path: lib/canteenMenu.ts
+  - id: canteen-menu-core
+    type: file
+    path: lib/canteenMenuCore.ts
+  - id: canteen-menu-test
+    type: file
+    path: tests/canteenMenu.test.cjs
   - id: location-service
     type: file
     path: lib/bleLocationService.ts
   - id: implementation-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/05/rollout-2026-08-05T16-26-35-019fd21a-bd1d-7f21-b404-fa1cf155890d.jsonl
-  - id: map-ui-session
-    type: conversation
-    path: /Users/renesaarikko/.codex/sessions/2026/08/09/rollout-2026-08-09T01-56-35-019fe397-a8b7-7ea0-ac45-84bdfaa1f182.jsonl
   - id: queue-grant-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/11/rollout-2026-08-11T23-40-23-019ff28e-0e0c-7383-be65-1ff5a35ceaa4.jsonl
@@ -40,19 +52,27 @@ sources:
 
 # Queue Status
 
-Queue status is the OtaMaps "Vilkkaus" feature for showing the current Ruokalinjasto crowd level on the map. The client reads a safe aggregate from Supabase, highlights the configured room polygon, and shows a compact people-tab entry for focusing the queue area [@queue-service] [@map-route] [@map-ui-session]. Automatic estimates come from `anonymous_crowd_samples`, while trusted administrators can record append-only manual observations that override the automatic estimate for a short window [@queue-migration] [@location-service]. This keeps the map useful to all signed-in users without exposing raw anonymous samples or treating sample counts as people counts.
+Queue status is the OtaMaps "Vilkkaus" feature for showing the current Ruokalinjasto crowd level on the map. The client reads a safe aggregate from Supabase, highlights the configured room polygon, and shows a compact people-tab entry that opens a canteen modal for reporting, map focus, and the daily menu [@queue-service] [@map-route] [@canteen-modal]. Automatic estimates come from `anonymous_crowd_samples`, trusted administrators can record manual observations, and students can submit one identified canteen report per 15-minute lunch slot [@queue-migration] [@canteen-migration] [@location-service]. This keeps the map useful to all signed-in users while raw anonymous samples and raw identified reports stay behind RLS [@queue-migration] [@canteen-migration].
 
 ## Public Map Flow
 
-The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. The service first asks Supabase Auth for the current session and returns an empty list when no session exists, so startup or signed-out renders do not call the queue RPC as `anon` [@queue-service]. Every 30 seconds the route refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The people tab header inside the map bottom sheet names Ruokalinjasto, uses the queue color/label helpers, disables itself until a queue status exists, focuses the queue area when pressed, and snaps the sheet to its minimum height so the map overlay stays visible [@queue-service] [@map-route].
+The map route calls `getQueueStatuses()` through `lib/queueService.ts` and keeps the Ruokalinjasto status in route state [@queue-service] [@map-route]. The service first asks Supabase Auth for the current session and returns an empty list when no session exists, so startup or signed-out renders do not call the queue RPC as `anon` [@queue-service]. Every 30 seconds the route refreshes the queue status, builds a one-feature GeoJSON source when the queue area's floor matches the selected floor, and draws a fill layer plus a label reading `Vilkkaus` and the current queue label [@map-route]. The people tab header inside the map bottom sheet names Ruokalinjasto, uses the queue color/label helpers, disables itself until a queue status exists, and opens `CanteenStatusModal`; the modal can focus the queue area on the map through the same `focusQueueArea` path [@queue-service] [@map-route] [@canteen-modal].
 
 The feature deliberately lives inside the existing map renderer. It reuses the same room geometry and floor filter described in [geospatial rendering](geospatial-rendering), so queue rendering should not introduce a second map, a separate coordinate model, or a room lookup path outside the current room data flow [@map-route].
 
 ## Status Sources
 
-The database-managed queue configuration starts with one active area, `ruokalinjasto`, linked to the `rooms` row whose trimmed lowercase title is `ruokalinjasto` [@queue-migration]. `get_queue_statuses()` returns active areas for authenticated users and computes a status from either the newest manual observation within 20 minutes or the recent anonymous sample count from the same room within 10 minutes [@queue-migration]. Automatic sample thresholds map 1-3 samples to level 2, 4-9 to level 3, 10-19 to level 4, and 20 or more to level 5; zero samples produce no status level [@queue-migration].
+The database-managed queue configuration starts with one active area, `ruokalinjasto`, linked to the `rooms` row whose trimmed lowercase title is `ruokalinjasto` [@queue-migration]. `get_queue_statuses()` returns active areas for authenticated users and computes a status only during the weekday reporting window, 10:45-12:30 in `Europe/Helsinki` time [@canteen-migration]. Inside that window, a manual observation from the last 20 minutes wins, then the average of current-slot student reports, then the recent anonymous sample count from the same room within 10 minutes [@canteen-migration]. Automatic sample thresholds map 1-3 samples to level 2, 4-9 to level 3, 10-19 to level 4, and 20 or more to level 5; zero samples produce no status level [@canteen-migration].
 
-Queue labels are fixed in the client as five Finnish levels: `Olematon`, `Lyhyt`, `Normaali`, `Pitkä`, and `Erittäin pitkä` [@queue-service]. The service type allows `manual`, `crowd`, and `none` sources, which lets the UI distinguish a fresh admin rating from an automatic activity estimate or unavailable data [@queue-service].
+Queue labels are fixed in the client as five Finnish levels: `Olematon`, `Lyhyt`, `Normaali`, `Pitkä`, and `Erittäin pitkä` [@queue-service]. The service type allows `manual`, `community`, `crowd`, and `none` sources, which lets the UI distinguish a fresh admin rating, current-slot student reports, an automatic activity estimate, or unavailable data [@queue-service].
+
+## Canteen Reporting And Menu
+
+`record_canteen_queue_report(input_level)` is the only normal write path for student canteen reports [@canteen-migration] [@queue-service]. It requires an authenticated user, rejects levels outside 1-5, rejects submissions outside weekdays 10:45-12:30 Helsinki time, resolves the active `ruokalinjasto` area, floors the current time into a 15-minute slot, and inserts or updates the caller's row for `(queue_area_id, user_id, slot_start)` [@canteen-migration]. The raw row in `canteen_queue_reports` is identified and private to its contributor through RLS, while the aggregate returned from `get_queue_statuses()` exposes only counts, the averaged level, whether the current user has reported in the slot, and the current user's contribution total [@canteen-migration] [@queue-service].
+
+`canteen_contributor_stats` is a per-user counter maintained by a trigger after canteen report inserts [@canteen-migration]. The mobile modal displays `current_user_contributions` as "Sinun panoksesi yhteensä" and explains that reports are stored on the account for future automatic scoring, so any reliability-weighting change should preserve the private raw-report boundary and update this user-facing copy with the database behavior [@canteen-modal] [@canteen-migration].
+
+The same modal fetches the daily Otaniemen lukio menu from Compass Group when it opens [@canteen-modal] [@canteen-menu]. `lib/canteenMenu.ts` downloads `https://www.compass-group.fi/ravintolat-ja-ruokalistat/amica/kaupungit/espoo/espoon-tietokyla/`, and `lib/canteenMenuCore.ts` extracts `window.__INITIAL_MENU__`, selects the Helsinki-date menu, and keeps packages whose title mentions Otaniemen lukio or whose sort order is one of the school lunch orders `1`, `72`, or `80` [@canteen-menu] [@canteen-menu-core]. The focused menu test covers JSON extraction, filtering out non-school packages, default Finnish section titles for sort orders `72` and `80`, and the null case for a day without a school menu [@canteen-menu-test].
 
 ## Admin Flow
 
