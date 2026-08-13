@@ -33,6 +33,12 @@ sources:
   - id: shared-schedule-migration
     type: file
     path: supabase/migrations/20260811232612_share_weekly_schedule_with_friends.sql
+  - id: room-wilma-link-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/abcc29d5-7f33-499d-a898-7e79cd83a0a8.jsonl
+  - id: peak-load-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T20-13-37-019ffc1d-78cd-73a3-bd4b-4c076390bf16.jsonl
 ---
 
 # Server Deployment
@@ -69,6 +75,8 @@ Public probes in the cutover passed for Supabase Auth health, Supabase REST, Ota
 
 Treat the cutover as proof for the recorded lightweight workloads only. Any later capacity claim needs representative authenticated GraphQL, REST, Realtime, Storage, and database workloads with user think-time, and should monitor the recorded cold Kong first-use outlier separately from warmed latency [@cutover-session].
 
+The later August 13, 2026 peak-load repair changed the live PostgREST headroom rather than the mobile schema: the recorded state after the repair was 20 PostgREST connections, a 300 second idle lifetime, healthy `supabase-rest`, public API health HTTP 200, and 100 REST requests at concurrency 20 returning 100 HTTP 200 responses with median 117 ms and p95 531 ms [@peak-load-session]. Treat that as a dated production observation. Re-check the effective container config and a representative authenticated workload before relying on it for a new capacity claim [@peak-load-session].
+
 ## Migration And Recovery Gotchas
 
 Postgres 17 can look healthy at the container level while the database is unusable. The cutover hit `could not open file "global/pg_filenode.map": Permission denied` when a Postgres 17 container running as UID 100 read data owned by UID 105; the recovery path was a cold backup, ownership repair, and authenticated SQL plus API probes rather than relying on `docker compose ps` [@cutover-session].
@@ -80,6 +88,8 @@ Cloudflare Tunnel ingress for this deployment is remotely managed. Local `cloudf
 When DNS or HTTPS looks inconsistent, compare authoritative DNS, DNS-over-HTTPS, forced-edge requests with `curl --resolve`, and normal HTTPS before concluding that a hostname is unavailable [@cutover-session]. Public process health alone is also too shallow: always include authenticated SQL plus Auth, REST, Storage, API health, and GraphQL probes in release verification [@cutover-session].
 
 Access to `fablabserver` is an operational dependency, not a mobile build detail. The August 11, 2026 release work repeatedly found healthy public API responses while backend deployment was blocked by Tailscale timeouts or rejected SSH credentials, so a mobile OTA can be live while the matching Wilma API field is still undeployed [@wilma-schema-session]. If both Tailscale and `ssh.otamaps.fi` are unavailable, stop at the boundary and ask for restored server access rather than claiming backend rollout is complete.
+
+PostgREST write probes need readback verification. During the August 13, 2026 room-to-Wilma backfill, an anonymous PATCH with an impossible zero-row filter returned `HTTP 200 []`, and later real PATCH attempts also returned empty arrays because the anon role could not update the rows through RLS [@room-wilma-link-session]. Do not read `200 []` as "writes are allowed"; it can mean no visible row matched or no row was updated. For production data corrections, apply the SQL through Studio or host-side `psql`, then verify the exact rows and aggregate invariants through REST or SQL readback [@room-wilma-link-session].
 
 ## Supabase Studio Access
 

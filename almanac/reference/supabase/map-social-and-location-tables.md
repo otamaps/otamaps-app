@@ -9,6 +9,9 @@ sources:
   - id: map-route
     type: file
     path: app/(tabs)/map.tsx
+  - id: room-modal
+    type: file
+    path: components/sheets/roomModalSheet.tsx
   - id: friends-handler
     type: file
     path: lib/friendsHandler.ts
@@ -66,6 +69,12 @@ sources:
   - id: location-performance-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T12-25-53-019ffa71-3d38-7ad0-b45b-aee8355a0812.jsonl
+  - id: room-wilma-link-migration
+    type: file
+    path: supabase/migrations/20260813225236_link_map_rooms_to_wilma_rooms.sql
+  - id: room-wilma-link-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/abcc29d5-7f33-499d-a898-7e79cd83a0a8.jsonl
 ---
 
 # Map, Social, Location, Queue, And Consent Tables
@@ -76,11 +85,11 @@ This reference lists Supabase table, view, and RPC names that appear in the map,
 
 | Table | Owner | Use |
 | --- | --- | --- |
-| `rooms` | `lib/roomService.ts`, `app/(tabs)/map.tsx`, `lib/bleLocationService.ts`, `lib/idTranslation.ts` | Room polygons and metadata for map rendering, room modal lookup, beacon room-number lookup, and id translation [@room-service] [@map-route] [@location-service] [@id-translation]. |
+| `rooms` | `lib/roomService.ts`, `app/(tabs)/map.tsx`, `lib/bleLocationService.ts`, `lib/idTranslation.ts`, `components/sheets/roomModalSheet.tsx` | Room polygons and metadata for map rendering, room modal lookup, beacon room-number lookup, id translation, and room-schedule display; `wilma_id` links a map room to the Wilma room id used for room schedules [@room-service] [@map-route] [@location-service] [@id-translation] [@room-modal] [@room-wilma-link-migration]. |
 | `features` | `lib/roomService.ts`, `app/(tabs)/map.tsx` | Map feature geometry used for filtered floor rendering and feature layers [@room-service] [@map-route]. |
 | `beacons` | `lib/bleLocationService.ts`, `lib/idTranslation.ts` | BLE beacon catalog keyed by `ble_id` for coordinates, floor, room id, and beacon lookup [@location-service] [@id-translation]. |
 
-`roomService` caches `rooms` and `features` in AsyncStorage for ten minutes, but the tables remain Supabase-backed runtime data rather than static bundled GeoJSON [@room-service]. Exact client cache keys are listed in [client caches](../storage/client-caches).
+`roomService` caches `rooms` and `features` in AsyncStorage for ten minutes, but the tables remain Supabase-backed runtime data rather than static bundled GeoJSON [@room-service]. Room-to-Wilma links should preserve the verified invariant that a linked Wilma room `code` equals the trimmed map `room_number`, every linked id exists in the Wilma room list, and a Wilma id is used by only one map room; the August 13, 2026 production readback showed 50 linked rooms under that invariant after the biology room-number correction [@room-wilma-link-session]. Exact client cache keys are listed in [client caches](../storage/client-caches).
 
 ## Social Data
 

@@ -60,6 +60,21 @@ sources:
   - id: room-schedule-route
     type: file
     path: app/(app)/wilma/room-schedule.tsx
+  - id: room-modal
+    type: file
+    path: components/sheets/roomModalSheet.tsx
+  - id: day-schedule-section
+    type: file
+    path: components/schedule/DayScheduleSection.tsx
+  - id: schedule-dates
+    type: file
+    path: lib/wilma/scheduleDates.ts
+  - id: room-wilma-link-migration
+    type: file
+    path: supabase/migrations/20260813225236_link_map_rooms_to_wilma_rooms.sql
+  - id: room-wilma-link-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/abcc29d5-7f33-499d-a898-7e79cd83a0a8.jsonl
   - id: course-selections-route
     type: file
     path: app/(app)/wilma/course-selections.tsx
@@ -118,7 +133,9 @@ The data helpers define the active Wilma data model for screens. `fetchMe` retur
 
 `fetchNews` returns school news with title, date, excerpt, teacher metadata, and permanence, while `fetchNewsItem` returns the selected news item's HTML body for the detail route [@graphql-client] [@news-route] [@news-item-route]. `fetchPastExams` returns the last-year exam and grade rows shown by the past-exams route; `fetchGradebook` and `fetchMatriculationResults` feed the grades route with subject/course grades, credit summaries, and matriculation rows [@graphql-client] [@past-exams-route] [@grades-route].
 
-`fetchWilmaRooms` and `fetchWilmaRoomSchedule` are separate from the app's Supabase-backed campus map room data. They expose Wilma room profiles and room lesson schedules for the Wilma room screens, while the map's room model remains documented under [campus map model](../../concepts/map/campus-map-model) [@graphql-client] [@rooms-route] [@room-schedule-route]. `fetchSelectedCourses` and `fetchCourseTrays` feed the course-selection route with selected group codes, periods, bars, trays, and tray availability metadata [@graphql-client] [@course-selections-route]. `fetchCourseTray(id)` expands one tray into bars and courses with code, name, teacher, selected, locked, full, completed, and grade fields; the course-selection screen lazily loads this detail on tray expansion, caches it per tray id, and keeps the UI read-only with retry controls for detail failures [@graphql-client] [@course-selections-route].
+`fetchWilmaRooms` returns Wilma room profiles, while `fetchWilmaRoomSchedule(roomId, date)` returns a room profile plus lesson groups for the requested Wilma room id [@graphql-client]. Those helpers remain separate from the Supabase-backed campus map room table, but the map room modal now bridges the two models when a `rooms.wilma_id` value exists: it treats that value as the Wilma room id, requests the active week's Monday, filters lessons to the active school day, and renders the result through `DayScheduleSection` [@room-modal] [@schedule-dates] [@day-schedule-section]. The August 13, 2026 room-link backfill verified the intended mapping rule that linked Wilma room `code` values match trimmed map `room_number` values, with no dangling or duplicate linked ids after production reached 50 linked rooms [@room-wilma-link-migration] [@room-wilma-link-session]. The map's broader room model remains documented under [campus map model](../../concepts/map/campus-map-model) and [room and feature data](../map/room-feature-data).
+
+`fetchSelectedCourses` and `fetchCourseTrays` feed the course-selection route with selected group codes, periods, bars, trays, and tray availability metadata [@graphql-client] [@course-selections-route]. `fetchCourseTray(id)` expands one tray into bars and courses with code, name, teacher, selected, locked, full, completed, and grade fields; the course-selection screen lazily loads this detail on tray expansion, caches it per tray id, and keeps the UI read-only with retry controls for detail failures [@graphql-client] [@course-selections-route].
 
 ## Change Constraints
 
