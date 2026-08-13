@@ -73,7 +73,7 @@ topics:
     parents: [architecture, product]
   - slug: queue
     title: Queue Status
-    description: Ruokalinjasto crowd-status display, anonymous sample aggregation, and admin manual ratings
+    description: Ruokalinjasto crowd-status display, anonymous sample aggregation, student canteen reports, and admin manual ratings
     parents: [map, supabase, privacy]
   - slug: search
     title: Search

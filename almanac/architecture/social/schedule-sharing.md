@@ -50,9 +50,11 @@ Turning the setting off is destructive for the projection. The onboarding screen
 
 ## Sync Boundary
 
-The home tab is the only active sync trigger in the current app. When it loads Wilma profile, schedule, messages, and attendance, it passes `scheduleData.schedule` to `syncSharedWeeklySchedule()` in a background fire-and-forget call [@home-route]. Sync failures are reported as handled Sentry warnings under `area: "shared_schedule"` and do not block rendering the dashboard data [@home-route].
+The Wilma dashboard remains the recurring sync trigger. When the home tab loads Wilma profile, schedule, messages, and attendance, it passes `scheduleData.schedule` to `syncSharedWeeklySchedule()` in a background fire-and-forget call [@home-route]. Sync failures are reported as handled Sentry warnings under `area: "shared_schedule"` and do not block rendering the dashboard data [@home-route].
 
-`syncSharedWeeklySchedule()` first reads fresh or cached user preferences, then either clears snapshots or upserts one row into `shared_weekly_schedules` [@shared-schedule] [@user-preferences]. The row is keyed by `(user_id, week_start)`, stores `lessons` as JSONB, and writes `updated_at` from the client payload [@shared-schedule] [@schedule-sharing-migration]. The table reference for this row is [map, social, location, queue, and consent tables](../../reference/supabase/map-social-and-location-tables).
+The consent surfaces now also try an immediate first sync when the user enables sharing. The settings toggle and post-login permissions flow both save `schedule_sharing_enabled`, fetch the Wilma schedule with `forceRefresh: true`, and pass the returned lessons to `syncSharedWeeklySchedule()`; if Wilma cannot load at that moment, the consent remains enabled and the user is told that the next Wilma-tab load can sync the snapshot [@settings-screen] [@onboarding-screen]. This matters because an enabled consent no longer waits silently for a later dashboard visit before producing a friend-visible row.
+
+`syncSharedWeeklySchedule()` reads preferences with `forceRefresh: true`, then either clears snapshots or upserts one row into `shared_weekly_schedules` [@shared-schedule] [@user-preferences]. The forced preference read preserves schedule sharing as a cross-device consent: a stale local cache must not delete a snapshot after another signed-in device enabled sharing [@shared-schedule]. The row is keyed by `(user_id, week_start)`, stores `lessons` as JSONB, and writes `updated_at` from the client payload [@shared-schedule] [@schedule-sharing-migration]. The table reference for this row is [map, social, location, queue, and consent tables](../../reference/supabase/map-social-and-location-tables).
 
 ## Sanitized Lesson Shape
 

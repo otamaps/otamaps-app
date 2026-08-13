@@ -1,6 +1,6 @@
 ---
 title: "Map, Social, Location, Queue, And Consent Tables"
-summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, shared weekly schedules, BLE beacon lookup, live locations, queue status, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
+summary: "This reference lists the Supabase tables, views, and RPCs used by OtaMaps map data, social relations, shared weekly schedules, BLE beacon lookup, live locations, queue status, canteen reports, consent-gated tracking, anonymous crowd samples, and older location-history helpers."
 topics: [reference, supabase, map, social, location, queue, privacy, wilma, schedule-sharing]
 sources:
   - id: room-service
@@ -51,6 +51,9 @@ sources:
   - id: queue-grant-migration
     type: file
     path: supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql
+  - id: canteen-migration
+    type: file
+    path: supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql
   - id: id-translation
     type: file
     path: lib/idTranslation.ts
@@ -61,7 +64,7 @@ sources:
 
 # Map, Social, And Location Tables
 
-This reference lists Supabase table, view, and RPC names that appear in the map, social, BLE location, queue status, consent, and shared schedule code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, weekly schedule sharing writes sanitized Wilma lesson snapshots, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, queue status reads aggregate RPC output, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@shared-schedule] [@location-service] [@user-preferences] [@queue-service]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), [queue status](../../architecture/map/queue-status), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
+This reference lists Supabase table, view, and RPC names that appear in the map, social, BLE location, queue status, consent, and shared schedule code. The active campus map reads room and feature data, friend/location overlays read social and live-location rows, weekly schedule sharing writes sanitized Wilma lesson snapshots, BLE upload code can upsert the live `locations` table or insert anonymous crowd samples depending on user preferences, queue status reads aggregate RPC output, canteen reporting writes identified current-slot reports through an RPC, and older history helpers still reference `user_locations` plus `latest_user_locations` [@room-service] [@map-route] [@friends-handler] [@shared-schedule] [@location-service] [@user-preferences] [@queue-service] [@canteen-migration]. Use this page as a lookup companion to [room feature data](../../architecture/map/room-feature-data), [friend relations](../../architecture/social/friend-relations), [BLE beacons and location](../../concepts/location/ble-beacons-and-location), [queue status](../../architecture/map/queue-status), and [onboarding and consent preferences](../../architecture/auth/onboarding-and-consent-preferences).
 
 ## Map Data
 
@@ -112,7 +115,10 @@ The active identified live sharing path is `locations`, not `user_locations` [@l
 | --- | --- | --- |
 | `queue_areas` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Database-managed queue locations shown to authenticated users; the initial active row is `ruokalinjasto`, linked to the matching `rooms` row [@queue-migration] [@queue-service]. |
 | `queue_observations` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Append-only manual queue ratings. Authenticated admins can insert only `queue_area_id` and `level`; a trigger sets admin id, server timestamp, and 10-minute anonymous sample count [@queue-migration] [@queue-service]. |
-| `get_queue_statuses()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql`, `lib/queueService.ts` | Authenticated aggregate used by the map. It prefers a manual rating from the last 20 minutes, otherwise derives an automatic level from 10-minute anonymous sample counts; the grant repair revokes execution from `public` and `anon` and grants it to `authenticated` and `service_role` [@queue-migration] [@queue-grant-migration] [@queue-service]. |
+| `canteen_queue_reports` | `supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql`, `lib/queueService.ts` | Identified Ruokalinjasto reports keyed by `(queue_area_id, user_id, slot_start)`. Authenticated users can read only their own raw rows; normal clients write through `record_canteen_queue_report()` rather than direct table insert [@canteen-migration] [@queue-service]. |
+| `canteen_contributor_stats` | `supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql` | Per-user canteen contribution totals maintained by a trigger after canteen report inserts; authenticated users can read only their own stats [@canteen-migration]. |
+| `record_canteen_queue_report(smallint)` | `supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql`, `lib/queueService.ts` | Authenticated RPC that records or corrects the caller's current-slot Ruokalinjasto level. It accepts levels 1-5 only during weekdays 10:45-12:30 Europe/Helsinki time, then inserts or updates the current 15-minute slot [@canteen-migration] [@queue-service]. |
+| `get_queue_statuses()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `supabase/migrations/20260812083900_restore_queue_status_execute_grant.sql`, `supabase/migrations/20260812220708_canteen_reports_and_schedule_sync.sql`, `lib/queueService.ts` | Authenticated aggregate used by the map. During the reporting window, it prefers a manual rating from the last 20 minutes, then current-slot canteen report average, then 10-minute anonymous sample counts; it also returns reporting-window state, report/contributor counts, current-user contribution totals, current-user slot participation, and slot start. The grant repair revokes execution from `public` and `anon` and grants it to `authenticated` and `service_role` [@queue-migration] [@queue-grant-migration] [@canteen-migration] [@queue-service]. |
 | `get_admin_queue_activity()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql`, `lib/queueService.ts` | Admin aggregate that returns 10-minute sample counts and last sample time without exposing raw anonymous sample rows [@queue-migration] [@queue-service]. |
 | `private.is_admin()` | `supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql` | Security-definer role check based on `auth.uid()` and `public.users.role`; it replaces the older public `is_admin(uuid)` helper and is used by admin RLS policies [@queue-migration]. |
 
