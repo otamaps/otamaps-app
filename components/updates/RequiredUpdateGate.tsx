@@ -1,5 +1,6 @@
 import { reportHandledError } from "@/lib/sentry";
 import { MaterialIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
 
 export default function RequiredUpdateGate() {
   const isDark = useColorScheme() === "dark";
+  const releaseVersion = Constants.expoConfig?.version;
   const checkingRef = useRef(false);
   const updateReadyRef = useRef(false);
   const [updateReady, setUpdateReady] = useState(false);
@@ -86,8 +88,42 @@ export default function RequiredUpdateGate() {
             Päivitys tarvitaan
           </Text>
           <Text style={[styles.description, isDark && styles.textMutedDark]}>
-            OtaMapsista on saatavilla uudempi versio. Päivitä sovellus jatkaaksesi.
+            {releaseVersion ? `Versio ${releaseVersion}` : "Uusi versio"} on ladattu ja
+            valmis. Päivitä sovellus jatkaaksesi.
           </Text>
+          {reloading ? (
+            <View style={[styles.progressCard, isDark && styles.progressCardDark]}>
+              <View style={styles.progressHeader}>
+                <MaterialIcons name="sync" size={21} color="#3478F5" />
+                <View style={styles.progressCopy}>
+                  <Text style={[styles.progressTitle, isDark && styles.textLight]}>
+                    Otetaan päivitys käyttöön
+                  </Text>
+                  <Text style={[styles.progressDescription, isDark && styles.textMutedDark]}>
+                    OtaMaps käynnistyy hetken kuluttua automaattisesti uudelleen.
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.progressTrack, isDark && styles.progressTrackDark]}>
+                <View style={styles.progressFill} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.featureList}>
+              <View style={styles.featureRow}>
+                <MaterialIcons name="people-alt" size={19} color="#3478F5" />
+                <Text style={[styles.featureText, isDark && styles.textMutedDark]}>
+                  Nopeampi kaveri- ja sijaintitietojen päivitys
+                </Text>
+              </View>
+              <View style={styles.featureRow}>
+                <MaterialIcons name="restaurant" size={19} color="#3478F5" />
+                <Text style={[styles.featureText, isDark && styles.textMutedDark]}>
+                  Sujuvampi kartta ja pienempi tiedonsiirto
+                </Text>
+              </View>
+            </View>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Päivitä OtaMaps nyt"
@@ -100,7 +136,10 @@ export default function RequiredUpdateGate() {
             ]}
           >
             {reloading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.updateButtonText}>Käynnistetään uudelleen…</Text>
+              </>
             ) : (
               <>
                 <Text style={styles.updateButtonText}>Päivitä nyt</Text>
@@ -160,6 +199,59 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   textMutedDark: { color: "#B3B3B3" },
+  featureList: {
+    alignSelf: "stretch",
+    gap: 11,
+    marginTop: 20,
+  },
+  featureRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  featureText: {
+    color: "#475467",
+    flex: 1,
+    fontFamily: "Figtree-Medium",
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  progressCard: {
+    alignSelf: "stretch",
+    backgroundColor: "#F3F7FE",
+    borderRadius: 16,
+    marginTop: 20,
+    padding: 14,
+  },
+  progressCardDark: { backgroundColor: "#30343A" },
+  progressHeader: { alignItems: "flex-start", flexDirection: "row", gap: 10 },
+  progressCopy: { flex: 1 },
+  progressTitle: {
+    color: "#182230",
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 15,
+  },
+  progressDescription: {
+    color: "#667085",
+    fontFamily: "Figtree-Regular",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  progressTrack: {
+    backgroundColor: "#D7E3F8",
+    borderRadius: 4,
+    height: 7,
+    marginTop: 13,
+    overflow: "hidden",
+  },
+  progressTrackDark: { backgroundColor: "#48505A" },
+  progressFill: {
+    backgroundColor: "#3478F5",
+    borderRadius: 4,
+    height: "100%",
+    width: "78%",
+  },
   updateButton: {
     alignItems: "center",
     backgroundColor: "#3478F5",

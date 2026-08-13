@@ -40,7 +40,9 @@ export async function syncSharedWeeklySchedule(
   lessons: ScheduleLesson[],
   baseDate = new Date()
 ): Promise<SharedWeeklySchedule | null> {
-  const preferences = await getUserPreferences();
+  // Sharing is a cross-device consent. Never let a stale local preference
+  // cache delete a snapshot that was enabled on another signed-in device.
+  const preferences = await getUserPreferences({ forceRefresh: true });
   if (!preferences.schedule_sharing_enabled) {
     await clearSharedWeeklySchedules();
     return null;
