@@ -11,6 +11,7 @@ import {
   isGoogleSignInAvailable,
   signInWithGoogle,
 } from "@/lib/googleAuth";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -21,7 +22,6 @@ import {
   Image,
   ImageBackground,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -288,14 +288,14 @@ export default function WelcomeScreen() {
               Jatkamalla hyväksyt{" "}
               <Text
                 style={styles.link}
-                onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+                onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
               >
                 käyttöehdot
               </Text>{" "}
               ja{" "}
               <Text
                 style={styles.link}
-                onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+                onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
               >
                 tietosuojakäytännön
               </Text>

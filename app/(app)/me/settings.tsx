@@ -4,6 +4,7 @@ import {
   stopBLEBackgroundService,
 } from "@/lib/bleBackgroundManager";
 import { requestBleTrackingPermissions } from "@/lib/blePermissions";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { startForegroundTracking, stopAllTracking } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
 import {
@@ -311,20 +312,20 @@ export default function Settings() {
           <Divider isDark={isDark} />
           <LinkRow
             title="Tietosuoja"
-            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+            onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
             color={titleColor}
           />
           <Divider isDark={isDark} />
           <LinkRow
             title="Käyttöehdot"
-            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+            onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
             color={titleColor}
           />
         </View>
 
         <Pressable
           style={styles.deleteButton}
-          onPress={() => Linking.openURL("https://otamaps.fi/remove-me")}
+          onPress={() => void openExternalUrl("https://otamaps.fi/remove-me")}
         >
           <Text style={styles.deleteText}>Poista tili</Text>
         </Pressable>

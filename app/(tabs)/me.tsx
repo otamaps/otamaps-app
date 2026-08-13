@@ -90,7 +90,7 @@ const Me = () => {
           .from("users")
           .select("name, class, color, code, role")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!profileError && profileData) {
           setIsAdmin(profileData.role === "admin");
@@ -179,7 +179,7 @@ const Me = () => {
             .from("users")
             .select("name, class, color, code, role")
             .eq("id", user.id)
-            .single();
+            .maybeSingle();
 
           if (!profileError && profileData) {
             setIsAdmin(profileData.role === "admin");
@@ -661,7 +661,7 @@ const Me = () => {
               |
             </Text>
             <TouchableOpacity
-              onPress={() => Linking.openURL("https://streetsmarts.fi/")}
+              onPress={() => void openExternalUrl("https://streetsmarts.fi/")}
             >
               <Image
                 source={require("@/assets/images/streetsmarts.png")}

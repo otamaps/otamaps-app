@@ -203,12 +203,11 @@ function getRoomNumberMaxTextSize(
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
-  const accessToken =
-    "sk.eyJ1Ijoib25yZWMiLCJhIjoiY21jYmJ3ZTQwMGNzNjJvcG9yNW9zY3MzMyJ9.KUC568EU0LR_Cq1XkEWtQ";
+  const accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN?.trim();
 
   useEffect(() => {
-    setAccessToken(accessToken);
-  }, []);
+    if (accessToken) setAccessToken(accessToken);
+  }, [accessToken]);
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);

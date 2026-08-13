@@ -4,6 +4,7 @@ import {
   signInWithGoogle,
 } from "@/lib/googleAuth";
 import { completePendingLegacyLink } from "@/lib/wilma/authBroker";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -11,7 +12,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -102,14 +102,14 @@ export default function Login() {
           Kirjautumalla hyväksyt{" "}
           <Text
             style={styles.link}
-            onPress={() => Linking.openURL("https://otamaps.fi/terms")}
+            onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
           >
             käyttöehdot
           </Text>{" "}
           ja{" "}
           <Text
             style={styles.link}
-            onPress={() => Linking.openURL("https://otamaps.fi/privacy")}
+            onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
           >
             tietosuojakäytännön
           </Text>

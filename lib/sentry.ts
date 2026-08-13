@@ -1,6 +1,5 @@
 import * as Sentry from "@sentry/react-native";
-import { isFetchCancellation } from "./networkErrors";
-import { supabase } from "./supabase";
+import { isFetchCancellation, isTransientNetworkError } from "./networkErrors";
 
 const DEFAULT_SENTRY_DSN =
   "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072";
@@ -177,7 +176,7 @@ export function reportHandledMessage(
 export function setSentryUser(
   user: { id: string; email?: string | null } | null
 ): void {
-  Sentry.setUser(user ? { id: user.id, email: user.email ?? undefined } : null);
+  Sentry.setUser(user ? { id: user.id } : null);
 }
 
 function installRejectedFetchTracking(): void {
@@ -199,7 +198,11 @@ function installRejectedFetchTracking(): void {
       // AbortController cancellations are expected control flow. SDK 57's
       // native fetch reports them as a generic FetchError, so check both the
       // signal and error chain before treating the rejection as a failure.
-      if (!isSentryRequest(url) && !isFetchCancellation(error, signal)) {
+      if (
+        !isSentryRequest(url) &&
+        !isFetchCancellation(error, signal) &&
+        !isTransientNetworkError(error)
+      ) {
         reportHandledError(error, {
           area: "network",
           operation: "fetch",
@@ -223,7 +226,7 @@ Sentry.init({
   environment:
     process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT ||
     (__DEV__ ? "development" : "production"),
-  sendDefaultPii: true,
+  sendDefaultPii: false,
   enableLogs: true,
   attachStacktrace: true,
   enableNativeCrashHandling: true,
@@ -233,8 +236,8 @@ Sentry.init({
   enableTombstone: true,
   patchGlobalPromise: true,
   tracesSampleRate: __DEV__ ? 1 : 0.2,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
+  replaysSessionSampleRate: __DEV__ ? 0.1 : 0,
+  replaysOnErrorSampleRate: __DEV__ ? 1 : 0.25,
   integrations: [
     Sentry.mobileReplayIntegration(),
     Sentry.feedbackIntegration(),
@@ -243,7 +246,6 @@ Sentry.init({
       failedRequestTargets: [/.*/],
     }),
     Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
-    Sentry.supabaseIntegration({ supabaseClient: supabase }),
   ],
   beforeSend: sanitizeEvent,
   beforeBreadcrumb(breadcrumb) {

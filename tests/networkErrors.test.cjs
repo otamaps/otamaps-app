@@ -3,6 +3,7 @@ const test = require("node:test");
 const {
   createFetchTimeoutError,
   isFetchCancellation,
+  isTransientNetworkError,
 } = require("../.expo/network-test-build/networkErrors.js");
 
 test("recognizes the Expo SDK 57 native cancellation message", () => {
@@ -41,4 +42,19 @@ test("creates a stable, actionable timeout error", () => {
   assert.equal(error.code, "ETIMEDOUT");
   assert.equal(error.message, "Request timed out");
   assert.equal(error.cause, cause);
+});
+
+test("recognizes temporary connectivity and backend-capacity failures", () => {
+  assert.equal(isTransientNetworkError(new TypeError("Network request failed")), true);
+  assert.equal(
+    isTransientNetworkError(new Error("PGRST003: Timed out acquiring connection from connection pool")),
+    true
+  );
+  assert.equal(isTransientNetworkError({ code: "57014", message: "statement timeout" }), true);
+  assert.equal(isTransientNetworkError(new Error("error code: 504")), true);
+});
+
+test("does not classify authentication or validation failures as network failures", () => {
+  assert.equal(isTransientNetworkError(new Error("Invalid login credentials")), false);
+  assert.equal(isTransientNetworkError({ code: "PGRST116", message: "No rows" }), false);
 });
