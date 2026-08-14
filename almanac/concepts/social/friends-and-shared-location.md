@@ -52,9 +52,9 @@ Acceptance changes the matching relation row to `status: "friends"` using a symm
 
 ## Friend List And Presence
 
-The active friend list helper fetches rows from `users_ff`, fetches all rows from `locations`, and joins each user to the matching location row by `user_id` [@friends-handler]. For each friend, it derives `lastSeen` from `locations.updated_at`, `location` from the `x` and `y` columns, and a user-friendly room/status value from the strongest beacon in the location row [@friends-handler]. The result is cached in AsyncStorage under `cached_friends`, so a non-forced friend fetch can return cached social data before touching Supabase [@friends-handler].
+The active friend list helper first reads accepted `relations` in either direction, derives the other user ids, and then queries `users_ff` profiles plus `locations` rows with `.in(..., friendIds)` [@friends-handler]. For each friend, it derives `lastSeen` from `locations.updated_at`, `location` from the `x` and `y` columns, and a user-friendly room/status value from the strongest beacon in the location row [@friends-handler]. The result is cached in AsyncStorage under `cached_friends`, so a non-forced friend fetch can return cached social data before touching Supabase [@friends-handler].
 
-The map screen force-refreshes friends on focus and separately polls location rows every 30 seconds [@map-screen]. Its visible friend overlay is therefore an accepted friend list joined to location data in the client. The map code fetches all `locations` rows and filters by friend ids in memory; this evidence does not prove a database visibility policy for the `locations` table [@map-screen].
+The map screen force-refreshes friends on focus and separately polls the combined friend rows every 30 seconds [@map-screen]. Its visible friend overlay is therefore an accepted friend list joined to friend-scoped location data in the client. Database visibility still belongs to Supabase RLS and the accepted-friend predicates described in [live location overlays](../../architecture/location/live-location-overlays), not to the map renderer alone.
 
 ## Map Representation
 

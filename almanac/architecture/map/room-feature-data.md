@@ -30,9 +30,6 @@ sources:
   - id: room-wilma-link-session
     type: conversation
     path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/abcc29d5-7f33-499d-a898-7e79cd83a0a8.jsonl
-  - id: feature-service
-    type: file
-    path: lib/featureFlagService.ts
   - id: rooms-debug
     type: file
     path: app/(app)/debug/supabase/rooms.tsx
@@ -62,8 +59,6 @@ The map screen keeps refs to the current fetch functions and calls both on mount
 The map screen is the main consumer. It uses rooms for the bottom-sheet room list, selectable room polygons, WC symbols, and camera focus [@map-screen]. It uses features for wall and stairs extrusions after validating that each feature has a geometry type and coordinate array [@map-screen]. These rendering rules depend on the [campus map model](../../concepts/map/campus-map-model), especially numeric floors and Mapbox coordinate order.
 
 `RoomModalSheet` is the detail consumer. Its `open(id)` method first looks for the room in the current room store, presents the modal immediately when found, and otherwise calls `fetchRooms()` before searching the updated store [@room-modal]. That means a selected room can open without an extra network request after the map screen has already populated the cache. For rooms whose `wilma_id` parses as a positive integer, the modal also checks for a stored Wilma session, fetches `fetchWilmaRoomSchedule(wilmaId, weekMonday)`, filters the result to the active school day, and renders it through the shared `DayScheduleSection` [@room-modal] [@graphql-client] [@schedule-dates] [@day-schedule-section]. Rooms without a Wilma id hide the schedule card rather than probing the Wilma room endpoint [@room-modal].
-
-The same room detail surface also checks the cached `booking` feature flag before exposing booking UI, so room UI changes should be read together with [feature flags](../runtime/feature-flags) when they touch booking behavior [@room-modal] [@feature-service].
 
 The Supabase debug route for rooms queries `rooms` directly and renders id, room number, title, description, seats, and equipment [@rooms-debug]. The feature debug route is currently only a placeholder screen, so it is not a live inspection tool for feature records yet [@features-debug].
 
