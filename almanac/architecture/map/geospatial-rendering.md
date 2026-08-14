@@ -18,6 +18,9 @@ sources:
   - id: stairs-icon
     type: file
     path: assets/icons/stairs.png
+  - id: map-replacement-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/679147b8-81da-4e6c-95ce-d83e13ea1246.jsonl
 ---
 
 # Geospatial Rendering
@@ -57,3 +60,11 @@ Queue status is a polygon overlay, not a point overlay. The map builds `queueGeo
 The rendering layer is tightly coupled to the map screen's bottom sheets. `MapBottomSheet` exposes imperative `snapToMax`, `snapToMid`, and `snapToMin` methods with fixed min, mid, and max snap heights, and the map screen collapses it before opening room or friend detail sheets [@map-bottom-sheet] [@map-screen]. Search focus also collapses the bottom sheet, while search blur returns it to the mid snap point [@map-screen].
 
 The result is one map-centered interaction model: [room search](../search/room-search-flow), room-list taps, and direct polygon taps all converge on the same selected room state and modal opening behavior [@map-screen]. The Ruokalinjasto shortcut is part of the people tab header inside the bottom sheet, not a floating map control; pressing it focuses the queue area and snaps the sheet to its minimum height so the overlay remains visible [@map-screen]. [Room and feature data](room-feature-data) explains the store and cache path that feeds the renderer, and [GeoJSON debug import](../../guides/map/geojson-debug-import) explains the older debug cache path that is separate from the active rendering source.
+
+## Map Library Replacement Boundary
+
+The current renderer depends on Mapbox-style vector sources and expression-backed layers more than it depends on the visual 3D extrusion effect. A 2026 replacement review compared this screen with `react-native-maps` and `expo-maps` and found that the hard requirements are `ShapeSource` data-driven styling, `SymbolLayer` text labels, zoom-dependent label sizing, built-in source clustering, custom MapTiler style URLs, camera bounds, and layered indoor floor filtering [@map-replacement-session] [@map-screen]. Dropping `FillExtrusionLayer` would remove wall height, but it would not remove the main dependency on Mapbox-compatible layer semantics [@map-replacement-session] [@map-screen].
+
+Treat `react-native-maps` and `expo-maps` as rewrites, not near replacements, for this screen. Room polygons would have to become many native polygon components, room numbers and room titles would have to become marker-hosted text views, and zoom-responsive labels would need React re-renders instead of map-engine expressions [@map-replacement-session] [@map-screen]. `expo-maps` is an even thinner fit because the current map is organized around GeoJSON sources and layers rather than imperative marker and overlay children [@map-replacement-session] [@map-screen].
+
+If the goal is to leave Mapbox billing or token handling while preserving the renderer, evaluate MapLibre React Native before `react-native-maps` or `expo-maps`. The review identified MapLibre as the compatible path because it keeps the same component vocabulary and style-expression model, while still requiring verification for rnmapbox-specific props such as `styleURL`, `gestureSettings`, `requestDisallowInterceptTouchEvent`, `setAccessToken`, and the `UserLocation` subclass in `components/customUserLocation.tsx` [@map-replacement-session] [@map-screen]. This does not remove the native-build requirement; it only changes the mapping engine boundary [@map-replacement-session].
