@@ -39,6 +39,9 @@ sources:
   - id: peak-load-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/13/rollout-2026-08-13T20-13-37-019ffc1d-78cd-73a3-bd4b-4c076390bf16.jsonl
+  - id: algolia-db-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/14/rollout-2026-08-14T10-59-09-019fff48-3236-78c2-83b3-63e844bbbe49.jsonl
 ---
 
 # Server Deployment
@@ -76,6 +79,12 @@ Public probes in the cutover passed for Supabase Auth health, Supabase REST, Ota
 Treat the cutover as proof for the recorded lightweight workloads only. Any later capacity claim needs representative authenticated GraphQL, REST, Realtime, Storage, and database workloads with user think-time, and should monitor the recorded cold Kong first-use outlier separately from warmed latency [@cutover-session].
 
 The later August 13, 2026 peak-load repair changed the live PostgREST headroom rather than the mobile schema: the recorded state after the repair was 20 PostgREST connections, a 300 second idle lifetime, healthy `supabase-rest`, public API health HTTP 200, and 100 REST requests at concurrency 20 returning 100 HTTP 200 responses with median 117 ms and p95 531 ms [@peak-load-session]. Treat that as a dated production observation. Re-check the effective container config and a representative authenticated workload before relying on it for a new capacity claim [@peak-load-session].
+
+## External Database Connectors
+
+The public Supabase hostname is an HTTPS API gateway, not a PostgreSQL endpoint for third-party database connectors. On August 14, 2026, direct checks for an Algolia Supabase connector setup found that `db.otamaps.fi` only exposed `443` publicly and that the conventional Supabase pooler ports `6543` and `5432` timed out [@algolia-db-session]. That result matches the deployment boundary above: PostgreSQL and Supavisor stay private behind the server and Cloudflare Tunnel, while the mobile app uses Supabase over the public HTTPS API [@cutover-session] [@supabase-client].
+
+For Algolia or a similar connector that expects a raw PostgreSQL connection, do not point the connector at `https://db.otamaps.fi` and do not publish `5432` or `6543` broadly just to satisfy the dashboard form [@algolia-db-session]. The safer OtaMaps pattern is an internal synchronization job that reads the local database or a restricted view from the server side and pushes records to the external index [@algolia-db-session]. If a raw database endpoint must be exposed, make that a deliberate production-network change: use TLS, a dedicated read-only role restricted to the needed table or view, and provider-specific source restrictions before handing credentials to the connector [@algolia-db-session].
 
 ## Migration And Recovery Gotchas
 
