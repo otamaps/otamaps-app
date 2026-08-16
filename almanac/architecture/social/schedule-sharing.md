@@ -9,6 +9,9 @@ sources:
   - id: shared-schedule-core
     type: file
     path: lib/sharedScheduleCore.ts
+  - id: lesson-labels
+    type: file
+    path: lib/wilma/lessonLabels.ts
   - id: schedule-schema-helper
     type: file
     path: lib/scheduleSharingSchema.ts
@@ -64,13 +67,13 @@ The consent surfaces now also try an immediate first sync when the user enables 
 
 ## Sanitized Lesson Shape
 
-The projection uses `buildSharedWeek()` instead of storing the full Wilma schedule object [@shared-schedule-core]. The helper computes the Monday of the current week, keeps only Monday through Friday dates for that school week, collapses duplicate reservation/date pairs, sorts by date and start time, and emits only `id`, `date`, `start`, `end`, `subject`, and `room` [@shared-schedule-core]. String fields are trimmed and length-limited, and a missing subject becomes `Oppitunti` [@shared-schedule-core].
+The projection uses `buildSharedWeek()` instead of storing the full Wilma schedule object [@shared-schedule-core]. The helper computes the Monday of the current week, keeps only Monday through Friday dates for that school week, collapses duplicate reservation/date pairs, sorts by date and start time, and emits only `id`, `date`, `start`, `end`, `subject`, `code`, and `room` [@shared-schedule-core]. It derives `subject` and `code` through the same `lessonLabel()` helper used by the local schedule surfaces, so a friend's shared lesson can show a course code without exposing the full Wilma group object [@shared-schedule-core] [@lesson-labels]. String fields are trimmed and length-limited, and a missing subject becomes `Oppitunti` [@shared-schedule-core].
 
 The focused tests document the intended privacy boundary. `tests/sharedSchedule.test.cjs` checks that non-school-week dates are excluded, duplicate reservation dates are collapsed, output is sorted, and extra source fields such as private notes do not appear in the shared lesson [@shared-schedule-test]. Future changes that add fields to the projection should treat this as a privacy change, then update the database, UI, tests, and consent copy together.
 
 ## Friend Read Path
 
-Friend profile content resolves one active school day when a friend sheet opens, calls `fetchFriendSharedSchedule(friend.id, activeDay)`, and filters the returned lesson list to that date before rendering [@friend-profile-sheet] [@schedule-dates]. The active day is today on Monday through Friday and the upcoming Monday on weekends, so the friend sheet does not open on Saturday or Sunday to a stale Friday view [@schedule-dates]. The helper still queries by the matching week start, returns `null` when no row is visible, and normalizes stored lesson JSON back through a parser that accepts only date, start, end, subject, id, and room fields [@shared-schedule]. The UI renders that one day through `DayScheduleSection` and shows an empty state when no lessons are shared for the active day [@friend-profile-sheet] [@day-schedule-section].
+Friend profile content resolves one active school day when a friend sheet opens, calls `fetchFriendSharedSchedule(friend.id, activeDay)`, and filters the returned lesson list to that date before rendering [@friend-profile-sheet] [@schedule-dates]. The active day is today on Monday through Friday and the upcoming Monday on weekends, so the friend sheet does not open on Saturday or Sunday to a stale Friday view [@schedule-dates]. The helper still queries by the matching week start, returns `null` when no row is visible, and normalizes stored lesson JSON back through a parser that accepts only date, start, end, subject, id, code, and room fields [@shared-schedule]. Code is optional in the parser because snapshots written before the field existed remain valid and simply render without a badge [@shared-schedule]. The UI renders that one day through `DayScheduleSection` and shows an empty state when no lessons are shared for the active day [@friend-profile-sheet] [@day-schedule-section].
 
 Database policy is the final visibility boundary. The migration enables RLS and defines `private.can_view_shared_weekly_schedule(owner_id)`, which allows the owner to read their own row and allows another authenticated user to read only when the owner still has `schedule_sharing_enabled` true and a `relations` row in either direction has `status = 'friends'` [@schedule-sharing-migration]. Owners can insert, update, and delete only their own rows [@schedule-sharing-migration].
 

@@ -66,6 +66,15 @@ sources:
   - id: day-schedule-section
     type: file
     path: components/schedule/DayScheduleSection.tsx
+  - id: lesson-title-row
+    type: file
+    path: components/schedule/LessonTitleRow.tsx
+  - id: lesson-labels
+    type: file
+    path: lib/wilma/lessonLabels.ts
+  - id: lesson-label-test
+    type: file
+    path: tests/lessonLabels.test.cjs
   - id: schedule-dates
     type: file
     path: lib/wilma/scheduleDates.ts
@@ -120,6 +129,10 @@ The home route adds a startup rule on top of the client. On mount, it uses an ex
 The data helpers define the active Wilma data model for screens. `fetchMe` returns student id, role, base URL, first name, last name, display name, and guidance group or class [@graphql-client]. The home dashboard calls it with schedule, messages, and attendance, then uses the first name for the greeting and `studentClass` for the `Ryhmä` line [@home-route].
 
 `fetchSchedule` runs `query Schedule($date: String)` and returns lessons plus exams, including reservation ids, weekday numbers, start/end times, lesson groups, teachers, rooms, exam ids, exam dates, exam times, and teachers [@graphql-client]. The schedule route builds on this by fetching month data with `fetchSchedule("1.<month>.<year>")`, caching each month in module memory, and merging two months when the visible week crosses a month boundary [@schedule-route]. `fetchCoursework` uses the same `schedule(date:)` query family to return course metadata, teachers, homework, diary entries, and exams; the coursework route flattens those nested rows into dated schoolwork items [@graphql-client] [@coursework-route].
+
+The schedule screen renders the whole Monday-Friday school week as one scroll view instead of holding a selected day tab. On first open it looks for the first date from today onward that has lessons or exams, scrolls to that date, and advances up to four weeks before settling if the visible week has no remaining school events [@schedule-route]. Week arrow navigation marks that automatic jump as settled, so later user navigation does not have the week changed underneath it [@schedule-route]. Pull-to-refresh invalidates the affected month cache but keeps the week body mounted, preserving the refresh indicator and scroll position during reload [@schedule-route].
+
+Lesson course codes are a shared presentation contract rather than screen-local string formatting. `lessonLabel()` accepts the code/name field pair used by each Wilma endpoint, strips a duplicate code prefix only when it is separated from the title, avoids letting a short code consume the start of a longer one, and falls back to a code-only title when Wilma gives no separate name [@lesson-labels] [@lesson-label-test]. `LessonTitleRow` renders the resulting title with the optional code badge, and the home dashboard, schedule screen, teacher schedule, room schedule, map room schedule, and friend shared-schedule surfaces use that same helper/component path [@lesson-title-row] [@home-route] [@schedule-route] [@teacher-schedule-route] [@room-schedule-route] [@room-modal].
 
 `fetchMessages` requests message rows by `MessageFolder`, with ids, subjects, timestamps, folders, senders, event flags, reply counts, and applying status [@graphql-client]. The message list route exposes inbox, outbox, and appointments folders through that helper, while the home dashboard slices the inbox result to the latest five messages [@messages-route] [@home-route]. The August 11, 2026 production outage showed why that folder argument must be deployed on the backend before the client relies on it: production initially rejected `messages(folder: MessageFolder!)`, and a full-schema backend image was required before all app read queries passed [@production-schema-session].
 
