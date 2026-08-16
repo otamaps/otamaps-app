@@ -57,7 +57,7 @@ The performance migration adds accepted-friend partial indexes on `(subject, obj
 
 ## Mismatches And Failure Modes
 
-The most visible mismatch is the map modal block action. `handleBlockFriend()` exists and inserts `status: "blocked"`, but the modal's "Estä" confirmation calls `handleRemoveFriend(friendId)` instead [@friends-handler] [@map-screen]. From this code, pressing the block button on the map removes an accepted friendship but does not create a blocked relation [@map-screen].
+The map modal keeps removal and blocking on separate handlers. Its remove action calls `handleRemoveFriend`, while the friend profile sheet's "Estä" confirmation calls the `onBlock` callback that the map screen wires to `handleBlockFriend` [@map-screen]. Future changes should preserve that split, because remove deletes an accepted relation while block replaces any relation with a directed `blocked` row [@friends-handler].
 
 Request screens also keep local UI state after mutations. The dedicated requests route removes accepted or rejected requesters from local state after pressing the buttons, while the combined add-friend route's accept/reject helpers do not automatically reload the request list in the shown code path [@requests-route] [@add-friend]. Future relation work should verify both screens, not only the shared helper.
 

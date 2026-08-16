@@ -74,7 +74,7 @@ The shared record is sanitized before it reaches Supabase. `buildSharedWeek()` e
 
 Removing a friend deletes `relations` rows whose status is `friends` in either subject-object direction [@friends-handler]. The helper named `handleBlockFriend` first deletes any relation in either direction and then inserts a new `relations` row from the current user to the friend with `status: "blocked"` [@friends-handler].
 
-The current map modal has an important mismatch: the visible "Estä" action calls `handleRemoveFriend(friendId)` instead of `handleBlockFriend(friendId)` [@map-screen]. From the current code, the map's block button removes the friendship relation; it does not create the blocked relation row that the add-friend search checks [@map-screen] [@friends-handler].
+The map modal keeps those actions separate. Its remove action calls `handleRemoveFriend`, while its visible "Estä" action calls `handleBlockFriend` through the friend profile sheet's `onBlock` callback, so blocking creates the `blocked` relation row that later add-friend searches check [@map-screen] [@friend-profile-sheet] [@friends-handler].
 
 Reporting is separate from relation status. The modal prompts for a reason and inserts `{ user_id: friendId, reason }` into the `reports` table [@map-screen]. It does not change the friend relation or location sharing state.
 
