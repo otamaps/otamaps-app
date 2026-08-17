@@ -42,6 +42,15 @@ sources:
   - id: algolia-db-session
     type: conversation
     path: /Users/renesaarikko/.codex/sessions/2026/08/14/rollout-2026-08-14T10-59-09-019fff48-3236-78c2-83b3-63e844bbbe49.jsonl
+  - id: queue-config-migration
+    type: file
+    path: supabase/migrations/20260817002500_queue_config_and_trust_weighting.sql
+  - id: queue-migration-script
+    type: file
+    path: scripts/deploy-queue-migration.sh
+  - id: queue-update-session
+    type: conversation
+    path: /Users/renesaarikko/.claude/projects/-Users-renesaarikko-projects-otamaps-app/c1468f0d-b2c5-43f9-9c68-4faee4065cb1.jsonl
 ---
 
 # Server Deployment
@@ -99,6 +108,10 @@ When DNS or HTTPS looks inconsistent, compare authoritative DNS, DNS-over-HTTPS,
 Access to `fablabserver` is an operational dependency, not a mobile build detail. The August 11, 2026 release work repeatedly found healthy public API responses while backend deployment was blocked by Tailscale timeouts or rejected SSH credentials, so a mobile OTA can be live while the matching Wilma API field is still undeployed [@wilma-schema-session]. If both Tailscale and `ssh.otamaps.fi` are unavailable, stop at the boundary and ask for restored server access rather than claiming backend rollout is complete.
 
 PostgREST write probes need readback verification. During the August 13, 2026 room-to-Wilma backfill, an anonymous PATCH with an impossible zero-row filter returned `HTTP 200 []`, and later real PATCH attempts also returned empty arrays because the anon role could not update the rows through RLS [@room-wilma-link-session]. Do not read `200 []` as "writes are allowed"; it can mean no visible row matched or no row was updated. For production data corrections, apply the SQL through Studio or host-side `psql`, then verify the exact rows and aggregate invariants through REST or SQL readback [@room-wilma-link-session].
+
+Queue-status schema changes have their own host-side helper. `scripts/deploy-queue-migration.sh` streams `supabase/migrations/20260817002500_queue_config_and_trust_weighting.sql` through Cloudflare Access SSH to `fablab@ssh.otamaps.fi`, runs it in the `supabase-db` container with `psql -v ON_ERROR_STOP=1`, and supports `--dry-run` by removing the final PostgREST schema-cache notify and replacing the commit with `rollback` [@queue-migration-script] [@queue-config-migration]. Run `./scripts/deploy-queue-migration.sh --dry-run` first, then run the same script without the flag only after the dry run succeeds [@queue-migration-script]. The migration is transactional and contains a post-migration privilege check for the queue RPCs, so a grant regression aborts the transaction instead of leaving the queue contract half-applied [@queue-config-migration].
+
+The August 17, 2026 queue update did not reach production because Cloudflare SSH accepted the host route but rejected the supplied `fablab` credential, and the harness check showed the password bytes were being sent as provided [@queue-update-session]. Treat that as an access blocker: do not try unrelated accounts, do not claim the queue migration deployed, and rotate any shared password after it has appeared in a transcript [@queue-update-session].
 
 ## Supabase Studio Access
 
