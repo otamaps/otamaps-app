@@ -1,6 +1,6 @@
 ---
 title: "Local Development"
-summary: "Use this guide to run OtaMaps locally and choose the available validation commands without confusing targeted BLE tests with app-wide readiness."
+summary: "Use this guide to run OtaMaps locally and choose the available validation commands without confusing targeted BLE and queue tests with app-wide readiness."
 topics: [guides, development, testing]
 sources:
   - id: package
@@ -22,7 +22,7 @@ sources:
 
 # Local Development
 
-Use this guide when starting or validating the local OtaMaps Expo app. The repository is an Expo Router React Native app with package scripts for starting Expo, running platform helpers, linting, and running the targeted BLE test suite [@package]. App-wide TypeScript checking remains a manual command rather than a package script, and the August 2026 SDK 57 upgrade made that command pass cleanly in the upgraded dependency graph [@package] [@tsconfig] [@sdk57-session].
+Use this guide when starting or validating the local OtaMaps Expo app. The repository is an Expo Router React Native app with package scripts for starting Expo, running platform helpers, linting, and running targeted BLE and queue formatting test suites [@package]. App-wide TypeScript checking remains a manual command rather than a package script, and the August 2026 SDK 57 upgrade made that command pass cleanly in the upgraded dependency graph [@package] [@tsconfig] [@sdk57-session].
 
 ## Run The App
 
@@ -67,6 +67,12 @@ Run the targeted BLE parser, selection, retry-coalescing, and native-config test
 
 ```bash
 npm run test:ble
+```
+
+Run the targeted Ruokalinjasto queue formatting and canteen report error-classification tests with [@package]:
+
+```bash
+npm run test:queue
 ```
 
 Run broad TypeScript checking manually [@package] [@tsconfig]:

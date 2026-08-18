@@ -71,3 +71,7 @@ The BLE background entrypoint reports Android foreground-service runner exceptio
 EAS profiles set `EXPO_PUBLIC_SENTRY_ENVIRONMENT` to `development`, `preview`, or `production`, while `.env.example` documents both the public Sentry DSN and the build-only `SENTRY_AUTH_TOKEN` placeholder [@eas-config] [@env-example]. `SENTRY_AUTH_TOKEN` is not a runtime public variable; it must be configured in the relevant EAS environments so source maps can upload during native builds [@env-example] [@sentry-rollout].
 
 The Sentry rollout validated TypeScript, targeted ESLint, BLE tests, Android production bundling, JSON parsing, and diff checks, but it did not send a synthetic Sentry issue from a rebuilt app [@sentry-rollout]. Native Sentry components and source-map upload changes require a fresh development, preview, or production native build; hot refresh or an old installed client is not enough to prove ingestion and symbolication [@sentry-rollout].
+
+## Related Pages
+
+Use [runtime and build config](../../reference/configuration/runtime-and-build-config) for exact Sentry, EAS, Metro, and public environment configuration. Use [EAS production build](../../guides/deployment/eas-production-build) and [EAS production update](../../guides/deployment/eas-production-update) for release verification boundaries. Use [Wilma GraphQL client and reauth](../wilma/graphql-client-and-reauth) and [Wilma auth broker and account linking](../wilma/auth-broker-and-account-linking) when telemetry changes touch Wilma transport, stored sessions, or primary-auth exchange failures.

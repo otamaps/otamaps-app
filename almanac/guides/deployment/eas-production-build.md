@@ -36,6 +36,8 @@ sources:
 
 Use this guide when preparing an Android or iOS production build for OtaMaps through EAS. Production builds are native release artifacts, so they require more than a successful Metro bundle: inspect the EAS archive, verify the public build-time configuration, run native-target exports with dotenv disabled, upload with the intended EAS profile, preserve the known iOS CocoaPods compatibility fixes, and poll the remote build result before calling the release complete [@release-session] [@ios-production-session] [@eas-config]. If the change is JavaScript, TypeScript, or bundled-asset-only and does not require a new native runtime, use [EAS production update](eas-production-update) instead. Server-side readiness is a separate gate covered by [server deployment](server-deployment).
 
+For choosing between native builds, OTA updates, and server-side work, start at [deployment guides](../deployment).
+
 ## Archive Before Upload
 
 Start by creating the exact production archive that EAS will upload:

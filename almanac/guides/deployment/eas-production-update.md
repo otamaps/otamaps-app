@@ -37,13 +37,15 @@ sources:
 
 # EAS Production Update
 
-Use this guide when an OtaMaps change can be delivered to already installed production builds with EAS Update. An update is appropriate for JavaScript, TypeScript, and bundled-asset behavior that does not require a new native binary; native dependencies, Expo plugins, permissions, identifiers, version changes, and build-profile changes still belong in [EAS production build](eas-production-build) [@app-config] [@eas-config]. Because `app.json` pins `runtimeVersion` to `0.4.1`, a production update can only reach installed binaries that use that exact runtime unless a new native build changes the runtime value [@app-config].
+Use this guide when an OtaMaps change can be delivered to already installed production builds with EAS Update. An update is appropriate for JavaScript, TypeScript, and bundled-asset behavior that does not require a new native binary; native dependencies, Expo plugins, permissions, identifiers, version changes, and build-profile changes still belong in [EAS production build](eas-production-build) [@app-config] [@eas-config]. Because `app.json` pins `runtimeVersion` to `0.4.4`, a production update can only reach installed binaries that use that exact runtime unless a new native build changes the runtime value [@app-config].
+
+For choosing between native builds, OTA updates, and server-side work, start at [deployment guides](../deployment).
 
 ## Preflight
 
 Start by checking `git status --short` and reading the diff. The August 11, 2026 Wilma login update was published from a dirty tree that included the intended client timeout and Expo-fetch cancellation changes plus earlier uncommitted iOS build-support changes, so future updates must inspect scope deliberately before publishing [@update-session]. Do not include unrelated app-source edits by accident; EAS Update publishes the current JavaScript bundle state, not only the files a maintainer is thinking about.
 
-Confirm the update is runtime-compatible before publishing. The current app config has app version `0.4.3`, Android `versionCode` 15, iOS `buildNumber` 8, and Expo Updates URL `https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e` [@app-config]. The production EAS profile uses channel and environment `production`, and it embeds the production Supabase, OtaMaps API, Wilma primary-auth, Google, Mapbox, SumUp, and Sentry public values into the build environment [@eas-config].
+Confirm the update is runtime-compatible before publishing. The current app config has app version `0.4.4`, Android `versionCode` 18, iOS `buildNumber` 9, runtime `0.4.4`, and Expo Updates URL `https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e` [@app-config]. The production EAS profile uses channel and environment `production`, and it embeds the production Supabase, OtaMaps API, Wilma primary-auth, Google, Mapbox, SumUp, and Sentry public values into the build environment [@eas-config].
 
 ## Validate The Bundle
 
