@@ -57,6 +57,8 @@ sources:
 
 Use this guide when preparing or verifying the server side that OtaMaps needs in production. This repository is the Expo mobile client, not the Wilma GraphQL server; the client expects one OtaMaps API origin for Wilma GraphQL and Wilma-to-Supabase account exchange, and a separate Supabase origin for Auth, REST, Realtime, Storage, and Postgres [@wilma-graphql-client] [@wilma-auth-broker] [@supabase-client]. The latest recorded self-hosting cutover moved production Supabase and the Wilma API onto `fablabserver` behind Cloudflare Tunnel, with public traffic on `https://db.otamaps.fi` and `https://api.otamaps.fi` [@cutover-session].
 
+For choosing between native builds, OTA updates, and server-side work, start at [deployment guides](../deployment).
+
 ## Deployment Boundary
 
 The mobile app builds its Wilma GraphQL endpoint by taking `EXPO_PUBLIC_OTAMAPS_API_URL`, defaulting to `https://api.otamaps.fi`, trimming a trailing slash, and appending `/graphql` [@wilma-graphql-client]. Authenticated GraphQL requests add the stored Wilma session token as the `X-Wilma-Session` header [@wilma-graphql-client].

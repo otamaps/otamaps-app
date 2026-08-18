@@ -130,7 +130,7 @@ topics:
   - slug: storage
     title: Storage
     description: Client caches, SecureStore keys, Supabase Storage, and table-backed data
-    parents: [reference]
+    parents: [reference, runtime, supabase]
   - slug: configuration
     title: Configuration
     description: Runtime environment, Expo config, EAS profiles, and native build declarations
