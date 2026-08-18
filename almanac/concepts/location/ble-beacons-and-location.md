@@ -24,6 +24,12 @@ sources:
   - id: catalog-cache
     type: file
     path: lib/bleBeaconCatalog.ts
+  - id: admin-policy
+    type: file
+    path: supabase/migrations/20260808150006_secure_admin_and_ruokalinjasto_queue.sql
+  - id: admin-session
+    type: conversation
+    path: /Users/renesaarikko/.codex/sessions/2026/08/18/rollout-2026-08-18T08-45-44-01a01367-7d38-7ad3-8e90-2bfebe03dee5.jsonl
   - id: background-task
     type: file
     path: lib/bleBackgroundTask.ts
@@ -52,6 +58,12 @@ OtaMaps builds a bounded same-floor estimate rather than treating every audible 
 The active live estimate adds stability before switching anchors. If a stronger beacon is only marginally stronger than the currently selected beacon, the selection engine keeps the current selection until the candidate either has at least a 6 dB advantage or wins three consecutive readings [@core]. This protects the map overlay from rapid room-to-room jumping when the phone hears adjacent beacons with similar strengths, while the centroid can still move within the same floor between uploads [@core] [@estimator].
 
 Floor selection comes from the anchor beacon record, not from room-number parsing. The catalog cache reads a one-day AsyncStorage snapshot, refreshes stale data without blocking callers, fetches missing ids in a single batch, and stores merged rows back into the same cache [@catalog-cache] [@location-service]. The estimator ignores observations on other floors and falls back to the anchor coordinate when the anchor has no authoritative floor, because blending through a ceiling would be less trustworthy than a single-beacon estimate [@estimator].
+
+## Admin Maintenance Boundary
+
+The mobile app consumes beacon records but does not provide a beacon editor. The shared contract is the Supabase `beacons` row: `ble_id` is the advertisement lookup key, `x` and `y` are the indoor map coordinates, `floor` is the anchor floor, and `room_id` is the room authority used by location display [@types] [@location-service]. Admin maintenance tooling therefore has to update coordinates, floor, and room mapping together when a beacon is created or moved; otherwise the weighted centroid can point at one place while the room/floor authority points somewhere else [@estimator] [@admin-session].
+
+The current admin-maintenance workflow is outside this repository, but the transcript records the intended behavior: create a new beacon by choosing a point inside a room, require a unique three-digit BLE id, list beacons by id and mapped room, allow editing the id and mapped room, and recompute the containing room when a beacon marker is dragged [@admin-session]. Because the `beacons` table policy allows authenticated writes only for users passing `private.is_admin()`, browser verification of admin edits must be done with an admin Supabase session rather than inferred from local TypeScript checks [@admin-policy] [@admin-session].
 
 ## Live Table Split
 
