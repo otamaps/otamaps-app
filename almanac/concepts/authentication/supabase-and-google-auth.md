@@ -1,7 +1,7 @@
 ---
 title: "Supabase Session Authority"
 summary: "OtaMaps uses Supabase Auth as the session authority, with Wilma primary auth, Google ID-token legacy sign-in, email/password legacy sign-in, onboarding preference gates, and profile-row creation in the public users table."
-topics: [concepts, authentication, supabase, wilma, google-sign-in, profiles]
+topics: [concepts, authentication, supabase, wilma, profiles]
 sources:
   - id: supabase-client
     type: file
