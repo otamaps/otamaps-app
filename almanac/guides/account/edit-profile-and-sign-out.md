@@ -1,7 +1,7 @@
 ---
 title: "Edit Profile And Sign Out"
 summary: "Use this guide to change a user's displayed profile fields, verify friend-code and debug visibility behavior, and sign out without leaving the local user cache behind."
-topics: [guides, account, authentication, profiles, storage]
+topics: [guides, authentication, profiles, storage]
 sources:
   - id: me-screen
     type: file

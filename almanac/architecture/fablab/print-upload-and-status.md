@@ -1,7 +1,7 @@
 ---
 title: "Print Upload And Status"
 summary: "Print upload and status is the FabLab flow that uploads selected files to Supabase Storage, creates print job rows, and keeps list and detail screens current through realtime subscriptions."
-topics: [architecture, fablab, print-jobs, supabase, realtime]
+topics: [architecture, fablab, print-jobs, supabase]
 sources:
   - id: new-print
     type: file

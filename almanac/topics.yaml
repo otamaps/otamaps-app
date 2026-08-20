@@ -47,14 +47,6 @@ topics:
     title: Authentication
     description: Supabase session authority, local identity state, and sign-in boundaries
     parents: [architecture]
-  - slug: google-sign-in
-    title: Google Sign In
-    description: Google ID-token sign-in and its relationship to Supabase sessions
-    parents: [authentication]
-  - slug: account
-    title: Account
-    description: Profile editing, sign-out, cached user state, and account-facing settings
-    parents: [authentication, guides]
   - slug: profiles
     title: Profiles
     description: Public user rows, friend codes, profile metadata, and realtime profile updates
@@ -115,18 +107,10 @@ topics:
     title: Payments
     description: Payment provider boundaries and checkout behavior in the app
     parents: [integrations, fablab]
-  - slug: sumup
-    title: SumUp
-    description: SumUp SDK/provider usage and backend checkout boundary for FabLab jobs
-    parents: [payments]
   - slug: supabase
     title: Supabase
     description: Supabase Auth, data tables, storage, realtime channels, and client contracts
     parents: [integrations]
-  - slug: realtime
-    title: Realtime
-    description: Supabase realtime subscriptions used by profile and print-job flows
-    parents: [supabase]
   - slug: storage
     title: Storage
     description: Client caches, SecureStore keys, Supabase Storage, and table-backed data
@@ -147,10 +131,6 @@ topics:
     title: Testing
     description: Scripted checks, BLE unit coverage, and validation gaps
     parents: [development, reference]
-  - slug: typescript
-    title: TypeScript
-    description: Type-check command surface and known compiler-status caveats
-    parents: [testing]
   - slug: runtime
     title: Runtime
     description: Client runtime state, caches, and app behavior controlled outside route files

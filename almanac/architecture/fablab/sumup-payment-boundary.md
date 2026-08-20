@@ -1,7 +1,7 @@
 ---
 title: "SumUp Payment Boundary"
 summary: "The SumUp payment boundary keeps checkout creation behind an authenticated backend endpoint while the mobile app initializes and presents the SumUp payment sheet for FabLab print jobs."
-topics: [architecture, fablab, payments, sumup, configuration]
+topics: [architecture, fablab, payments, configuration]
 sources:
   - id: root-layout
     type: file

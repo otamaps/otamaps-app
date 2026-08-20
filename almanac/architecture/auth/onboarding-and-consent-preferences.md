@@ -1,7 +1,7 @@
 ---
 title: "Onboarding And Consent Preferences"
 summary: "Onboarding and consent preferences decide whether a signed-in user reaches the app directly, which profile fields they can edit, which social data they share, and which BLE location writes are allowed."
-topics: [architecture, onboarding, privacy, permissions, location, authentication, supabase, social, wilma, schedule-sharing]
+topics: [architecture, onboarding, privacy, permissions, authentication, supabase]
 sources:
   - id: user-preferences
     type: file
