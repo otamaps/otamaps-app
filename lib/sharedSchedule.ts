@@ -82,6 +82,8 @@ function parseSharedLessons(value: unknown): SharedScheduleLesson[] {
       start,
       end,
       subject,
+      // Snapshots written before codes were shared simply have none.
+      code: cleanSharedText(candidate.code, 40),
       room: cleanSharedText(candidate.room, 80),
     }];
   });

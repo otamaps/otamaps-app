@@ -1,4 +1,22 @@
+import {
+  asClock,
+  asPositiveInt,
+  asWeekdays,
+  canteenFailureReason,
+  LEGACY_QUEUE_CONFIG,
+  QUEUE_STATUS_SCHEMA_VERSION,
+} from "@/lib/queueFormattingCore";
+import { reportHandledMessage } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
+
+export {
+  formatReportingWindow,
+  getCanteenReportingText,
+  QUEUE_STATUS_SCHEMA_VERSION,
+} from "@/lib/queueFormattingCore";
+export type { CanteenReportFailure } from "@/lib/queueFormattingCore";
+
+import type { CanteenReportFailure } from "@/lib/queueFormattingCore";
 
 export type QueueLevel = 1 | 2 | 3 | 4 | 5;
 export type QueueStatusSource = "manual" | "community" | "crowd" | "none";
@@ -19,6 +37,15 @@ export type QueueStatus = {
   current_user_contributions: number;
   current_user_reported: boolean;
   current_slot_start: string | null;
+  schema_version: number;
+  next_slot_start: string | null;
+  area_timezone: string;
+  report_opens_at: string;
+  report_closes_at: string;
+  slot_minutes: number;
+  report_weekdays: number[];
+  min_community_reports: number;
+  crowd_window_minutes: number;
 };
 
 export type QueueActivity = {
@@ -34,6 +61,16 @@ export type QueueObservation = {
   observed_at: string;
   crowd_sample_count: number;
 };
+
+export class CanteenReportError extends Error {
+  readonly reason: CanteenReportFailure;
+
+  constructor(reason: CanteenReportFailure, message: string) {
+    super(message);
+    this.name = "CanteenReportError";
+    this.reason = reason;
+  }
+}
 
 export const QUEUE_LEVEL_LABELS: Record<QueueLevel, string> = {
   1: "Olematon",
@@ -73,7 +110,63 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
   current_user_reported: Boolean(row.current_user_reported),
   current_slot_start:
     row.current_slot_start == null ? null : String(row.current_slot_start),
+  schema_version: Number(row.schema_version ?? 1),
+  next_slot_start:
+    row.next_slot_start == null ? null : String(row.next_slot_start),
+  area_timezone:
+    typeof row.area_timezone === "string" && row.area_timezone
+      ? row.area_timezone
+      : LEGACY_QUEUE_CONFIG.area_timezone,
+  report_opens_at: asClock(
+    row.report_opens_at,
+    LEGACY_QUEUE_CONFIG.report_opens_at
+  ),
+  report_closes_at: asClock(
+    row.report_closes_at,
+    LEGACY_QUEUE_CONFIG.report_closes_at
+  ),
+  slot_minutes: asPositiveInt(
+    row.slot_minutes,
+    LEGACY_QUEUE_CONFIG.slot_minutes
+  ),
+  report_weekdays: asWeekdays(row.report_weekdays),
+  min_community_reports: asPositiveInt(
+    row.min_community_reports,
+    LEGACY_QUEUE_CONFIG.min_community_reports
+  ),
+  crowd_window_minutes: asPositiveInt(
+    row.crowd_window_minutes,
+    LEGACY_QUEUE_CONFIG.crowd_window_minutes
+  ),
 });
+
+let schemaDriftReported = false;
+
+function reportSchemaDrift(statuses: QueueStatus[]): void {
+  if (schemaDriftReported) return;
+  const stale = statuses.find(
+    (status) => status.schema_version < QUEUE_STATUS_SCHEMA_VERSION
+  );
+  if (!stale) return;
+
+  schemaDriftReported = true;
+  // Deliberately loud. Before the schema version existed, a missing column
+  // simply read as `false` and switched the whole queue feature off with no
+  // error anywhere.
+  reportHandledMessage(
+    "get_queue_statuses is older than the app expects; queue configuration fell back to built-in defaults",
+    {
+      area: "queue",
+      operation: "get_queue_statuses",
+      level: "warning",
+      tags: {
+        "queue.schema_version": stale.schema_version,
+        "queue.expected_schema_version": QUEUE_STATUS_SCHEMA_VERSION,
+      },
+      extra: { slug: stale.slug },
+    }
+  );
+}
 
 export async function getQueueStatuses(): Promise<QueueStatus[]> {
   const {
@@ -85,7 +178,11 @@ export async function getQueueStatuses(): Promise<QueueStatus[]> {
 
   const { data, error } = await supabase.rpc("get_queue_statuses");
   if (error) throw error;
-  return ((data ?? []) as Record<string, unknown>[]).map(normalizeStatus);
+  const statuses = ((data ?? []) as Record<string, unknown>[]).map(
+    normalizeStatus
+  );
+  reportSchemaDrift(statuses);
+  return statuses;
 }
 
 export async function isCurrentUserAdmin(): Promise<boolean> {
@@ -147,20 +244,27 @@ export async function recordQueueObservation(
 }
 
 export async function recordCanteenQueueReport(
-  level: QueueLevel
+  level: QueueLevel,
+  status?: QueueStatus | null
 ): Promise<void> {
-  const { error } = await supabase.rpc("record_canteen_queue_report", {
-    input_level: level,
-  });
-  if (error) throw error;
-}
+  // The two-argument overload only exists from migration 20260817002500 on.
+  // Older databases keep the single-argument signature, so only address an
+  // area explicitly once the status proves the new contract is deployed.
+  const canAddressArea =
+    !!status && status.schema_version >= QUEUE_STATUS_SCHEMA_VERSION;
 
-export function getCanteenReportingText(status: QueueStatus | null): string {
-  if (!status?.reporting_open) return "Raportointi arkisin 10.45–12.30";
-  if (status.current_user_reported) {
-    return "Olet osallistunut tähän 15 min jaksoon";
-  }
-  return "Voit raportoida kerran jokaisessa 15 min jaksossa";
+  const { error } = await supabase.rpc(
+    "record_canteen_queue_report",
+    canAddressArea
+      ? { input_level: level, area_slug: status!.slug }
+      : { input_level: level }
+  );
+  if (!error) return;
+
+  throw new CanteenReportError(
+    canteenFailureReason(error),
+    error.message || "Raportointi epäonnistui."
+  );
 }
 
 export function getQueueLabel(level: QueueLevel | null): string {

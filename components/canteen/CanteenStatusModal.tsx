@@ -6,6 +6,8 @@ import {
 import type { CanteenDayMenu } from "@/lib/canteenMenuCore";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import {
+  CanteenReportError,
+  formatReportingWindow,
   getCanteenReportingText,
   getQueueColor,
   getQueueLabel,
@@ -46,7 +48,32 @@ function sourceText(status: QueueStatus): string {
   }
   if (status.status_source === "manual") return "Henkilökunnan vahvistama arvio";
   if (status.status_source === "crowd") return "Automaattinen liikehavainto";
-  return "Tälle 15 minuutin jaksolle ei ole vielä raportteja";
+  if (status.report_count > 0) {
+    return `Tarvitaan vähintään ${status.min_community_reports} raporttia tässä jaksossa (${status.report_count} annettu)`;
+  }
+  return `Tälle ${status.slot_minutes} minuutin jaksolle ei ole vielä raportteja`;
+}
+
+// The database tags every rejection with a stable marker, so the user-facing
+// copy no longer depends on matching words inside the Postgres error text.
+function reportErrorText(error: unknown, status: QueueStatus | null): string {
+  if (error instanceof CanteenReportError) {
+    switch (error.reason) {
+      case "reporting_closed":
+        return `Raportointi on avoinna ${formatReportingWindow(status, {
+          withClock: true,
+        })}.`;
+      case "auth_required":
+        return "Kirjaudu sisään raportoidaksesi jonotilanteen.";
+      case "invalid_level":
+        return "Valittu jonotaso ei kelpaa. Yritä uudelleen.";
+      case "unknown_area":
+        return "Ruokalinjaston raportointi ei ole juuri nyt käytössä.";
+      default:
+        return error.message;
+    }
+  }
+  return error instanceof Error ? error.message : "Raportointi epäonnistui.";
 }
 
 export default function CanteenStatusModal({
@@ -89,16 +116,10 @@ export default function CanteenStatusModal({
     if (reportingLevel || !status?.reporting_open) return;
     setReportingLevel(level);
     try {
-      await recordCanteenQueueReport(level);
+      await recordCanteenQueueReport(level, status);
       await onReported();
     } catch (error) {
-      const raw = error instanceof Error ? error.message : "Raportointi epäonnistui.";
-      Alert.alert(
-        "Raporttia ei voitu tallentaa",
-        raw.includes("10:45")
-          ? "Raportointi on avoinna arkisin klo 10.45–12.30."
-          : raw
-      );
+      Alert.alert("Raporttia ei voitu tallentaa", reportErrorText(error, status));
     } finally {
       setReportingLevel(null);
     }
@@ -163,7 +184,10 @@ export default function CanteenStatusModal({
             <Text style={[styles.supportingText, isDark && styles.textMutedDark]}>
               {status?.reporting_open
                 ? sourceText(status)
-                : "Vilkkaus näytetään ja sitä voi raportoida arkisin klo 10.45–12.30."}
+                : `Vilkkaus näytetään ja sitä voi raportoida ${formatReportingWindow(
+                    status,
+                    { withClock: true }
+                  )}.`}
             </Text>
             <Pressable
               onPress={() => {
@@ -222,7 +246,7 @@ export default function CanteenStatusModal({
                 {status?.current_user_contributions ?? 0} raporttia
               </Text>
               <Text style={[styles.sectionCaption, isDark && styles.textMutedDark]}>
-                Sinun panoksesi yhteensä. Raportit tallennetaan tilillesi tulevaa automaattista arviointia varten.
+                Sinun panoksesi yhteensä. Raportit tallennetaan tilillesi, ja mitä enemmän raportoit, sitä enemmän raporttisi painaa yhteisön arviossa.
               </Text>
             </View>
           </View>

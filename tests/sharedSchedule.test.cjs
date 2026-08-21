@@ -13,6 +13,7 @@ function lesson(overrides = {}) {
     dateArray: ["2026-08-10"],
     groups: [
       {
+        shortCaption: "MAA09.01",
         fullCaption: "Matematiikka",
         rooms: [{ longCaption: "U261" }],
       },
@@ -48,8 +49,19 @@ test("shared schedule exposes only sanitized lesson fields", () => {
     start: "09:00",
     end: "09:45",
     subject: "Matematiikka",
+    code: "MAA09.01",
     room: "U261",
   });
+});
+
+test("a lesson Wilma names only by code still shares a subject", () => {
+  const result = buildSharedWeek(
+    [lesson({ groups: [{ shortCaption: "GE01.23", fullCaption: "", rooms: [] }] })],
+    new Date(2026, 7, 10, 12, 0, 0)
+  );
+
+  assert.equal(result.lessons[0].subject, "Fallback subject");
+  assert.equal(result.lessons[0].code, "GE01.23");
 });
 
 test("duplicate reservation dates are collapsed and sorted by time", () => {

@@ -25,6 +25,7 @@ import {
 } from "@/lib/friendsHandler";
 import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
 import {
+  formatReportingWindow,
   getQueueColor,
   getQueueLabel,
   getQueueStatuses,
@@ -1610,7 +1611,7 @@ export default function HomeScreen() {
                               Vilkkaus · {queueStatus
                                 ? queueStatus.reporting_open
                                   ? getQueueLabel(queueStatus.status_level)
-                                  : "arkisin 10.45–12.30"
+                                  : formatReportingWindow(queueStatus)
                                 : "Ladataan…"}
                             </Text>
                           </View>

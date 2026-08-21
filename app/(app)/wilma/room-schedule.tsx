@@ -1,4 +1,6 @@
+import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { fetchWilmaRoomSchedule, WilmaRoomSchedule } from "@/lib/wilma/graphqlClient";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatFinnishDate,
   getISOWeekNumber,
@@ -120,13 +122,21 @@ export default function WilmaRoomScheduleScreen() {
                 {lessons.length ? lessons.map((lesson, lessonIndex) => (
                   <View key={`${day}-${lesson.start}-${lessonIndex}`} style={[styles.card, isDark && styles.cardDark]}>
                     <Text style={styles.time}>{lesson.start}–{lesson.end}</Text>
-                    {lesson.groups.map((group, groupIndex) => (
-                      <View key={`${group.code}-${group.name}-${groupIndex}`}>
-                        <Text style={[styles.groupCode, isDark && styles.textLight]}>{group.code}</Text>
-                        <Text style={[styles.groupName, isDark && styles.mutedDark]}>{group.name}</Text>
-                        {!!group.teachers.length && <Text style={styles.teacher}>{group.teachers.map((teacher) => teacher.name || teacher.code).join(", ")}</Text>}
-                      </View>
-                    ))}
+                    {lesson.groups.map((group, groupIndex) => {
+                      const { code, title } = lessonLabel(group.code, group.name);
+                      return (
+                        <View key={`${group.code}-${group.name}-${groupIndex}`}>
+                          <LessonTitleRow
+                            title={title}
+                            code={code}
+                            isDark={isDark}
+                            numberOfLines={2}
+                            titleStyle={[styles.groupTitle, isDark && styles.textLight]}
+                          />
+                          {!!group.teachers.length && <Text style={styles.teacher}>{group.teachers.map((teacher) => teacher.name || teacher.code).join(", ")}</Text>}
+                        </View>
+                      );
+                    })}
                   </View>
                 )) : (
                   <View style={[styles.emptyDay, isDark && styles.emptyDayDark]}>
@@ -162,8 +172,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", borderRadius: 14, padding: 14 },
   cardDark: { backgroundColor: "#292929" },
   time: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#4A89EE", marginBottom: 7 },
-  groupCode: { fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#202939" },
-  groupName: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085", marginTop: 2 },
+  groupTitle: { fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#202939" },
   teacher: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 6 },
   emptyDay: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: "#dfe4ec", backgroundColor: "#ffffff80" },
   emptyDayDark: { borderColor: "#353535", backgroundColor: "#252525" },
