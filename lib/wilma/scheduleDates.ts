@@ -26,12 +26,49 @@ export function getSchoolWeekDays(monday: Date): string[] {
   });
 }
 
-/** Select today on weekdays and Friday when opening a schedule on the weekend. */
-export function getInitialSchoolDay(baseDate = new Date()): string {
-  const monday = getMondayOfWeek(0, baseDate);
-  const schoolDays = getSchoolWeekDays(monday);
-  const weekdayIndex = Math.min(4, Math.max(0, (baseDate.getDay() || 7) - 1));
-  return schoolDays[weekdayIndex];
+/** Read a local calendar date back without the UTC shift `new Date(iso)` adds. */
+export function parseLocalISO(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const WEEKDAY_LABELS = [
+  "Sunnuntai",
+  "Maanantai",
+  "Tiistai",
+  "Keskiviikko",
+  "Torstai",
+  "Perjantai",
+  "Lauantai",
+];
+
+/** Finnish weekday name, for example `Maanantai`. */
+export function weekdayLabel(date: Date): string {
+  return WEEKDAY_LABELS[date.getDay()];
+}
+
+/** Short date without a year, for example `17.8.`. */
+export function shortDateLabel(date: Date): string {
+  return `${date.getDate()}.${date.getMonth() + 1}.`;
+}
+
+/** Finnish weekday plus short date, for example `Maanantai 17.8.`. */
+export function schoolDayLabel(date: Date): string {
+  return `${weekdayLabel(date)} ${shortDateLabel(date)}`;
+}
+
+/**
+ * The school day a single-day schedule view should show: today on Monday
+ * through Friday, and the upcoming Monday when opened on a weekend.
+ */
+export function getActiveSchoolDay(baseDate = new Date()): Date {
+  const weekday = baseDate.getDay();
+  if (weekday === 0 || weekday === 6) return getMondayOfWeek(1, baseDate);
+  const day = new Date(baseDate);
+  day.setHours(0, 0, 0, 0);
+  return day;
 }
 
 export function getISOWeekNumber(date: Date): number {

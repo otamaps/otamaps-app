@@ -1,10 +1,19 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
+import DayScheduleSection, {
+  type DayScheduleEntry,
+} from "@/components/schedule/DayScheduleSection";
 import { friendLocationSentence } from "@/lib/friendPresentation";
 import type { Friend } from "@/lib/friendsHandler";
 import {
   fetchFriendSharedSchedule,
   type SharedScheduleLesson,
 } from "@/lib/sharedSchedule";
+import {
+  formatLocalISO,
+  getActiveSchoolDay,
+  parseLocalISO,
+  schoolDayLabel,
+} from "@/lib/wilma/scheduleDates";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -27,27 +36,20 @@ type Props = {
   onReport: (friendId: string, reason: string) => Promise<void>;
 };
 
-const DAY_LABELS: Record<string, string> = {
-  "1": "Maanantai",
-  "2": "Tiistai",
-  "3": "Keskiviikko",
-  "4": "Torstai",
-  "5": "Perjantai",
-};
-
 function dayLabel(date: string): string {
-  const day = new Date(`${date}T12:00:00`).getDay();
-  return DAY_LABELS[String(day)] ?? date;
+  const parsed = parseLocalISO(date);
+  return parsed ? schoolDayLabel(parsed) : date;
 }
 
-function groupLessons(lessons: SharedScheduleLesson[]) {
-  const groups = new Map<string, SharedScheduleLesson[]>();
-  lessons.forEach((lesson) => {
-    const existing = groups.get(lesson.date) ?? [];
-    existing.push(lesson);
-    groups.set(lesson.date, existing);
-  });
-  return [...groups.entries()];
+function scheduleEntries(lessons: SharedScheduleLesson[]): DayScheduleEntry[] {
+  return lessons.map((lesson) => ({
+    id: lesson.id,
+    start: lesson.start,
+    end: lesson.end,
+    title: lesson.subject,
+    code: lesson.code || undefined,
+    subtitle: lesson.room || undefined,
+  }));
 }
 
 export default function FriendProfileSheetContent({
@@ -59,6 +61,9 @@ export default function FriendProfileSheetContent({
 }: Props) {
   const isDark = useColorScheme() === "dark";
   const [lessons, setLessons] = useState<SharedScheduleLesson[]>([]);
+  const [scheduleDay, setScheduleDay] = useState(() =>
+    formatLocalISO(getActiveSchoolDay())
+  );
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState(false);
   const [actionPending, setActionPending] = useState(false);
@@ -67,11 +72,18 @@ export default function FriendProfileSheetContent({
 
   const loadSchedule = useCallback(async () => {
     if (!friend) return;
+    // Resolve the day per open so a sheet left mounted overnight, or opened on
+    // a weekend, still asks for the school day it is about to render.
+    const activeDay = getActiveSchoolDay();
+    const activeDayISO = formatLocalISO(activeDay);
+    setScheduleDay(activeDayISO);
     setScheduleLoading(true);
     setScheduleError(false);
     try {
-      const schedule = await fetchFriendSharedSchedule(friend.id);
-      setLessons(schedule?.lessons ?? []);
+      const schedule = await fetchFriendSharedSchedule(friend.id, activeDay);
+      setLessons(
+        (schedule?.lessons ?? []).filter((lesson) => lesson.date === activeDayISO)
+      );
     } catch (error) {
       console.warn("Friend schedule could not be loaded", error);
       setLessons([]);
@@ -88,7 +100,7 @@ export default function FriendProfileSheetContent({
     void loadSchedule();
   }, [loadSchedule]);
 
-  const scheduleGroups = useMemo(() => groupLessons(lessons), [lessons]);
+  const scheduleEntryList = useMemo(() => scheduleEntries(lessons), [lessons]);
 
   if (!friend) {
     return (
@@ -205,76 +217,21 @@ export default function FriendProfileSheetContent({
         </View>
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>
-          Tämän viikon lukujärjestys
-        </Text>
-        <Text style={[styles.sectionCaption, isDark && styles.textMutedDark]}>
-          Vain kaverin jakamat oppitunnit
-        </Text>
-      </View>
-
-      {scheduleLoading ? (
-        <View style={styles.scheduleState}>
-          <ActivityIndicator color="#276CE5" />
-          <Text style={[styles.scheduleStateText, isDark && styles.textMutedDark]}>
-            Ladataan lukujärjestystä…
-          </Text>
-        </View>
-      ) : scheduleError ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Yritä ladata lukujärjestys uudelleen"
-          onPress={() => void loadSchedule()}
-          style={[styles.scheduleState, isDark && styles.surfaceDark]}
-        >
-          <Text style={[styles.scheduleStateText, isDark && styles.textMutedDark]}>
-            Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen.
-          </Text>
-        </Pressable>
-      ) : scheduleGroups.length === 0 ? (
-        <View style={[styles.scheduleState, isDark && styles.surfaceDark]}>
-          <PlatformSymbol
-            ios="calendar"
-            android="calendar_month"
-            size={22}
-            tintColor={isDark ? "#949CA8" : "#77818E"}
-          />
-          <Text style={[styles.scheduleStateText, isDark && styles.textMutedDark]}>
-            Lukujärjestystä ei ole jaettu tälle viikolle.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.scheduleList}>
-          {scheduleGroups.map(([date, dayLessons]) => (
-            <View
-              key={date}
-              style={[styles.dayCard, isDark && styles.surfaceDark, isDark && styles.borderDark]}
-            >
-              <Text style={[styles.dayTitle, isDark && styles.textPrimaryDark]}>
-                {dayLabel(date)}
-              </Text>
-              {dayLessons.map((lesson) => (
-                <View key={lesson.id} style={styles.lessonRow}>
-                  <Text style={[styles.lessonTime, isDark && styles.textMutedDark]}>
-                    {lesson.start}–{lesson.end}
-                  </Text>
-                  <View style={styles.lessonDetails}>
-                    <Text style={[styles.lessonSubject, isDark && styles.textPrimaryDark]}>
-                      {lesson.subject}
-                    </Text>
-                    {!!lesson.room && (
-                      <Text style={[styles.lessonRoom, isDark && styles.textMutedDark]}>
-                        {lesson.room}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
-      )}
+      <DayScheduleSection
+        title="Päivän lukujärjestys"
+        caption="Vain kaverin jakamat oppitunnit"
+        dayLabel={dayLabel(scheduleDay)}
+        entries={scheduleEntryList}
+        loading={scheduleLoading}
+        errorText={
+          scheduleError
+            ? "Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen."
+            : null
+        }
+        emptyText="Ei jaettuja oppitunteja tälle päivälle."
+        onRetry={() => void loadSchedule()}
+        isDark={isDark}
+      />
 
       <View style={[styles.divider, isDark && styles.dividerDark]} />
       <View style={styles.actions}>
@@ -386,19 +343,6 @@ const styles = StyleSheet.create({
   locationText: { flex: 1 },
   locationTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 16 },
   locationUpdated: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
-  sectionHeader: { marginTop: 24, marginBottom: 12 },
-  sectionTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 17 },
-  sectionCaption: { color: "#77818E", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
-  scheduleState: { minHeight: 78, borderRadius: 16, backgroundColor: "#F5F7FA", padding: 16, alignItems: "center", justifyContent: "center", gap: 8 },
-  scheduleStateText: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 14, textAlign: "center" },
-  scheduleList: { gap: 10 },
-  dayCard: { borderRadius: 16, borderWidth: 1, borderColor: "#E4E8ED", padding: 14 },
-  dayTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 15, marginBottom: 8 },
-  lessonRow: { flexDirection: "row", paddingVertical: 7 },
-  lessonTime: { width: 92, color: "#68717D", fontFamily: "Figtree-Medium", fontSize: 13 },
-  lessonDetails: { flex: 1 },
-  lessonSubject: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 14 },
-  lessonRoom: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 1 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: "#DEE3E9", marginVertical: 22 },
   dividerDark: { backgroundColor: "#3A4048" },
   actions: { gap: 4 },

@@ -165,6 +165,8 @@ export default function QueueAdminScreen() {
           <Text style={[styles.meta, { color: muted }]}>
             {status?.status_source === "manual"
               ? "Ylläpitäjän arvio"
+              : status?.status_source === "community"
+              ? `Opiskelijoiden raportit (${status.contributor_count})`
               : status?.status_source === "crowd"
               ? "Automaattinen vilkkausarvio"
               : "Ei tuoretta arviota"}
@@ -177,7 +179,8 @@ export default function QueueAdminScreen() {
               {activity?.sample_count_10m ?? 0}
             </Text>
             <Text style={[styles.activityLabel, { color: muted }]}>
-              anonyymiä sijaintinäytettä 10 minuutissa — ei henkilömäärä
+              anonyymiä sijaintinäytettä {status?.crowd_window_minutes ?? 10}{" "}
+              minuutissa — ei henkilömäärä
             </Text>
           </View>
         </View>

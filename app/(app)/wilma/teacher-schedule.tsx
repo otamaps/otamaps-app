@@ -1,4 +1,6 @@
+import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { fetchWilmaTeacherSchedule, WilmaTeacherSchedule } from "@/lib/wilma/graphqlClient";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatFinnishDate,
   getISOWeekNumber,
@@ -122,10 +124,16 @@ export default function WilmaTeacherScheduleScreen() {
                     <Text style={styles.time}>{lesson.start}–{lesson.end}</Text>
                     {lesson.groups.map((group, groupIndex) => {
                       const roomNames = group.rooms.map((room) => room.code || room.name).filter(Boolean).join(", ");
+                      const { code, title } = lessonLabel(group.code, group.name);
                       return (
                         <View key={`${group.code}-${group.name}-${groupIndex}`}>
-                          <Text style={[styles.groupCode, isDark && styles.textLight]}>{group.code}</Text>
-                          <Text style={[styles.groupName, isDark && styles.mutedDark]}>{group.name}</Text>
+                          <LessonTitleRow
+                            title={title}
+                            code={code}
+                            isDark={isDark}
+                            numberOfLines={2}
+                            titleStyle={[styles.groupTitle, isDark && styles.textLight]}
+                          />
                           {!!roomNames && <Text style={styles.room}>{roomNames}</Text>}
                         </View>
                       );
@@ -165,8 +173,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", borderRadius: 14, padding: 14 },
   cardDark: { backgroundColor: "#292929" },
   time: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#4A89EE", marginBottom: 7 },
-  groupCode: { fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#202939" },
-  groupName: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085", marginTop: 2 },
+  groupTitle: { fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#202939" },
   room: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 6 },
   emptyDay: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: "#dfe4ec", backgroundColor: "#ffffff80" },
   emptyDayDark: { borderColor: "#353535", backgroundColor: "#252525" },

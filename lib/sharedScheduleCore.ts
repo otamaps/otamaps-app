@@ -1,3 +1,4 @@
+import { lessonLabel } from "./wilma/lessonLabels";
 import {
   formatLocalISO,
   getMondayOfWeek,
@@ -10,6 +11,8 @@ export type SharedScheduleLesson = {
   start: string;
   end: string;
   subject: string;
+  /** Wilma course code, for example `GE01.23`. Empty when Wilma gave none. */
+  code: string;
   room: string;
 };
 
@@ -20,6 +23,7 @@ type ShareableScheduleLesson = {
   end?: string | null;
   dateArray: string[];
   groups: {
+    shortCaption?: string | null;
     fullCaption?: string | null;
     rooms: { longCaption?: string | null }[];
   }[];
@@ -41,7 +45,9 @@ export function buildSharedWeek(
 
   for (const lesson of lessons) {
     const group = lesson.groups[0];
-    const subject = cleanSharedText(group?.fullCaption || lesson.class, 160);
+    const label = lessonLabel(group?.shortCaption, group?.fullCaption, lesson.class);
+    const subject = cleanSharedText(label.title, 160);
+    const code = cleanSharedText(label.code, 40);
     const room = cleanSharedText(group?.rooms[0]?.longCaption, 80);
     for (const date of lesson.dateArray) {
       if (!schoolDays.has(date)) continue;
@@ -54,6 +60,7 @@ export function buildSharedWeek(
         start: cleanSharedText(lesson.start, 20),
         end: cleanSharedText(lesson.end, 20),
         subject: subject || "Oppitunti",
+        code,
         room,
       });
     }

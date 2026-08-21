@@ -1,15 +1,19 @@
+import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { Exam, fetchSchedule, ScheduleData, ScheduleLesson } from "@/lib/wilma/graphqlClient";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatLocalISO,
-  getInitialSchoolDay,
   getISOWeekNumber,
   getMondayOfWeek,
   getSchoolWeekDays,
+  parseLocalISO,
+  shortDateLabel,
+  weekdayLabel,
   weekMonthLabel,
 } from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,15 +26,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/** How far ahead the view may jump on open before giving up on finding lessons. */
+const MAX_AUTO_ADVANCE_WEEKS = 4;
+
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 function formatTime(t: string) {
   return t.slice(0, 5);
-}
-
-function isoToFinnishShort(iso: string): string {
-  const [, m, d] = iso.split("-");
-  return `${parseInt(d)}.${parseInt(m)}.`;
 }
 
 function finnishToISO(d: string): string {
@@ -38,12 +40,11 @@ function finnishToISO(d: string): string {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
-const WEEKDAY_SHORT = ["Su", "Ma", "Ti", "Ke", "To", "Pe", "La"];
-function weekdayShort(iso: string): string {
-  return WEEKDAY_SHORT[new Date(iso + "T00:00:00").getDay()];
-}
-function dayNum(iso: string): string {
-  return String(parseInt(iso.split("-")[2], 10));
+function dayHeading(iso: string): { name: string; date: string } {
+  const parsed = parseLocalISO(iso);
+  return parsed
+    ? { name: weekdayLabel(parsed), date: shortDateLabel(parsed) }
+    : { name: iso, date: "" };
 }
 
 // ── Schedule cache (module-level, keyed by "YYYY-MM") ─────────────────────────
@@ -93,7 +94,11 @@ function LessonCard({
   isLast: boolean;
 }) {
   const group = lesson.groups[0];
-  const subject = group?.fullCaption ?? lesson.class;
+  const { code, title } = lessonLabel(
+    group?.shortCaption,
+    group?.fullCaption,
+    lesson.class
+  );
   const room = group?.rooms[0]?.longCaption ?? "";
   const teacher = group?.teachers[0]?.longCaption ?? "";
   const meta = [room, teacher].filter(Boolean).join(" · ");
@@ -117,12 +122,13 @@ function LessonCard({
           </Text>
         </View>
         <View style={styles.lessonInfo}>
-          <Text
-            style={[styles.lessonSubject, isDark && { color: "#fff" }]}
+          <LessonTitleRow
+            title={title}
+            code={code}
+            isDark={isDark}
             numberOfLines={2}
-          >
-            {subject}
-          </Text>
+            titleStyle={[styles.lessonSubject, isDark && { color: "#fff" }]}
+          />
           {!!meta && (
             <Text
               style={[styles.lessonMeta, isDark && { color: "#aaa" }]}
@@ -145,6 +151,7 @@ function LessonCard({
 // ── Exam row ──────────────────────────────────────────────────────────────────
 
 function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
+  const { code, title } = lessonLabel(exam.course, exam.courseTitle);
   return (
     <View
       style={[
@@ -159,13 +166,13 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
         style={{ marginTop: 2 }}
       />
       <View style={{ flex: 1 }}>
-        <Text
-          style={[styles.examTitle, isDark && { color: "#fff" }]}
+        <LessonTitleRow
+          title={`${title}${exam.name ? ` – ${exam.name}` : ""}`}
+          code={code}
+          isDark={isDark}
           numberOfLines={2}
-        >
-          {exam.courseTitle || exam.course}
-          {exam.name ? ` – ${exam.name}` : ""}
-        </Text>
+          titleStyle={[styles.examTitle, isDark && { color: "#fff" }]}
+        />
         <Text style={[styles.examTime, isDark && { color: "#aaa" }]}>
           {formatTime(exam.timeStart)} – {formatTime(exam.timeEnd)}
           {exam.teachers[0] ? `  ·  ${exam.teachers[0].teacherName}` : ""}
@@ -183,11 +190,19 @@ export default function ScheduleScreen() {
   const today = formatLocalISO(new Date());
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState(() => getInitialSchoolDay());
   const [data, setData] = useState<ScheduleData | null>(null);
+  const [loadedOffset, setLoadedOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const dayOffsets = useRef<Record<string, number>>({});
+  const pendingScrollDay = useRef<string | null>(null);
+  // Jumping the week forward is a one-time convenience on open. Once it has
+  // settled — or the user has picked a week themselves — it must never move
+  // the week out from under them again.
+  const autoAdvance = useRef({ settled: false, weeksTried: 0 });
 
   // Derived values (pure, recalculated each render)
   const monday = getMondayOfWeek(weekOffset);
@@ -213,7 +228,12 @@ export default function ScheduleScreen() {
         if (!sameMonth) invalidateMonth(friYear, friMonth);
       }
 
-      setLoading(true);
+      // A refresh keeps the week on screen so the pull-to-refresh spinner — and
+      // the reader's scroll position — survive the reload.
+      if (!isRefresh) {
+        dayOffsets.current = {};
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -228,6 +248,7 @@ export default function ScheduleScreen() {
           combined = mergeScheduleData(a, b);
         }
         setData(combined);
+        setLoadedOffset(weekOffset);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Lataus epäonnistui");
       } finally {
@@ -247,32 +268,90 @@ export default function ScheduleScreen() {
     load(true);
   }, [load]);
 
-  const prevWeek = () => {
-    const newOffset = weekOffset - 1;
-    const newDays = getSchoolWeekDays(getMondayOfWeek(newOffset));
-    const idx = Math.max(0, weekDays.indexOf(selectedDay));
-    setWeekOffset(newOffset);
-    setSelectedDay(newDays[idx]);
-  };
+  const goToWeek = useCallback((delta: number) => {
+    autoAdvance.current.settled = true;
+    pendingScrollDay.current = null;
+    setWeekOffset((offset) => offset + delta);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
 
-  const nextWeek = () => {
-    const newOffset = weekOffset + 1;
-    const newDays = getSchoolWeekDays(getMondayOfWeek(newOffset));
-    const idx = Math.max(0, weekDays.indexOf(selectedDay));
-    setWeekOffset(newOffset);
-    setSelectedDay(newDays[idx]);
-  };
+  // Lessons and exams bucketed by calendar date for the whole week.
+  const lessonsByDay = useMemo(() => {
+    const byDay: Record<string, ScheduleLesson[]> = {};
+    for (const lesson of data?.schedule ?? []) {
+      for (const date of lesson.dateArray) (byDay[date] ??= []).push(lesson);
+    }
+    for (const lessons of Object.values(byDay)) {
+      lessons.sort((a, b) => a.start.localeCompare(b.start));
+    }
+    return byDay;
+  }, [data]);
 
-  // Lessons / exams for selected day
-  const dayLessons = (data?.schedule ?? [])
-    .filter((l) => l.dateArray.includes(selectedDay))
-    .sort((a, b) => a.start.localeCompare(b.start));
+  const examsByDay = useMemo(() => {
+    const byDay: Record<string, Exam[]> = {};
+    for (const exam of data?.exams ?? []) {
+      (byDay[finnishToISO(exam.date)] ??= []).push(exam);
+    }
+    return byDay;
+  }, [data]);
 
-  const dayExams = (data?.exams ?? []).filter(
-    (e) => finnishToISO(e.date) === selectedDay
+  const scrollToDay = useCallback((day: string) => {
+    const y = dayOffsets.current[day];
+    // The section may not be measured yet; the next onLayout finishes the job.
+    if (y === undefined) {
+      pendingScrollDay.current = day;
+      return;
+    }
+    pendingScrollDay.current = null;
+    // Wait a frame so the ScrollView has taken the new content height; without
+    // it a jump to the last day of the week gets clamped back to the top.
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 4), animated: false });
+    });
+  }, []);
+
+  const handleDayLayout = useCallback(
+    (day: string, y: number) => {
+      dayOffsets.current[day] = y;
+      if (pendingScrollDay.current === day) scrollToDay(day);
+    },
+    [scrollToDay]
   );
 
-  const examDays = new Set((data?.exams ?? []).map((e) => finnishToISO(e.date)));
+  // Open on the first day from today onwards that actually has something. When
+  // the rest of the week is empty, step forward a week and look again.
+  useEffect(() => {
+    if (autoAdvance.current.settled) return;
+    if (loading || error || !data || loadedOffset !== weekOffset) return;
+
+    const target = weekDays.find(
+      (day) =>
+        day >= today &&
+        ((lessonsByDay[day]?.length ?? 0) > 0 || (examsByDay[day]?.length ?? 0) > 0)
+    );
+    if (target) {
+      autoAdvance.current.settled = true;
+      scrollToDay(target);
+      return;
+    }
+    if (autoAdvance.current.weeksTried >= MAX_AUTO_ADVANCE_WEEKS) {
+      autoAdvance.current.settled = true;
+      return;
+    }
+    autoAdvance.current.weeksTried += 1;
+    setWeekOffset((offset) => offset + 1);
+  }, [
+    data,
+    error,
+    examsByDay,
+    lessonsByDay,
+    loadedOffset,
+    loading,
+    scrollToDay,
+    today,
+    weekDays,
+    weekOffset,
+  ]);
 
   return (
     <SafeAreaView
@@ -308,7 +387,7 @@ export default function ScheduleScreen() {
           isDark && { backgroundColor: "#252525", borderBottomColor: "#333" },
         ]}
       >
-        <Pressable onPress={prevWeek} style={styles.navBtn} hitSlop={12}>
+        <Pressable onPress={() => goToWeek(-1)} style={styles.navBtn} hitSlop={12}>
           <MaterialIcons
             name="chevron-left"
             size={28}
@@ -323,71 +402,13 @@ export default function ScheduleScreen() {
             {weekMonthLabel(monday, friday)}
           </Text>
         </View>
-        <Pressable onPress={nextWeek} style={styles.navBtn} hitSlop={12}>
+        <Pressable onPress={() => goToWeek(1)} style={styles.navBtn} hitSlop={12}>
           <MaterialIcons
             name="chevron-right"
             size={28}
             color={isDark ? "#51a2ff" : "#4A89EE"}
           />
         </Pressable>
-      </View>
-
-      {/* ── Day tabs ── */}
-      <View
-        style={[
-          styles.dayTabsRow,
-          isDark && { backgroundColor: "#1e1e1e", borderBottomColor: "#2e2e2e" },
-        ]}
-      >
-        {weekDays.map((day) => {
-          const isToday = day === today;
-          const isSel = day === selectedDay;
-          const hasExam = examDays.has(day);
-          return (
-            <Pressable
-              key={day}
-              style={[
-                styles.dayTab,
-                isSel && styles.dayTabSelected,
-                isSel && isDark && { backgroundColor: "#4A89EE" },
-              ]}
-              onPress={() => setSelectedDay(day)}
-            >
-              <Text
-                style={[
-                  styles.dayTabWd,
-                  !isSel && !isToday && isDark && { color: "#888" },
-                  isToday && !isSel && { color: isDark ? "#51a2ff" : "#4A89EE" },
-                  isSel && { color: "#fff" },
-                ]}
-              >
-                {weekdayShort(day)}
-              </Text>
-              <Text
-                style={[
-                  styles.dayTabNum,
-                  !isSel && !isToday && isDark && { color: "#d4d4d4" },
-                  isToday && !isSel && {
-                    color: isDark ? "#51a2ff" : "#4A89EE",
-                    fontFamily: "Figtree-Bold",
-                  },
-                  isSel && { color: "#fff" },
-                ]}
-              >
-                {dayNum(day)}
-              </Text>
-              {hasExam && (
-                <View
-                  style={[
-                    styles.examDot,
-                    isSel && { backgroundColor: "#fff" },
-                    !isSel && { backgroundColor: "#ff9800" },
-                  ]}
-                />
-              )}
-            </Pressable>
-          );
-        })}
       </View>
 
       {/* ── Body ── */}
@@ -406,6 +427,7 @@ export default function ScheduleScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           style={[styles.body, isDark && { backgroundColor: "#1e1e1e" }]}
           contentContainerStyle={styles.bodyContent}
           refreshControl={
@@ -416,46 +438,80 @@ export default function ScheduleScreen() {
             />
           }
         >
-          {dayExams.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, isDark && { color: "#888" }]}>
-                KOKEET
-              </Text>
-              {dayExams.map((exam) => (
-                <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
-              ))}
-            </View>
-          )}
+          {weekDays.map((day) => {
+            const lessons = lessonsByDay[day] ?? [];
+            const exams = examsByDay[day] ?? [];
+            const heading = dayHeading(day);
+            const isToday = day === today;
 
-          {dayLessons.length === 0 && dayExams.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialIcons
-                name="event-available"
-                size={52}
-                color={isDark ? "#444" : "#ddd"}
-              />
-              <Text style={[styles.emptyText, isDark && { color: "#666" }]}>
-                Ei tunteja {isoToFinnishShort(selectedDay)}
-              </Text>
-            </View>
-          ) : dayLessons.length > 0 ? (
-            <View style={styles.section}>
-              {dayExams.length > 0 && (
-                <Text style={[styles.sectionLabel, isDark && { color: "#888" }]}>
-                  TUNNIT
-                </Text>
-              )}
-              {dayLessons.map((lesson, i) => (
-                <LessonCard
-                  key={`${lesson.reservationId}-${i}`}
-                  lesson={lesson}
-                  isDark={isDark}
-                  isFirst={i === 0}
-                  isLast={i === dayLessons.length - 1}
-                />
-              ))}
-            </View>
-          ) : null}
+            return (
+              <View
+                key={day}
+                style={styles.daySection}
+                onLayout={(event) =>
+                  handleDayLayout(day, event.nativeEvent.layout.y)
+                }
+              >
+                <View style={styles.dayHeader}>
+                  <Text
+                    style={[
+                      styles.dayName,
+                      isDark && { color: "#fff" },
+                      isToday && { color: isDark ? "#51a2ff" : "#4A89EE" },
+                    ]}
+                  >
+                    {heading.name}
+                  </Text>
+                  <Text style={[styles.dayDate, isDark && { color: "#888" }]}>
+                    {heading.date}
+                  </Text>
+                  {isToday && (
+                    <View
+                      style={[
+                        styles.todayPill,
+                        isDark && { backgroundColor: "#4A89EE22" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.todayPillText,
+                          isDark && { color: "#51a2ff" },
+                        ]}
+                      >
+                        Tänään
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {exams.map((exam) => (
+                  <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
+                ))}
+
+                {lessons.length > 0 ? (
+                  <View>
+                    {lessons.map((lesson, i) => (
+                      <LessonCard
+                        key={`${lesson.reservationId}-${i}`}
+                        lesson={lesson}
+                        isDark={isDark}
+                        isFirst={i === 0}
+                        isLast={i === lessons.length - 1}
+                      />
+                    ))}
+                  </View>
+                ) : exams.length === 0 ? (
+                  <View style={[styles.emptyDay, isDark && styles.emptyDayDark]}>
+                    <Text
+                      style={[styles.emptyDayText, isDark && { color: "#666" }]}
+                    >
+                      Ei tunteja
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -515,54 +571,53 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
 
-  // Day tabs
-  dayTabsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  dayTab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  dayTabSelected: { backgroundColor: "#4A89EE" },
-  dayTabWd: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 10,
-    color: "#999",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  dayTabNum: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#333",
-    marginTop: 2,
-  },
-  examDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    marginTop: 3,
-  },
-
   // Body
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
 
-  section: { marginBottom: 8 },
-  sectionLabel: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 11,
-    color: "#aaa",
-    letterSpacing: 0.8,
+  // Day sections
+  daySection: { marginBottom: 22 },
+  dayHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 8,
     marginLeft: 2,
+  },
+  dayName: {
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 16,
+    color: "#222",
+  },
+  dayDate: {
+    fontFamily: "Figtree-Regular",
+    fontSize: 13,
+    color: "#999",
+  },
+  todayPill: {
+    backgroundColor: "#EEF4FF",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  todayPillText: {
+    fontFamily: "Figtree-Medium",
+    fontSize: 11,
+    color: "#4A89EE",
+  },
+  emptyDay: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e8e8e8",
+    backgroundColor: "#ffffff80",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  emptyDayDark: { borderColor: "#333", backgroundColor: "#25252580" },
+  emptyDayText: {
+    fontFamily: "Figtree-Regular",
+    fontSize: 13,
+    color: "#aaa",
   },
 
   // Lesson cards (grouped, rounded first/last)
@@ -637,25 +692,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Empty / error
-  emptyState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 60,
-    gap: 12,
-  },
-  emptyText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#bbb",
-    textAlign: "center",
-  },
+  // Error
   errorText: {
     fontFamily: "Figtree-Regular",
     fontSize: 15,
     color: "#aaa",
     textAlign: "center",
-    paddingHorizontal: 32,
   },
 });

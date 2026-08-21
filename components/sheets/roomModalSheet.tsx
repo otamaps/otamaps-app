@@ -1,4 +1,19 @@
+import DayScheduleSection, {
+  type DayScheduleEntry,
+} from "@/components/schedule/DayScheduleSection";
 import { Room, useRoomStore } from "@/lib/roomService";
+import {
+  fetchWilmaRoomSchedule,
+  getSession,
+  type WilmaRoomSchedule,
+} from "@/lib/wilma/graphqlClient";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
+import {
+  formatFinnishDate,
+  getActiveSchoolDay,
+  getMondayOfWeek,
+  schoolDayLabel,
+} from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
@@ -93,6 +108,42 @@ function equipmentIcon(item: string): keyof typeof MaterialIcons.glyphMap {
   return equipmentIcons[normalized] ?? "check-circle";
 }
 
+/** Rooms without a Wilma id (library, offices) have no bookable lessons. */
+function wilmaRoomId(room: Room | null): number | null {
+  const id = Number(room?.wilma_id);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function dayScheduleEntries(
+  schedule: WilmaRoomSchedule | null,
+  weekday: number
+): DayScheduleEntry[] {
+  return (schedule?.lessons ?? [])
+    .filter((lesson) => lesson.day === weekday)
+    .sort((first, second) => first.start.localeCompare(second.start))
+    .flatMap((lesson, lessonIndex) => {
+      const key = `${lesson.day}-${lesson.start}-${lessonIndex}`;
+      if (!lesson.groups.length) {
+        return [{ id: key, start: lesson.start, end: lesson.end, title: "Varattu" }];
+      }
+      return lesson.groups.map((group, groupIndex) => {
+        const teachers = group.teachers
+          .map((teacher) => teacher.name || teacher.code)
+          .filter(Boolean)
+          .join(", ");
+        const { code, title } = lessonLabel(group.code, group.name);
+        return {
+          id: `${key}-${groupIndex}`,
+          start: lesson.start,
+          end: lesson.end,
+          title: title || "Varattu",
+          code: code || undefined,
+          detail: teachers || undefined,
+        };
+      });
+    });
+}
+
 const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
   ({ onDismiss }, ref) => {
     const sheetRef = useRef<BottomSheetModal>(null);
@@ -103,6 +154,11 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
     const [error, setError] = useState<string | null>(null);
     const [imageFailed, setImageFailed] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const scheduleRequestRef = useRef(0);
+    const [scheduleEntries, setScheduleEntries] = useState<DayScheduleEntry[]>([]);
+    const [scheduleDay, setScheduleDay] = useState(() => getActiveSchoolDay());
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    const [scheduleError, setScheduleError] = useState<string | null>(null);
     const { fetchRooms } = useRoomStore();
     const isDark = useColorScheme() === "dark";
     const snapPoints = useMemo(() => ["45%", "70%", "94%"], []);
@@ -140,6 +196,57 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
       },
       [fetchRooms]
     );
+
+    const loadSchedule = useCallback(async (wilmaId: number) => {
+      const requestId = ++scheduleRequestRef.current;
+      // Resolve the day per open so a sheet left mounted overnight, or opened
+      // on a weekend, still asks for the school day it is about to render.
+      const activeDay = getActiveSchoolDay();
+      setScheduleDay(activeDay);
+      setScheduleEntries([]);
+      setScheduleError(null);
+      setScheduleLoading(true);
+
+      try {
+        const session = await getSession().catch(() => null);
+        if (requestId !== scheduleRequestRef.current) return;
+        if (!session) {
+          setScheduleError("Kirjaudu Wilmaan nähdäksesi tilan lukujärjestyksen.");
+          return;
+        }
+
+        const weekMonday = getMondayOfWeek(0, activeDay);
+        const schedule = await fetchWilmaRoomSchedule(
+          wilmaId,
+          formatFinnishDate(weekMonday)
+        );
+        if (requestId !== scheduleRequestRef.current) return;
+        setScheduleEntries(dayScheduleEntries(schedule, activeDay.getDay()));
+      } catch (error) {
+        if (requestId !== scheduleRequestRef.current) return;
+        console.warn("Room schedule could not be loaded", error);
+        setScheduleError(
+          (error as Error)?.name === "WilmaAuthenticationError"
+            ? "Kirjaudu Wilmaan nähdäksesi tilan lukujärjestyksen."
+            : "Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen."
+        );
+      } finally {
+        if (requestId === scheduleRequestRef.current) setScheduleLoading(false);
+      }
+    }, []);
+
+    const wilmaId = wilmaRoomId(room);
+
+    useEffect(() => {
+      if (!roomId || wilmaId === null) {
+        scheduleRequestRef.current += 1;
+        setScheduleEntries([]);
+        setScheduleError(null);
+        setScheduleLoading(false);
+        return;
+      }
+      void loadSchedule(wilmaId);
+    }, [loadSchedule, roomId, wilmaId]);
 
     const open = useCallback(
       (id: string) => {
@@ -302,6 +409,20 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                   <Text style={[styles.sectionTitle, { color: primaryText }]}>Tietoja tilasta</Text>
                   <Text style={[styles.description, { color: secondaryText }]}>{room.description.trim()}</Text>
                 </View>
+              ) : null}
+
+              {wilmaId !== null ? (
+                <DayScheduleSection
+                  title="Päivän lukujärjestys"
+                  caption="Wilman varaukset tälle tilalle"
+                  dayLabel={schoolDayLabel(scheduleDay)}
+                  entries={scheduleEntries}
+                  loading={scheduleLoading}
+                  errorText={scheduleError}
+                  emptyText="Ei varauksia tälle päivälle."
+                  onRetry={() => void loadSchedule(wilmaId)}
+                  isDark={isDark}
+                />
               ) : null}
 
               <View style={styles.section}>

@@ -1,7 +1,9 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
+import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { reportHandledError } from "@/lib/sentry";
 import { isTransientNetworkError } from "@/lib/networkErrors";
 import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   AttendanceEntry,
   clearSession,
@@ -517,7 +519,11 @@ function Dashboard({
               const group = lesson.groups[0];
               const room = group?.rooms[0]?.longCaption ?? "";
               const teacher = group?.teachers[0]?.longCaption ?? "";
-              const subject = group?.fullCaption ?? lesson.class;
+              const { code, title } = lessonLabel(
+                group?.shortCaption,
+                group?.fullCaption,
+                lesson.class
+              );
               return (
                 <React.Fragment key={lesson.reservationId}>
                   {i > 0 && <Divider isDark={isDark} />}
@@ -546,15 +552,16 @@ function Dashboard({
                       </Text>
                     </View>
                     <View style={styles.lessonInfo}>
-                      <Text
-                        style={[
+                      <LessonTitleRow
+                        title={title}
+                        code={code}
+                        isDark={isDark}
+                        numberOfLines={1}
+                        titleStyle={[
                           styles.lessonSubject,
                           isDark && { color: "#fff" },
                         ]}
-                        numberOfLines={1}
-                      >
-                        {subject}
-                      </Text>
+                      />
                       <Text
                         style={[
                           styles.lessonMeta,
@@ -577,55 +584,59 @@ function Dashboard({
           {!data?.exams.length ? (
             <EmptyRow label="Ei tulevia kokeita" isDark={isDark} />
           ) : (
-            data.exams.map((exam, i) => (
-              <React.Fragment key={exam.examId}>
-                {i > 0 && <Divider isDark={isDark} />}
-                <View style={styles.examRow}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text
-                      style={[styles.examCourse, isDark && { color: "#fff" }]}
-                      numberOfLines={1}
-                    >
-                      {exam.courseTitle || exam.course}
-                    </Text>
-                    {exam.name ? (
-                      <Text
-                        style={[styles.examName, isDark && { color: "#aaa" }]}
+            data.exams.map((exam, i) => {
+              const { code, title } = lessonLabel(exam.course, exam.courseTitle);
+              return (
+                <React.Fragment key={exam.examId}>
+                  {i > 0 && <Divider isDark={isDark} />}
+                  <View style={styles.examRow}>
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <LessonTitleRow
+                        title={title}
+                        code={code}
+                        isDark={isDark}
                         numberOfLines={1}
-                      >
-                        {exam.name}
-                      </Text>
-                    ) : null}
-                    {exam.teachers[0] && (
+                        titleStyle={[styles.examCourse, isDark && { color: "#fff" }]}
+                      />
+                      {exam.name ? (
+                        <Text
+                          style={[styles.examName, isDark && { color: "#aaa" }]}
+                          numberOfLines={1}
+                        >
+                          {exam.name}
+                        </Text>
+                      ) : null}
+                      {exam.teachers[0] && (
+                        <Text
+                          style={[styles.examMeta, isDark && { color: "#888" }]}
+                          numberOfLines={1}
+                        >
+                          {exam.teachers[0].teacherName}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.examDateBox}>
                       <Text
-                        style={[styles.examMeta, isDark && { color: "#888" }]}
-                        numberOfLines={1}
+                        style={[
+                          styles.examDate,
+                          isDark && { color: "#51a2ff" },
+                        ]}
                       >
-                        {exam.teachers[0].teacherName}
+                        {formatDateFI(exam.date)}
                       </Text>
-                    )}
+                      <Text
+                        style={[
+                          styles.examTime,
+                          isDark && { color: "#51a2ff70" },
+                        ]}
+                      >
+                        {formatTime(exam.timeStart)}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.examDateBox}>
-                    <Text
-                      style={[
-                        styles.examDate,
-                        isDark && { color: "#51a2ff" },
-                      ]}
-                    >
-                      {formatDateFI(exam.date)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.examTime,
-                        isDark && { color: "#51a2ff70" },
-                      ]}
-                    >
-                      {formatTime(exam.timeStart)}
-                    </Text>
-                  </View>
-                </View>
-              </React.Fragment>
-            ))
+                </React.Fragment>
+              );
+            })
           )}
         </SectionCard>
 
