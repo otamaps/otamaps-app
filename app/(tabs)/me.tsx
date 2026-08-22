@@ -408,6 +408,42 @@ const Me = () => {
                     backgroundColor: isDark ? "#454545" : "#dddddd50",
                   }}
                 />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optionContainer,
+                    isDark && { backgroundColor: "#303030" },
+                    pressed && styles.optionContainerPressed,
+                    isDark && pressed && { backgroundColor: "#525252" },
+                    {
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    },
+                  ]}
+                  onPress={() => router.push("/me/admin/lunch-shifts")}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: "Figtree-SemiBold",
+                      color: isDark ? "#fff" : "#444",
+                    }}
+                  >
+                    Ruokailuvuorojen hallinta
+                  </Text>
+                  <PlatformSymbol
+                    ios="fork.knife"
+                    android="restaurant"
+                    size={20}
+                    tintColor={isDark ? "#AFC8FF" : "#276CE5"}
+                  />
+                </Pressable>
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: isDark ? "#454545" : "#dddddd50",
+                  }}
+                />
               </>
             )}
             <Pressable

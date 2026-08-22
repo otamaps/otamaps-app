@@ -67,6 +67,10 @@ topics:
     title: Queue Status
     description: Ruokalinjasto crowd-status display, anonymous sample aggregation, student canteen reports, and admin manual ratings
     parents: [map, supabase, privacy]
+  - slug: lunch-shifts
+    title: Lunch Shifts
+    description: Per-period lunch-shift lookup, LLM-assisted PDF-to-JSON admin import, and Wilma-course-code matching for the "Tänään" lunch time
+    parents: [wilma, queue, supabase]
   - slug: search
     title: Search
     description: Room search and Algolia-to-map interaction

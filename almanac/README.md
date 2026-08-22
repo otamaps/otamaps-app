@@ -30,7 +30,7 @@ Use [Getting Started](getting-started) as the reading map for this wiki. It rout
 
 Start with [OtaMaps mobile app](concepts/product/otamaps-mobile-app), [Expo Router shell](architecture/app/expo-router-shell), and [main route map](architecture/app/main-route-map). The root layout wraps the app with SumUp, user state, gesture handling, Algolia search, splash/font loading, and BLE lifecycle wiring before individual screens render [@root-layout].
 
-For feature work, read the owning cluster before editing code: [Wilma](concepts/integrations/wilma), [campus map model](concepts/map/campus-map-model), [BLE background location](architecture/location/ble-background-location), [friends and shared location](concepts/social/friends-and-shared-location), [schedule sharing](architecture/social/schedule-sharing), [queue status](architecture/map/queue-status), or [print jobs](concepts/fablab/print-jobs).
+For feature work, read the owning cluster before editing code: [Wilma](concepts/integrations/wilma), [campus map model](concepts/map/campus-map-model), [BLE background location](architecture/location/ble-background-location), [friends and shared location](concepts/social/friends-and-shared-location), [schedule sharing](architecture/social/schedule-sharing), [queue status](architecture/map/queue-status), or [print jobs](concepts/fablab/print-jobs). Read [lunch-shift extraction via LLM paste, not a parser](decisions/mobile/lunch-shift-llm-extraction) before adding any PDF/document parsing code — it explains why that specific approach was rejected for this feature.
 
 ## Maintenance Bar
 
