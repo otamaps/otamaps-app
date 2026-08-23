@@ -20,6 +20,10 @@ export default function Layout() {
           options={{ title: "Jonotilanteen hallinta" }}
         />
         <Stack.Screen
+          name="admin/lunch-shifts"
+          options={{ title: "Ruokailuvuorojen hallinta" }}
+        />
+        <Stack.Screen
           name="wilma/index"
           options={{ title: "Yhdistetään Wilma-tili" }}
         />

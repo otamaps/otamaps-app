@@ -1,5 +1,7 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { LunchMatch, matchLunchShift } from "@/lib/lunchShiftCore";
+import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import { reportHandledError } from "@/lib/sentry";
 import { isTransientNetworkError } from "@/lib/networkErrors";
 import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
@@ -57,6 +59,25 @@ function todayFinnish(): string {
 
 function formatTime(t: string) {
   return t.slice(0, 5);
+}
+
+type TodayRow =
+  | { kind: "lesson"; lesson: ScheduleLesson; start: string }
+  | { kind: "lunch"; lunch: LunchMatch; start: string };
+
+function todayRows(
+  lessons: ScheduleLesson[],
+  lunch: LunchMatch | null
+): TodayRow[] {
+  const rows: TodayRow[] = lessons.map((lesson) => ({
+    kind: "lesson",
+    lesson,
+    start: lesson.start,
+  }));
+  if (lunch) {
+    rows.push({ kind: "lunch", lunch, start: lunch.startTime });
+  }
+  return rows.sort((a, b) => a.start.localeCompare(b.start));
 }
 
 // Dates from the API arrive either as ISO "YYYY-MM-DD" (dateArray) or
@@ -317,6 +338,7 @@ type DashboardData = {
   exams: Exam[];
   messages: WilmaMessage[];
   attendance: AttendanceEntry[];
+  lunch: LunchMatch | null;
 };
 
 function Dashboard({
@@ -374,12 +396,32 @@ function Dashboard({
           }
         });
 
+        let lunch: LunchMatch | null = null;
+        try {
+          const lunchRows = await getLunchShiftsForWeekday(weekday);
+          const todaysCourseCodes = todaysLessons
+            .map(
+              (l) =>
+                lessonLabel(l.groups[0]?.shortCaption, l.groups[0]?.fullCaption, l.class)
+                  .code
+            )
+            .filter(Boolean);
+          lunch = matchLunchShift(todaysCourseCodes, lunchRows);
+        } catch (error) {
+          reportHandledError(error, {
+            area: "lunch_shift",
+            operation: "match_today",
+            level: "warning",
+          });
+        }
+
         setData({
           profile,
           lessons: todaysLessons,
           exams: upcomingExams,
           messages: msgs.slice(0, 5),
           attendance: sortedAtt,
+          lunch,
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Lataus epäonnistui";
@@ -512,70 +554,117 @@ function Dashboard({
           onMore={() => router.push("/wilma/schedule")}
           isDark={isDark}
         >
-          {!data?.lessons.length ? (
+          {!data?.lessons.length && !data?.lunch ? (
             <EmptyRow label="Ei tunteja tänään" isDark={isDark} />
           ) : (
-            data.lessons.map((lesson, i) => {
-              const group = lesson.groups[0];
-              const room = group?.rooms[0]?.longCaption ?? "";
-              const teacher = group?.teachers[0]?.longCaption ?? "";
-              const { code, title } = lessonLabel(
-                group?.shortCaption,
-                group?.fullCaption,
-                lesson.class
-              );
-              return (
-                <React.Fragment key={lesson.reservationId}>
-                  {i > 0 && <Divider isDark={isDark} />}
-                  <View style={styles.lessonRow}>
-                    <View
-                      style={[
-                        styles.timeTag,
-                        isDark && { backgroundColor: "#4A89EE18" },
-                      ]}
-                    >
-                      <Text
+            todayRows(data?.lessons ?? [], data?.lunch ?? null).map(
+              (row, i) => {
+                if (row.kind === "lunch") {
+                  return (
+                    <React.Fragment key="lunch">
+                      {i > 0 && <Divider isDark={isDark} />}
+                      <View style={styles.lessonRow}>
+                        <View
+                          style={[
+                            styles.timeTag,
+                            isDark && { backgroundColor: "#4A89EE18" },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.timeTagText,
+                              isDark && { color: "#51a2ff" },
+                            ]}
+                          >
+                            {formatTime(row.lunch.startTime)}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.timeTagSub,
+                              isDark && { color: "#51a2ff70" },
+                            ]}
+                          >
+                            {formatTime(row.lunch.endTime)}
+                          </Text>
+                        </View>
+                        <View style={styles.lessonInfo}>
+                          <LessonTitleRow
+                            title="Lounas"
+                            isDark={isDark}
+                            numberOfLines={1}
+                            titleStyle={[
+                              styles.lessonSubject,
+                              isDark && { color: "#fff" },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    </React.Fragment>
+                  );
+                }
+
+                const lesson = row.lesson;
+                const group = lesson.groups[0];
+                const room = group?.rooms[0]?.longCaption ?? "";
+                const teacher = group?.teachers[0]?.longCaption ?? "";
+                const { code, title } = lessonLabel(
+                  group?.shortCaption,
+                  group?.fullCaption,
+                  lesson.class
+                );
+                return (
+                  <React.Fragment key={lesson.reservationId}>
+                    {i > 0 && <Divider isDark={isDark} />}
+                    <View style={styles.lessonRow}>
+                      <View
                         style={[
-                          styles.timeTagText,
-                          isDark && { color: "#51a2ff" },
+                          styles.timeTag,
+                          isDark && { backgroundColor: "#4A89EE18" },
                         ]}
                       >
-                        {formatTime(lesson.start)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.timeTagSub,
-                          isDark && { color: "#51a2ff70" },
-                        ]}
-                      >
-                        {formatTime(lesson.end)}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.timeTagText,
+                            isDark && { color: "#51a2ff" },
+                          ]}
+                        >
+                          {formatTime(lesson.start)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.timeTagSub,
+                            isDark && { color: "#51a2ff70" },
+                          ]}
+                        >
+                          {formatTime(lesson.end)}
+                        </Text>
+                      </View>
+                      <View style={styles.lessonInfo}>
+                        <LessonTitleRow
+                          title={title}
+                          code={code}
+                          isDark={isDark}
+                          numberOfLines={1}
+                          titleStyle={[
+                            styles.lessonSubject,
+                            isDark && { color: "#fff" },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.lessonMeta,
+                            isDark && { color: "#aaa" },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {[room, teacher].filter(Boolean).join(" · ")}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.lessonInfo}>
-                      <LessonTitleRow
-                        title={title}
-                        code={code}
-                        isDark={isDark}
-                        numberOfLines={1}
-                        titleStyle={[
-                          styles.lessonSubject,
-                          isDark && { color: "#fff" },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.lessonMeta,
-                          isDark && { color: "#aaa" },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {[room, teacher].filter(Boolean).join(" · ")}
-                      </Text>
-                    </View>
-                  </View>
-                </React.Fragment>
-              );
-            })
+                  </React.Fragment>
+                );
+              }
+            )
           )}
         </SectionCard>
 
