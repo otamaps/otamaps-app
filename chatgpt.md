@@ -11,7 +11,7 @@
 - `lib/roomService.ts` uses Zustand stores plus AsyncStorage caches for rooms and map features.
 - `components/functions/bleScanner.tsx`, `lib/bleLocationService.ts`, `lib/bleBackgroundTask.ts`, and `lib/bleBackgroundManager.ts` implement BLE beacon scanning, location uploads, and background foreground-service behavior.
 - `lib/friendsHandler.ts` handles friend lists, requests, blocking, and removal.
-- Fablab/SumUp checkout code lives under `app/(tabs)/fablab`, `hooks/useCheckout.ts`, and `lib/sumupService.ts`.
+- FabLab/SumUp checkout UI lives under `app/(tabs)/fablab`; checkout creation is an authenticated backend responsibility.
 
 ## Commands
 - Start dev server: `npm run start` or `yarn start`.

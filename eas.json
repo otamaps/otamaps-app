@@ -19,9 +19,7 @@
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
         "EXPO_PUBLIC_SENTRY_DSN": "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "development",
-        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
-        "EXPO_PUBLIC_MAPBOX_TOKEN": "REDACTED_MAPBOX_SECRET",
-        "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
+        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true"
       }
     },
     "preview": {
@@ -36,10 +34,7 @@
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
         "EXPO_PUBLIC_SENTRY_DSN": "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview",
-        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
-        "EXPO_PUBLIC_MAPTILER_TOKEN": "XSJRg4GXeLgDiZ98hfVp",
-        "EXPO_PUBLIC_MAPBOX_TOKEN": "REDACTED_MAPBOX_SECRET",
-        "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
+        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true"
       }
     },
     "production": {
@@ -56,10 +51,7 @@
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
         "EXPO_PUBLIC_SENTRY_DSN": "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
-        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true",
-        "EXPO_PUBLIC_MAPTILER_TOKEN": "XSJRg4GXeLgDiZ98hfVp",
-        "EXPO_PUBLIC_MAPBOX_TOKEN": "REDACTED_MAPBOX_SECRET",
-        "ANDROID_SDK_ROOT": "/Users/renesaarikko/Library/Android/sdk"
+        "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true"
       }
     },
     "ios-simulator": {

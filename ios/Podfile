@@ -26,9 +26,6 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '16.4'
 
 prepare_react_native_project!
 
-# @generated begin @rnmapbox/maps-rnmapboxmapsimpl - expo prebuild (DO NOT MODIFY) sync-328e2ebf2b248ebd483ea6633ad2ce1d991e7186
-$RNMapboxMapsDownloadToken = 'REDACTED_MAPBOX_SECRET'
-# @generated end @rnmapbox/maps-rnmapboxmapsimpl
 target 'OtaMaps' do
   use_expo_modules!
 

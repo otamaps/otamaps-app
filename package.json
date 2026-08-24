@@ -30,7 +30,6 @@
     "@rnmapbox/maps": "10.3.5",
     "@sentry/react-native": "^8.22.0",
     "@shopify/flash-list": "2.0.2",
-    "@sumup/sdk": "^0.1.5",
     "@supabase/supabase-js": "^2.50.1",
     "@types/lodash": "^4.17.19",
     "algoliasearch": "^5.29.0",

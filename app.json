@@ -64,12 +64,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      [
-        "@rnmapbox/maps",
-        {
-          "RNMapboxMapsDownloadToken": "REDACTED_MAPBOX_SECRET"
-        }
-      ],
+      "@rnmapbox/maps",
       [
         "@react-native-google-signin/google-signin",
         {

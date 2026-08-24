@@ -46,7 +46,6 @@ import {
   Images,
   MapView,
   RasterLayer,
-  setAccessToken,
   ShapeSource,
   SymbolLayer,
 } from "@rnmapbox/maps";
@@ -203,12 +202,7 @@ function getRoomNumberMaxTextSize(
 
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
-  const styleUrlKey = process.env.EXPO_PUBLIC_MAPTILER_KEY as string;
-  const accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN?.trim();
-
-  useEffect(() => {
-    if (accessToken) setAccessToken(accessToken);
-  }, [accessToken]);
+  const mapTilerKey = process.env.EXPO_PUBLIC_MAPTILER_KEY?.trim();
 
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);
@@ -1037,9 +1031,11 @@ export default function HomeScreen() {
             ref={mapRef}
             style={styles.map}
             styleURL={
-              isDark
-                ? "https://api.maptiler.com/maps/basic-v2-dark/style.json?key=K3AliW1jaTRyXigzRrBU"
-                : "https://api.maptiler.com/maps/01985d1f-e0d1-76c5-a7f0-a6cc81ebeb06/style.json?key=K3AliW1jaTRyXigzRrBU"
+              mapTilerKey
+                ? `https://api.maptiler.com/maps/${
+                    isDark ? "basic-v2-dark" : "01985d1f-e0d1-76c5-a7f0-a6cc81ebeb06"
+                  }/style.json?key=${encodeURIComponent(mapTilerKey)}`
+                : undefined
             }
             compassViewMargins={{ x: 10, y: 40 }}
             pitchEnabled={true}

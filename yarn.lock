@@ -2504,11 +2504,6 @@
   resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.27.12.tgz#0cacd3cff047a32936b1ace47ea7c86eaab60a7f"
   integrity sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==
 
-"@sumup/sdk@^0.1.5":
-  version "0.1.8"
-  resolved "https://registry.yarnpkg.com/@sumup/sdk/-/sdk-0.1.8.tgz#a70dc199cef34814c70b6d7c985db9d6b68caf77"
-  integrity sha512-f4QjASvqExp0NicCXgkP0tzsH5Wb8Kig+/Uk2VvKfezMlq5m/Q8MIAQ2kuWAzPbk5QwO5WT66hVNvmrFzDyzbw==
-
 "@supabase/auth-js@2.112.2":
   version "2.112.2"
   resolved "https://registry.yarnpkg.com/@supabase/auth-js/-/auth-js-2.112.2.tgz#bf6137c3974de4f1bbdf31e82b808d04a47d6e77"
