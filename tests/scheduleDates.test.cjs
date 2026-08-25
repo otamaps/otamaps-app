@@ -5,6 +5,7 @@ const {
   getActiveSchoolDay,
   getMondayOfWeek,
   getSchoolWeekDays,
+  isoWeekdayOf,
   parseLocalISO,
   schoolDayLabel,
 } = require("../.expo/schedule-dates-test-build/scheduleDates.js");
@@ -54,4 +55,13 @@ test("local ISO dates parse back without a UTC day shift", () => {
 
 test("day labels name the Finnish weekday and short date", () => {
   assert.equal(schoolDayLabel(new Date(2026, 7, 17, 12, 0, 0)), "Maanantai 17.8.");
+});
+
+test("ISO weekdays run Monday=1 through Sunday=7", () => {
+  // 2026-08-17 is a Monday.
+  assert.equal(isoWeekdayOf(new Date(2026, 7, 17, 12, 0, 0)), 1);
+  assert.equal(isoWeekdayOf(new Date(2026, 7, 21, 12, 0, 0)), 5);
+  assert.equal(isoWeekdayOf(new Date(2026, 7, 22, 12, 0, 0)), 6);
+  // Sunday is 0 in JavaScript and must map to 7, not stay 0.
+  assert.equal(isoWeekdayOf(new Date(2026, 7, 23, 12, 0, 0)), 7);
 });

@@ -5,12 +5,20 @@ import DayScheduleSection, {
 import { friendLocationSentence } from "@/lib/friendPresentation";
 import type { Friend } from "@/lib/friendsHandler";
 import {
+  clockValue,
+  lunchSplit,
+  matchLunchShift,
+  type LunchMatch,
+} from "@/lib/lunchShiftCore";
+import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
+import {
   fetchFriendSharedSchedule,
   type SharedScheduleLesson,
 } from "@/lib/sharedSchedule";
 import {
   formatLocalISO,
   getActiveSchoolDay,
+  isoWeekdayOf,
   parseLocalISO,
   schoolDayLabel,
 } from "@/lib/wilma/scheduleDates";
@@ -41,15 +49,56 @@ function dayLabel(date: string): string {
   return parsed ? schoolDayLabel(parsed) : date;
 }
 
-function scheduleEntries(lessons: SharedScheduleLesson[]): DayScheduleEntry[] {
-  return lessons.map((lesson) => ({
-    id: lesson.id,
-    start: lesson.start,
-    end: lesson.end,
-    title: lesson.subject,
-    code: lesson.code || undefined,
-    subtitle: lesson.room || undefined,
-  }));
+function scheduleEntries(
+  lessons: SharedScheduleLesson[],
+  lunch: LunchMatch | null
+): DayScheduleEntry[] {
+  const entries: DayScheduleEntry[] = [];
+  const lunchEntry: DayScheduleEntry | null = lunch
+    ? {
+        id: "lunch",
+        start: clockValue(lunch.startTime),
+        end: clockValue(lunch.endTime),
+        title: "Lounas",
+      }
+    : null;
+  let lunchPlaced = false;
+
+  for (const lesson of lessons) {
+    const label = {
+      title: lesson.subject,
+      code: lesson.code || undefined,
+      subtitle: lesson.room || undefined,
+    };
+    // Lunch sits inside the long midday block, so that lesson renders as the
+    // part before lunch and the part after it rather than as one row the lunch
+    // appears to follow.
+    const split = lunch ? lunchSplit(lesson.start, lesson.end, lunch) : null;
+    if (!split) {
+      entries.push({
+        id: lesson.id,
+        start: clockValue(lesson.start),
+        end: clockValue(lesson.end),
+        ...label,
+      });
+      continue;
+    }
+    if (split.before) {
+      entries.push({ id: `${lesson.id}:before`, ...split.before, ...label });
+    }
+    if (lunchEntry && !lunchPlaced) {
+      entries.push(lunchEntry);
+      lunchPlaced = true;
+    }
+    if (split.after) {
+      entries.push({ id: `${lesson.id}:after`, ...split.after, ...label });
+    }
+  }
+
+  // A lunch that falls outside every shared lesson still belongs on the day.
+  if (lunchEntry && !lunchPlaced) entries.push(lunchEntry);
+
+  return entries.sort((a, b) => a.start.localeCompare(b.start));
 }
 
 export default function FriendProfileSheetContent({
@@ -61,6 +110,7 @@ export default function FriendProfileSheetContent({
 }: Props) {
   const isDark = useColorScheme() === "dark";
   const [lessons, setLessons] = useState<SharedScheduleLesson[]>([]);
+  const [lunch, setLunch] = useState<LunchMatch | null>(null);
   const [scheduleDay, setScheduleDay] = useState(() =>
     formatLocalISO(getActiveSchoolDay())
   );
@@ -81,12 +131,32 @@ export default function FriendProfileSheetContent({
     setScheduleError(false);
     try {
       const schedule = await fetchFriendSharedSchedule(friend.id, activeDay);
-      setLessons(
-        (schedule?.lessons ?? []).filter((lesson) => lesson.date === activeDayISO)
+      const dayLessons = (schedule?.lessons ?? []).filter(
+        (lesson) => lesson.date === activeDayISO
       );
+      setLessons(dayLessons);
+
+      // Their lunch window comes from the same course-code lookup the own
+      // dashboard uses. Nothing is shown unless they shared their schedule at
+      // all, so the sharing consent that gates `dayLessons` gates this too.
+      // Kept in its own try/catch so a lunch-shift failure never blocks the
+      // schedule the sheet is really about.
+      const codes = dayLessons.map((lesson) => lesson.code).filter(Boolean);
+      if (!codes.length) {
+        setLunch(null);
+      } else {
+        try {
+          const rows = await getLunchShiftsForWeekday(isoWeekdayOf(activeDay));
+          setLunch(matchLunchShift(codes, rows));
+        } catch (error) {
+          console.warn("Friend lunch shift could not be resolved", error);
+          setLunch(null);
+        }
+      }
     } catch (error) {
       console.warn("Friend schedule could not be loaded", error);
       setLessons([]);
+      setLunch(null);
       setScheduleError(true);
     } finally {
       setScheduleLoading(false);
@@ -95,12 +165,16 @@ export default function FriendProfileSheetContent({
 
   useEffect(() => {
     setLessons([]);
+    setLunch(null);
     setReportReason("");
     setReportVisible(false);
     void loadSchedule();
   }, [loadSchedule]);
 
-  const scheduleEntryList = useMemo(() => scheduleEntries(lessons), [lessons]);
+  const scheduleEntryList = useMemo(
+    () => scheduleEntries(lessons, lunch),
+    [lessons, lunch]
+  );
 
   if (!friend) {
     return (

@@ -210,3 +210,40 @@ export function matchLunchShift(
   const { startTime, endTime, shift } = matches[0];
   return { startTime, endTime, shift };
 }
+
+/** `11:20:00` and `11:20` both compare as `11:20`. */
+export function clockValue(value: string): string {
+  return value.slice(0, 5);
+}
+
+export type LessonFragment = { start: string; end: string };
+
+/**
+ * How a lunch window cuts into one lesson. The school schedules lunch *inside*
+ * a long midday block (an 11:20–13:15 lesson containing a 12:10–12:50 lunch),
+ * so that lesson renders as the part before lunch and the part after it rather
+ * than as one row the lunch appears to follow.
+ *
+ * Times may arrive as `HH:MM` or Wilma's `HH:MM:SS`; both compare as `HH:MM`.
+ * Returns `null` when the lunch does not overlap this lesson at all — touching
+ * boundaries do not count, so a lesson ending exactly when lunch starts is not
+ * interrupted by it. Either fragment is `null` when the lunch starts or ends on
+ * the lesson boundary and would leave a zero-length piece.
+ */
+export function lunchSplit(
+  lessonStart: string,
+  lessonEnd: string,
+  lunch: LunchMatch
+): { before: LessonFragment | null; after: LessonFragment | null } | null {
+  const start = clockValue(lessonStart);
+  const end = clockValue(lessonEnd);
+  const lunchStart = clockValue(lunch.startTime);
+  const lunchEnd = clockValue(lunch.endTime);
+
+  if (!(lunchStart < end && lunchEnd > start)) return null;
+
+  return {
+    before: lunchStart > start ? { start, end: lunchStart } : null,
+    after: lunchEnd < end ? { start: lunchEnd, end } : null,
+  };
+}
