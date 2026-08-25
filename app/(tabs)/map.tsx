@@ -25,6 +25,7 @@ import {
 } from "@/lib/friendsHandler";
 import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
 import {
+  formatElapsedSince,
   formatReportingWindow,
   getQueueColor,
   getQueueLabel,
@@ -726,7 +727,11 @@ export default function HomeScreen() {
           properties: {
             id: queueStatus.area_id,
             color: getQueueColor(queueStatus.status_level),
-            label: `Vilkkaus · ${getQueueLabel(queueStatus.status_level)}`,
+            label: `Vilkkaus · ${getQueueLabel(queueStatus.status_level)}${
+              queueStatus.status_is_stale
+                ? ` · ${formatElapsedSince(queueStatus.status_observed_at)}`
+                : ""
+            }`,
           },
         },
       ],
@@ -1606,7 +1611,12 @@ export default function HomeScreen() {
                             >
                               Vilkkaus · {queueStatus
                                 ? queueStatus.reporting_open
-                                  ? getQueueLabel(queueStatus.status_level)
+                                  ? getQueueLabel(queueStatus.status_level) +
+                                    (queueStatus.status_is_stale
+                                      ? ` · ${formatElapsedSince(
+                                          queueStatus.status_observed_at
+                                        )}`
+                                      : "")
                                   : formatReportingWindow(queueStatus)
                                 : "Ladataan…"}
                             </Text>

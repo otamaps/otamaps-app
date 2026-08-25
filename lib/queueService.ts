@@ -10,6 +10,7 @@ import { reportHandledMessage } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
 
 export {
+  formatElapsedSince,
   formatReportingWindow,
   getCanteenReportingText,
   QUEUE_STATUS_SCHEMA_VERSION,
@@ -30,6 +31,7 @@ export type QueueStatus = {
   status_level: QueueLevel | null;
   status_source: QueueStatusSource;
   status_observed_at: string | null;
+  status_is_stale: boolean;
   activity_level: QueueLevel | null;
   reporting_open: boolean;
   report_count: number;
@@ -99,6 +101,7 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
   status_source: String(row.status_source) as QueueStatusSource,
   status_observed_at:
     row.status_observed_at == null ? null : String(row.status_observed_at),
+  status_is_stale: Boolean(row.status_is_stale),
   activity_level:
     row.activity_level == null
       ? null

@@ -13,7 +13,7 @@
  * client/database mismatch is reported instead of silently disabling the
  * feature.
  */
-export const QUEUE_STATUS_SCHEMA_VERSION = 2;
+export const QUEUE_STATUS_SCHEMA_VERSION = 3;
 
 /**
  * The values the database hard-coded before migration 20260817002500 moved
@@ -122,6 +122,30 @@ export function formatReportingWindow(
   );
   const clock = options?.withClock ? "klo " : "";
   return `${days} ${clock}${opens}–${closes}`;
+}
+
+/**
+ * Renders how long ago a stale reading was observed, e.g. `30 min sitten`.
+ * Used when `status_is_stale` is true so the UI can keep showing the last
+ * known queue level instead of hiding it the moment it expires.
+ */
+export function formatElapsedSince(
+  observedAt: string | null,
+  now: Date = new Date()
+): string | null {
+  if (!observedAt) return null;
+  const observedMs = Date.parse(observedAt);
+  if (Number.isNaN(observedMs)) return null;
+
+  const minutes = Math.max(0, Math.round((now.getTime() - observedMs) / 60000));
+  if (minutes < 1) return "alle minuutti sitten";
+  if (minutes < 60) return `${minutes} min sitten`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h sitten`;
+
+  const days = Math.round(hours / 24);
+  return `${days} vrk sitten`;
 }
 
 export function getCanteenReportingText(

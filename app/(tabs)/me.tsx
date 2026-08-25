@@ -1,6 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
-import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { FABLAB_VISIBLE } from "@/constants/features";
+import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
@@ -52,8 +52,8 @@ const Me = () => {
           typeof val === "string"
             ? val
             : Array.isArray(val)
-            ? val[0] ?? fallback
-            : fallback;
+              ? (val[0] ?? fallback)
+              : fallback;
         return {
           ...prev,
           name: getString(params.name, prev.name),
@@ -136,7 +136,7 @@ const Me = () => {
               setIsAdmin(payload.new.role === "admin");
             }
           }
-        }
+        },
       )
       .subscribe();
 
@@ -200,7 +200,7 @@ const Me = () => {
         }
       };
       fetchProfile();
-    }, [])
+    }, []),
   );
 
   if (isLoading) {
@@ -279,7 +279,7 @@ const Me = () => {
                       isDark && { color: "#ffffff70" },
                     ]}
                   >
-                    {profile.class}
+                    {profile.class.toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -292,7 +292,7 @@ const Me = () => {
                   } catch {
                     Alert.alert(
                       "Ei onnistunut",
-                      "Leikepöydän käyttö ei ole saatavilla tässä versiossa."
+                      "Leikepöydän käyttö ei ole saatavilla tässä versiossa.",
                     );
                   }
                 }}

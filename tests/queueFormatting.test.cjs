@@ -5,6 +5,7 @@ const {
   asPositiveInt,
   asWeekdays,
   canteenFailureReason,
+  formatElapsedSince,
   formatReportingWindow,
   getCanteenReportingText,
   LEGACY_QUEUE_CONFIG,
@@ -100,6 +101,22 @@ test("still classifies errors raised by a pre-migration database", () => {
     canteenFailureReason({ code: "42501", details: null, message: "Authentication is required" }),
     "auth_required"
   );
+});
+
+test("renders how long ago a stale reading was observed", () => {
+  const now = new Date("2026-08-24T12:00:00Z");
+  assert.equal(
+    formatElapsedSince("2026-08-24T11:30:00Z", now),
+    "30 min sitten"
+  );
+  assert.equal(
+    formatElapsedSince("2026-08-24T11:59:40Z", now),
+    "alle minuutti sitten"
+  );
+  assert.equal(formatElapsedSince("2026-08-24T09:00:00Z", now), "3 h sitten");
+  assert.equal(formatElapsedSince("2026-08-20T12:00:00Z", now), "4 vrk sitten");
+  assert.equal(formatElapsedSince(null, now), null);
+  assert.equal(formatElapsedSince("not-a-date", now), null);
 });
 
 test("coerces malformed configuration back to the pre-migration defaults", () => {

@@ -7,6 +7,7 @@ import type { CanteenDayMenu } from "@/lib/canteenMenuCore";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import {
   CanteenReportError,
+  formatElapsedSince,
   formatReportingWindow,
   getCanteenReportingText,
   getQueueColor,
@@ -43,6 +44,16 @@ type Props = {
 const LEVELS: QueueLevel[] = [1, 2, 3, 4, 5];
 
 function sourceText(status: QueueStatus): string {
+  if (status.status_is_stale) {
+    const elapsed = formatElapsedSince(status.status_observed_at);
+    const base =
+      status.status_source === "manual"
+        ? "Henkilökunnan vahvistama arvio"
+        : status.status_source === "community"
+          ? "Käyttäjien raportti"
+          : "Automaattinen liikehavainto";
+    return elapsed ? `${base} · ${elapsed}` : `${base} (vanhentunut)`;
+  }
   if (status.status_source === "community") {
     return `${status.contributor_count} käyttäjän raportti tässä jaksossa`;
   }
