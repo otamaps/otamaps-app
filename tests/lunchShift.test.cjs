@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+  lunchSplit,
   matchLunchShift,
   normalizeCourseCode,
   stripJsonFence,
@@ -132,5 +133,40 @@ test("matchLunchShift is case/whitespace-insensitive", () => {
     startTime: "11:05",
     endTime: "11:45",
     shift: 1,
+  });
+});
+
+test("lunchSplit carves a lunch out of the middle of a long midday lesson", () => {
+  // The real case from the schedule: 11:20-13:15 lesson, 12:10-12:50 lunch.
+  assert.deepEqual(lunchSplit("11:20:00", "13:15:00", { startTime: "12:10", endTime: "12:50", shift: 2 }), {
+    before: { start: "11:20", end: "12:10" },
+    after: { start: "12:50", end: "13:15" },
+  });
+});
+
+test("lunchSplit returns null when the lunch does not touch the lesson", () => {
+  const lunch = { startTime: "12:10", endTime: "12:50", shift: 2 };
+  assert.equal(lunchSplit("08:30", "09:45", lunch), null);
+  assert.equal(lunchSplit("13:30", "14:45", lunch), null);
+  // Abutting, not overlapping: lesson ends exactly when lunch starts.
+  assert.equal(lunchSplit("11:20", "12:10", lunch), null);
+  assert.equal(lunchSplit("12:50", "13:15", lunch), null);
+});
+
+test("lunchSplit drops zero-length fragments at the lesson boundaries", () => {
+  assert.deepEqual(lunchSplit("12:10", "13:15", { startTime: "12:10", endTime: "12:50", shift: 1 }), {
+    before: null,
+    after: { start: "12:50", end: "13:15" },
+  });
+  assert.deepEqual(lunchSplit("11:20", "12:50", { startTime: "12:10", endTime: "12:50", shift: 1 }), {
+    before: { start: "11:20", end: "12:10" },
+    after: null,
+  });
+});
+
+test("lunchSplit consumes a lesson the lunch fully covers", () => {
+  assert.deepEqual(lunchSplit("12:15", "12:45", { startTime: "12:10", endTime: "12:50", shift: 1 }), {
+    before: null,
+    after: null,
   });
 });

@@ -1,11 +1,17 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
-import { LunchMatch, matchLunchShift } from "@/lib/lunchShiftCore";
+import {
+  clockValue,
+  LunchMatch,
+  lunchSplit,
+  matchLunchShift,
+} from "@/lib/lunchShiftCore";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import { reportHandledError } from "@/lib/sentry";
 import { isTransientNetworkError } from "@/lib/networkErrors";
 import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
+import { isoWeekdayOf } from "@/lib/wilma/scheduleDates";
 import {
   AttendanceEntry,
   clearSession,
@@ -45,8 +51,7 @@ function todayISO(): string {
 }
 
 function isoWeekday(): number {
-  const d = new Date().getDay();
-  return d === 0 ? 7 : d;
+  return isoWeekdayOf(new Date());
 }
 
 function todayFinnish(): string {
@@ -61,22 +66,66 @@ function formatTime(t: string) {
   return t.slice(0, 5);
 }
 
-type TodayRow =
-  | { kind: "lesson"; lesson: ScheduleLesson; start: string }
-  | { kind: "lunch"; lunch: LunchMatch; start: string };
+type TodayRow = { key: string; start: string; end: string } & (
+  | { kind: "lesson"; lesson: ScheduleLesson }
+  | { kind: "lunch" }
+);
 
 function todayRows(
   lessons: ScheduleLesson[],
   lunch: LunchMatch | null
 ): TodayRow[] {
-  const rows: TodayRow[] = lessons.map((lesson) => ({
-    kind: "lesson",
-    lesson,
-    start: lesson.start,
-  }));
-  if (lunch) {
-    rows.push({ kind: "lunch", lunch, start: lunch.startTime });
+  const rows: TodayRow[] = [];
+  const lunchRow: TodayRow | null = lunch
+    ? {
+        kind: "lunch",
+        key: "lunch",
+        start: clockValue(lunch.startTime),
+        end: clockValue(lunch.endTime),
+      }
+    : null;
+  let lunchPlaced = false;
+
+  for (const lesson of lessons) {
+    // Lunch sits inside the long midday block, so that lesson renders as the
+    // part before lunch and the part after it rather than as one row the lunch
+    // appears to follow.
+    const split = lunch ? lunchSplit(lesson.start, lesson.end, lunch) : null;
+    if (!split) {
+      rows.push({
+        kind: "lesson",
+        lesson,
+        key: String(lesson.reservationId),
+        start: clockValue(lesson.start),
+        end: clockValue(lesson.end),
+      });
+      continue;
+    }
+    if (split.before) {
+      rows.push({
+        kind: "lesson",
+        lesson,
+        key: `${lesson.reservationId}:before`,
+        ...split.before,
+      });
+    }
+    if (lunchRow && !lunchPlaced) {
+      rows.push(lunchRow);
+      lunchPlaced = true;
+    }
+    if (split.after) {
+      rows.push({
+        kind: "lesson",
+        lesson,
+        key: `${lesson.reservationId}:after`,
+        ...split.after,
+      });
+    }
   }
+
+  // A lunch that falls outside every lesson still belongs on the day.
+  if (lunchRow && !lunchPlaced) rows.push(lunchRow);
+
   return rows.sort((a, b) => a.start.localeCompare(b.start));
 }
 
@@ -576,7 +625,7 @@ function Dashboard({
                               isDark && { color: "#51a2ff" },
                             ]}
                           >
-                            {formatTime(row.lunch.startTime)}
+                            {row.start}
                           </Text>
                           <Text
                             style={[
@@ -584,7 +633,7 @@ function Dashboard({
                               isDark && { color: "#51a2ff70" },
                             ]}
                           >
-                            {formatTime(row.lunch.endTime)}
+                            {row.end}
                           </Text>
                         </View>
                         <View style={styles.lessonInfo}>
@@ -613,7 +662,7 @@ function Dashboard({
                   lesson.class
                 );
                 return (
-                  <React.Fragment key={lesson.reservationId}>
+                  <React.Fragment key={row.key}>
                     {i > 0 && <Divider isDark={isDark} />}
                     <View style={styles.lessonRow}>
                       <View
@@ -628,7 +677,7 @@ function Dashboard({
                             isDark && { color: "#51a2ff" },
                           ]}
                         >
-                          {formatTime(lesson.start)}
+                          {row.start}
                         </Text>
                         <Text
                           style={[
@@ -636,7 +685,7 @@ function Dashboard({
                             isDark && { color: "#51a2ff70" },
                           ]}
                         >
-                          {formatTime(lesson.end)}
+                          {row.end}
                         </Text>
                       </View>
                       <View style={styles.lessonInfo}>

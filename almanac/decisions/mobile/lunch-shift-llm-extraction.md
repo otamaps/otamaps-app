@@ -18,6 +18,12 @@ sources:
   - id: home-route
     type: file
     path: app/(tabs)/home.tsx
+  - id: friend-sheet
+    type: file
+    path: components/friends/FriendProfileSheetContent.tsx
+  - id: sharing-migration
+    type: file
+    path: supabase/migrations/20260811232612_share_weekly_schedule_with_friends.sql
   - id: tests
     type: file
     path: tests/lunchShift.test.cjs
@@ -45,9 +51,10 @@ Given the format instability and the low frequency of this task (~5 times a year
 
 - No PDF/spreadsheet parsing code exists anywhere in the app or backend for this feature.
 - The admin screen shows a fixed extraction prompt (copyable via `expo-clipboard`) describing the exact JSON schema, and instructs the admin to use at least Claude Sonnet 5 with extended thinking, or a stronger model such as Opus 5 — not a lightweight/free-tier model — based on the accuracy gap measured above [@admin-screen].
-- Pasted JSON is validated client-side before anything is saved (`validateLunchShiftImport`): malformed or out-of-range fields are hard errors that block saving, while course codes that don't match the Wilma code shape (`[A-ZÄÖ]{2,4}\d{1,2}(\.\d{1,2})?`) are soft warnings the admin can override, since shape alone cannot prove content correctness [@core].
+- Pasted JSON is validated client-side before anything is saved (`validateLunchShiftImport`): malformed or out-of-range fields are hard errors that block saving, while course codes that don't match the Wilma code shape (`[A-ZÄÖ]{2,4}\d{1,3}(\.[A-Z0-9]{1,3})?`) are soft warnings the admin can override, since shape alone cannot prove content correctness [@core]. The suffix deliberately allows letters and three digits: real codes include `TO01.A`, `ÄI05.TU`, `MAY01.D1`, and `EAB304.01`, and an earlier numeric-only pattern flagged all of them as suspicious.
 - Saving calls `replace_lunch_shifts`, a `security definer` RPC that atomically deletes and re-inserts the whole `lunch_shifts` table in one transaction — full-period-replace, no history retained, matching how the admin actually receives one complete document per period rather than incremental updates [@migration].
 - The student-facing side (`app/(tabs)/home.tsx`'s "Tänään" card) cross-references today's Wilma lesson course codes against the saved rows and shows nothing if there's no unambiguous match, rather than guessing [@home-route] [@core].
+- A friend's lunch window appears the same way in their profile sheet, matched against the course codes in their shared weekly schedule [@friend-sheet]. No separate consent gate was added: `shared_weekly_schedules` is already gated server-side by `private.can_view_shared_weekly_schedule()`, which requires both the owner's `schedule_sharing_enabled` preference and an accepted friendship, so a friend who has not opted into schedule sharing yields no lessons, hence no course codes, hence no lunch row [@sharing-migration]. The lookup is skipped entirely when they shared nothing, so opening a non-sharing friend's sheet costs no extra query.
 
 ## Consequences
 

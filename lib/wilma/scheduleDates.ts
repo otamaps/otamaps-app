@@ -71,6 +71,12 @@ export function getActiveSchoolDay(baseDate = new Date()): Date {
   return day;
 }
 
+/** ISO weekday for a date: 1 on Monday through 7 on Sunday. */
+export function isoWeekdayOf(date: Date): number {
+  const weekday = date.getDay();
+  return weekday === 0 ? 7 : weekday;
+}
+
 export function getISOWeekNumber(date: Date): number {
   const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const weekday = utcDate.getUTCDay() || 7;
