@@ -168,11 +168,11 @@ export default function DayScheduleSection({
                       isDark={isDark}
                       numberOfLines={2}
                       titleStyle={[
-                        entry.isFreeSlot
+                        entry.isFreeSlot && !isCurrent
                           ? styles.freeSlotTitle
                           : styles.lessonTitle,
                         isDark &&
-                          (entry.isFreeSlot
+                          (entry.isFreeSlot && !isCurrent
                             ? styles.freeSlotTitleDark
                             : styles.textPrimaryDark),
                       ]}

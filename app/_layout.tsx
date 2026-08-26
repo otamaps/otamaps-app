@@ -2,6 +2,7 @@
 // any notification with asForegroundService:true is displayed.
 import "@/lib/bleBackgroundTask";
 import "@/lib/sentry";
+import "@/lib/mapbox";
 
 import RequiredUpdateGate from "@/components/updates/RequiredUpdateGate";
 import { UserProvider } from "@/context/UserContext";

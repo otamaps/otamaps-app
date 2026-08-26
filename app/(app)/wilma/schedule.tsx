@@ -1,4 +1,16 @@
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import {
+  addMinutesClock,
+  buildDaySlots,
+  clockMinutes,
+  DaySlot,
+  freeSlotHeight,
+  LunchMatch,
+  LunchShiftRow,
+  matchLunchShift,
+} from "@/lib/lunchShiftCore";
+import { getAllLunchShifts } from "@/lib/lunchShiftService";
 import { Exam, fetchSchedule, ScheduleData, ScheduleLesson } from "@/lib/wilma/graphqlClient";
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
@@ -6,6 +18,7 @@ import {
   getISOWeekNumber,
   getMondayOfWeek,
   getSchoolWeekDays,
+  isoWeekdayOf,
   parseLocalISO,
   shortDateLabel,
   weekdayLabel,
@@ -82,16 +95,42 @@ function mergeScheduleData(a: ScheduleData, b: ScheduleData): ScheduleData {
 
 // ── Lesson card ───────────────────────────────────────────────────────────────
 
+function LunchChip({
+  lunch,
+  isDark,
+}: {
+  lunch: { start: string; end: string };
+  isDark: boolean;
+}) {
+  return (
+    <View style={[styles.lunchChip, isDark && styles.lunchChipDark]}>
+      <PlatformSymbol
+        ios="fork.knife"
+        android="restaurant"
+        size={11}
+        tintColor={isDark ? "#FBBF24" : "#B45309"}
+      />
+      <Text style={[styles.lunchChipText, isDark && styles.lunchChipTextDark]}>
+        Lounas {lunch.start}–{lunch.end}
+      </Text>
+    </View>
+  );
+}
+
 function LessonCard({
   lesson,
   isDark,
   isFirst,
   isLast,
+  showDivider,
+  lunch,
 }: {
   lesson: ScheduleLesson;
   isDark: boolean;
   isFirst: boolean;
   isLast: boolean;
+  showDivider: boolean;
+  lunch: { start: string; end: string } | null;
 }) {
   const group = lesson.groups[0];
   const { code, title } = lessonLabel(
@@ -111,6 +150,7 @@ function LessonCard({
           isDark && { backgroundColor: "#232427" },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
+          !!lunch && styles.lessonCardWithLunch,
         ]}
       >
         <View style={[styles.timeTag, isDark && { backgroundColor: "#51A2FF1F" }]}>
@@ -137,9 +177,132 @@ function LessonCard({
               {meta}
             </Text>
           )}
+          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
         </View>
       </View>
-      {!isLast && (
+      {showDivider && (
+        <View
+          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Free slot ("Hyppytunti") ─────────────────────────────────────────────────
+
+function FreeSlotCard({
+  start,
+  end,
+  lunch,
+  isDark,
+  isFirst,
+  isLast,
+  showDivider,
+}: {
+  start: string;
+  end: string;
+  lunch: { start: string; end: string } | null;
+  isDark: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  showDivider: boolean;
+}) {
+  // The gap's real end always lands exactly on the next lesson's start, so
+  // trim the label a few minutes early rather than showing the same time on
+  // two consecutive rows.
+  const displayEnd = addMinutesClock(end, -5);
+  const tallHeight = freeSlotHeight(clockMinutes(end) - clockMinutes(start));
+
+  return (
+    <>
+      <View
+        style={[
+          styles.lessonCard,
+          styles.freeSlotCard,
+          isDark && styles.freeSlotCardDark,
+          isFirst && styles.cardTop,
+          isLast && styles.cardBottom,
+          !!lunch && styles.lessonCardWithLunch,
+          !!tallHeight && { minHeight: tallHeight, alignItems: "center" },
+        ]}
+      >
+        <View style={[styles.timeTag, styles.freeSlotTimeTag, isDark && styles.freeSlotTimeTagDark]}>
+          <Text style={[styles.timeTagStart, styles.freeSlotTimeText, isDark && styles.freeSlotTimeTextDark]}>
+            {start}
+          </Text>
+          <Text style={[styles.timeTagEnd, styles.freeSlotTimeText, isDark && styles.freeSlotTimeTextDark]}>
+            {displayEnd}
+          </Text>
+        </View>
+        <View style={styles.lessonInfo}>
+          <Text style={[styles.freeSlotTitle, isDark && styles.freeSlotTitleDark]}>
+            Hyppytunti
+          </Text>
+          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
+        </View>
+      </View>
+      {showDivider && (
+        <View
+          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Standalone lunch (falls outside every lesson and free slot) ────────────
+
+function LunchOnlyCard({
+  start,
+  end,
+  isDark,
+  isFirst,
+  isLast,
+  showDivider,
+}: {
+  start: string;
+  end: string;
+  isDark: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  showDivider: boolean;
+}) {
+  return (
+    <>
+      <View
+        style={[
+          styles.lessonCard,
+          isDark && { backgroundColor: "#232427" },
+          isFirst && styles.cardTop,
+          isLast && styles.cardBottom,
+        ]}
+      >
+        <View style={[styles.timeTag, styles.lunchOnlyTimeTag, isDark && styles.lunchOnlyTimeTagDark]}>
+          <Text
+            style={[
+              styles.timeTagStart,
+              styles.lunchOnlyTimeText,
+              isDark && styles.lunchOnlyTimeTextDark,
+            ]}
+          >
+            {start}
+          </Text>
+          <Text
+            style={[
+              styles.timeTagEnd,
+              styles.lunchOnlyTimeTextSub,
+              isDark && styles.lunchOnlyTimeTextSubDark,
+            ]}
+          >
+            {end}
+          </Text>
+        </View>
+        <View style={styles.lessonInfo}>
+          <Text style={[styles.lessonSubject, isDark && { color: "#fff" }]}>Lounas</Text>
+        </View>
+      </View>
+      {showDivider && (
         <View
           style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
         />
@@ -195,6 +358,15 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lunchRows, setLunchRows] = useState<LunchShiftRow[]>([]);
+
+  // The weekly lunch shift configuration doesn't depend on which week is on
+  // screen, so it's fetched once rather than per week.
+  useEffect(() => {
+    getAllLunchShifts()
+      .then(setLunchRows)
+      .catch(() => setLunchRows([]));
+  }, []);
 
   const scrollRef = useRef<ScrollView>(null);
   const dayOffsets = useRef<Record<string, number>>({});
@@ -204,12 +376,16 @@ export default function ScheduleScreen() {
   // the week out from under them again.
   const autoAdvance = useRef({ settled: false, weeksTried: 0 });
 
-  // Derived values (pure, recalculated each render)
-  const monday = getMondayOfWeek(weekOffset);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  const weekDays = getSchoolWeekDays(monday);
-  const weekNum = getISOWeekNumber(monday);
+  // Derived values, memoized so `daySlotsByDay` below gets a stable
+  // `weekDays` reference to key off instead of recomputing every render.
+  const monday = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
+  const friday = useMemo(() => {
+    const f = new Date(monday);
+    f.setDate(monday.getDate() + 4);
+    return f;
+  }, [monday]);
+  const weekDays = useMemo(() => getSchoolWeekDays(monday), [monday]);
+  const weekNum = useMemo(() => getISOWeekNumber(monday), [monday]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -295,6 +471,35 @@ export default function ScheduleScreen() {
     return byDay;
   }, [data]);
 
+  // Each day's lessons interleaved with its free slots ("Hyppytunti") and
+  // lunch window, matched against that day's own weekday and course codes.
+  const daySlotsByDay = useMemo(() => {
+    const byDay: Record<string, DaySlot<ScheduleLesson>[]> = {};
+    for (const day of weekDays) {
+      const lessons = lessonsByDay[day] ?? [];
+      if (!lessons.length) {
+        byDay[day] = [];
+        continue;
+      }
+      const parsed = parseLocalISO(day);
+      const weekday = parsed ? isoWeekdayOf(parsed) : null;
+      let lunch: LunchMatch | null = null;
+      if (weekday !== null) {
+        const codes = lessons
+          .map(
+            (l) =>
+              lessonLabel(l.groups[0]?.shortCaption, l.groups[0]?.fullCaption, l.class)
+                .code
+          )
+          .filter(Boolean);
+        const rowsForDay = lunchRows.filter((row) => row.weekday === weekday);
+        lunch = matchLunchShift(codes, rowsForDay);
+      }
+      byDay[day] = buildDaySlots(lessons, lunch, (lesson) => String(lesson.reservationId));
+    }
+    return byDay;
+  }, [weekDays, lessonsByDay, lunchRows]);
+
   const scrollToDay = useCallback((day: string) => {
     const y = dayOffsets.current[day];
     // The section may not be measured yet; the next onLayout finishes the job.
@@ -354,10 +559,15 @@ export default function ScheduleScreen() {
   ]);
 
   return (
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
+      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
       edges={["top"]}
     >
+      <View style={[styles.container, isDark && { backgroundColor: "#18191B" }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* ── Header ── */}
@@ -439,7 +649,7 @@ export default function ScheduleScreen() {
           }
         >
           {weekDays.map((day) => {
-            const lessons = lessonsByDay[day] ?? [];
+            const daySlots = daySlotsByDay[day] ?? [];
             const exams = examsByDay[day] ?? [];
             const heading = dayHeading(day);
             const isToday = day === today;
@@ -488,17 +698,55 @@ export default function ScheduleScreen() {
                   <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
                 ))}
 
-                {lessons.length > 0 ? (
+                {daySlots.length > 0 ? (
                   <View>
-                    {lessons.map((lesson, i) => (
-                      <LessonCard
-                        key={`${lesson.reservationId}-${i}`}
-                        lesson={lesson}
-                        isDark={isDark}
-                        isFirst={i === 0}
-                        isLast={i === lessons.length - 1}
-                      />
-                    ))}
+                    {daySlots.map((slot, i) => {
+                      // Free slots and the odd standalone lunch sit in the
+                      // same continuous, rounded card group as the day's
+                      // lessons rather than breaking out into their own box.
+                      const isFirst = i === 0;
+                      const isLast = i === daySlots.length - 1;
+                      const showDivider = !isLast;
+
+                      if (slot.kind === "lesson") {
+                        return (
+                          <LessonCard
+                            key={`lesson-${slot.lesson.reservationId}`}
+                            lesson={slot.lesson}
+                            isDark={isDark}
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            showDivider={showDivider}
+                            lunch={slot.lunch}
+                          />
+                        );
+                      }
+                      if (slot.kind === "freeslot") {
+                        return (
+                          <FreeSlotCard
+                            key={slot.key}
+                            start={slot.start}
+                            end={slot.end}
+                            lunch={slot.lunch}
+                            isDark={isDark}
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            showDivider={showDivider}
+                          />
+                        );
+                      }
+                      return (
+                        <LunchOnlyCard
+                          key={`lunch-${slot.start}`}
+                          start={slot.start}
+                          end={slot.end}
+                          isDark={isDark}
+                          isFirst={isFirst}
+                          isLast={isLast}
+                          showDivider={showDivider}
+                        />
+                      );
+                    })}
                   </View>
                 ) : exams.length === 0 ? (
                   <View style={[styles.emptyDay, isDark && styles.emptyDayDark]}>
@@ -514,6 +762,7 @@ export default function ScheduleScreen() {
           })}
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -521,6 +770,8 @@ export default function ScheduleScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   centered: {
     flex: 1,
@@ -631,10 +882,53 @@ const styles = StyleSheet.create({
   },
   cardTop: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   cardBottom: { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  lessonCardWithLunch: { alignItems: "flex-start", paddingVertical: 15 },
   lessonDivider: {
     height: 1,
     backgroundColor: "#f0f0f0",
   },
+  lunchChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 5,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 6,
+  },
+  lunchChipDark: { backgroundColor: "#78350F55" },
+  lunchChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#B45309" },
+  lunchChipTextDark: { color: "#FBBF24" },
+
+  // Free slot ("Hyppytunti")
+  freeSlotCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#e0e0e0",
+  },
+  freeSlotCardDark: { borderColor: "#4A5058" },
+  freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
+  freeSlotTimeTagDark: { backgroundColor: "#2E3034" },
+  freeSlotTimeText: { color: "#8A929D" },
+  freeSlotTimeTextDark: { color: "#9CA3AF" },
+  freeSlotTitle: {
+    fontFamily: "Figtree-SemiBold",
+    fontStyle: "italic",
+    fontSize: 15,
+    color: "#8A929D",
+  },
+  freeSlotTitleDark: { color: "#9CA3AF" },
+
+  // Standalone lunch (falls outside every lesson and free slot)
+  lunchOnlyTimeTag: { backgroundColor: "#FEF3C7" },
+  lunchOnlyTimeTagDark: { backgroundColor: "#78350F55" },
+  lunchOnlyTimeText: { color: "#B45309" },
+  lunchOnlyTimeTextDark: { color: "#FBBF24" },
+  lunchOnlyTimeTextSub: { color: "#B4530980" },
+  lunchOnlyTimeTextSubDark: { color: "#FBBF2480" },
   timeTag: {
     backgroundColor: "#EEF4FF",
     borderRadius: 8,

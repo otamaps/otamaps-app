@@ -867,8 +867,6 @@ function Dashboard({
                           styles.freeSlotRow,
                           isDark && styles.freeSlotRowDark,
                           !!row.lunch && styles.lessonRowWithLunch,
-                          isCurrent && styles.rowCurrent,
-                          isCurrent && isDark && styles.rowCurrentDark,
                           isPast && styles.rowPast,
                           spaceAboveFreeSlot && styles.freeSlotSpaceAbove,
                           !!tallHeight && {
@@ -908,10 +906,11 @@ function Dashboard({
                             title="Hyppytunti"
                             isDark={isDark}
                             numberOfLines={1}
-                            titleStyle={[
-                              styles.freeSlotTitle,
-                              isDark && styles.freeSlotTitleDark,
-                            ]}
+                            titleStyle={
+                              isCurrent
+                                ? [styles.lessonSubject, isDark && { color: "#fff" }]
+                                : [styles.freeSlotTitle, isDark && styles.freeSlotTitleDark]
+                            }
                           />
                           {!!row.lunch && (
                             <View

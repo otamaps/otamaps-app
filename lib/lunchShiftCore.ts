@@ -306,3 +306,89 @@ export function lunchSplit(
     after: lunchEnd < end ? { start: lunchEnd, end } : null,
   };
 }
+
+export type LunchWindow = { start: string; end: string };
+
+export type DaySlot<L> =
+  | { kind: "lesson"; lesson: L; start: string; end: string; lunch: LunchWindow | null }
+  | { kind: "freeslot"; key: string; start: string; end: string; lunch: LunchWindow | null }
+  | { kind: "lunch"; start: string; end: string };
+
+/**
+ * One school day's lessons, interleaved with its free slots ("Hyppytunti")
+ * and lunch window, in chronological order:
+ *  - A free slot only appears in a real gap between two lessons (5–20 minute
+ *    passing periods are excluded — see `findFreeSlots`).
+ *  - Lunch nests inside whichever lesson or free slot it overlaps, sitting on
+ *    its own row only when it falls outside every lesson and free slot.
+ *  - A lunch straddling the boundary between two adjacent slots is kept only
+ *    on the later of the two, so it's never shown twice.
+ *
+ * `lessons` need not be pre-sorted. `getKey` derives a stable id per lesson,
+ * used to key the free slot that follows it.
+ */
+export function buildDaySlots<L extends { start: string; end: string }>(
+  lessons: L[],
+  lunch: LunchMatch | null,
+  getKey: (lesson: L) => string
+): DaySlot<L>[] {
+  const sortedLessons = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
+  const freeSlots = findFreeSlots(sortedLessons);
+
+  type Slot =
+    | { kind: "lesson"; lesson: L; start: string; end: string }
+    | { kind: "freeslot"; key: string; start: string; end: string };
+
+  const slots: Slot[] = [];
+  sortedLessons.forEach((lesson) => {
+    slots.push({
+      kind: "lesson",
+      lesson,
+      start: clockValue(lesson.start),
+      end: clockValue(lesson.end),
+    });
+    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
+    if (gap) {
+      slots.push({ kind: "freeslot", key: `gap:${getKey(lesson)}`, ...gap });
+    }
+  });
+
+  const nestedLunchFor = (start: string, end: string): LunchWindow | null => {
+    const split = lunch ? lunchSplit(start, end, lunch) : null;
+    return split && lunch
+      ? { start: clockValue(lunch.startTime), end: clockValue(lunch.endTime) }
+      : null;
+  };
+
+  // A lunch spanning the short boundary between two adjacent slots (a lesson
+  // ending right where the next one starts, or a lesson and its free slot)
+  // would otherwise get nested — and shown — in both. Keep it only on the
+  // last slot of each run that overlaps it.
+  const rawLunch = slots.map((slot) => nestedLunchFor(slot.start, slot.end));
+  const dedupedLunch = rawLunch.map((entry, i) => (rawLunch[i + 1] ? null : entry));
+
+  const rows: DaySlot<L>[] = slots.map((slot, i) =>
+    slot.kind === "lesson"
+      ? { kind: "lesson", lesson: slot.lesson, start: slot.start, end: slot.end, lunch: dedupedLunch[i] }
+      : { kind: "freeslot", key: slot.key, start: slot.start, end: slot.end, lunch: dedupedLunch[i] }
+  );
+
+  // A lunch that falls outside every lesson and every free slot still
+  // belongs on the day.
+  if (lunch && !dedupedLunch.some(Boolean)) {
+    rows.push({
+      kind: "lunch",
+      start: clockValue(lunch.startTime),
+      end: clockValue(lunch.endTime),
+    });
+  }
+
+  const sortedRows = rows.sort((a, b) => a.start.localeCompare(b.start));
+
+  // A free slot only makes sense right after a lesson that just ended —
+  // drop one that would otherwise open the list.
+  return sortedRows.filter((row, i) => {
+    if (row.kind !== "freeslot") return true;
+    return i > 0 && sortedRows[i - 1].kind === "lesson";
+  });
+}

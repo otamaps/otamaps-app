@@ -10,6 +10,18 @@ export type LunchShiftImportMeta = {
   slotCount: number;
 };
 
+function mapLunchShiftRows(
+  data: { weekday: unknown; start_time: unknown; end_time: unknown; shift: unknown; course_codes: unknown }[] | null
+): LunchShiftRow[] {
+  return (data ?? []).map((row) => ({
+    weekday: Number(row.weekday),
+    startTime: String(row.start_time).slice(0, 5),
+    endTime: String(row.end_time).slice(0, 5),
+    shift: row.shift == null ? null : (Number(row.shift) as 1 | 2),
+    courseCodes: (row.course_codes ?? []) as string[],
+  }));
+}
+
 export async function getLunchShiftsForWeekday(
   weekday: number
 ): Promise<LunchShiftRow[]> {
@@ -18,13 +30,16 @@ export async function getLunchShiftsForWeekday(
     .select("weekday, start_time, end_time, shift, course_codes")
     .eq("weekday", weekday);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    weekday: Number(row.weekday),
-    startTime: String(row.start_time).slice(0, 5),
-    endTime: String(row.end_time).slice(0, 5),
-    shift: row.shift == null ? null : (Number(row.shift) as 1 | 2),
-    courseCodes: (row.course_codes ?? []) as string[],
-  }));
+  return mapLunchShiftRows(data);
+}
+
+/** Every configured lunch shift row, for screens that need more than one weekday at once. */
+export async function getAllLunchShifts(): Promise<LunchShiftRow[]> {
+  const { data, error } = await supabase
+    .from("lunch_shifts")
+    .select("weekday, start_time, end_time, shift, course_codes");
+  if (error) throw error;
+  return mapLunchShiftRows(data);
 }
 
 export async function getLunchShiftImportMeta(): Promise<LunchShiftImportMeta | null> {
