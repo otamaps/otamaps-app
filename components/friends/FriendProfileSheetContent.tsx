@@ -5,7 +5,9 @@ import DayScheduleSection, {
 import { friendLocationSentence } from "@/lib/friendPresentation";
 import type { Friend } from "@/lib/friendsHandler";
 import {
+  addMinutesClock,
   clockValue,
+  findFreeSlots,
   lunchSplit,
   matchLunchShift,
   type LunchMatch,
@@ -18,6 +20,8 @@ import {
 import {
   formatLocalISO,
   getActiveSchoolDay,
+  getMondayOfWeek,
+  getNextSchoolDay,
   isoWeekdayOf,
   parseLocalISO,
   schoolDayLabel,
@@ -49,56 +53,96 @@ function dayLabel(date: string): string {
   return parsed ? schoolDayLabel(parsed) : date;
 }
 
+function nestedLunchFor(
+  start: string,
+  end: string,
+  lunch: LunchMatch | null
+): { start: string; end: string } | undefined {
+  const split = lunch ? lunchSplit(start, end, lunch) : null;
+  return split && lunch
+    ? { start: clockValue(lunch.startTime), end: clockValue(lunch.endTime) }
+    : undefined;
+}
+
+type ScheduleSlot =
+  | { kind: "lesson"; lesson: SharedScheduleLesson; start: string; end: string }
+  | { kind: "freeslot"; afterLessonId: string; start: string; end: string };
+
 function scheduleEntries(
   lessons: SharedScheduleLesson[],
   lunch: LunchMatch | null
 ): DayScheduleEntry[] {
-  const entries: DayScheduleEntry[] = [];
-  const lunchEntry: DayScheduleEntry | null = lunch
-    ? {
-        id: "lunch",
-        start: clockValue(lunch.startTime),
-        end: clockValue(lunch.endTime),
-        title: "Lounas",
-      }
-    : null;
-  let lunchPlaced = false;
+  const sortedLessons = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
+  const freeSlots = findFreeSlots(sortedLessons);
 
-  for (const lesson of lessons) {
-    const label = {
-      title: lesson.subject,
-      code: lesson.code || undefined,
-      subtitle: lesson.room || undefined,
-    };
-    // Lunch sits inside the long midday block, so that lesson renders as the
-    // part before lunch and the part after it rather than as one row the lunch
-    // appears to follow.
-    const split = lunch ? lunchSplit(lesson.start, lesson.end, lunch) : null;
-    if (!split) {
-      entries.push({
-        id: lesson.id,
-        start: clockValue(lesson.start),
-        end: clockValue(lesson.end),
-        ...label,
-      });
-      continue;
+  // Lessons and their qualifying gaps, in one chronological list — short
+  // passing-period breaks are filtered out by findFreeSlots already.
+  const slots: ScheduleSlot[] = [];
+  sortedLessons.forEach((lesson) => {
+    slots.push({
+      kind: "lesson",
+      lesson,
+      start: clockValue(lesson.start),
+      end: clockValue(lesson.end),
+    });
+    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
+    if (gap) {
+      slots.push({ kind: "freeslot", afterLessonId: lesson.id, ...gap });
     }
-    if (split.before) {
-      entries.push({ id: `${lesson.id}:before`, ...split.before, ...label });
-    }
-    if (lunchEntry && !lunchPlaced) {
-      entries.push(lunchEntry);
-      lunchPlaced = true;
-    }
-    if (split.after) {
-      entries.push({ id: `${lesson.id}:after`, ...split.after, ...label });
-    }
+  });
+
+  // A lunch spanning the short boundary between two adjacent slots (a lesson
+  // ending right where the next one starts, or a lesson and its free slot)
+  // would otherwise get nested — and shown — in both. Keep it only on the
+  // last slot of each run that overlaps it.
+  const rawLunch = slots.map((slot) => nestedLunchFor(slot.start, slot.end, lunch));
+  const dedupedLunch = rawLunch.map((entry, i) => (rawLunch[i + 1] ? undefined : entry));
+
+  // Lunch sits inside the long midday block, so rather than splitting the
+  // lesson into a "before"/"after" pair of entries, the lesson stays a
+  // single entry that renders taller and shows the lunch window nested
+  // inside it.
+  const entries: DayScheduleEntry[] = slots.map((slot, i) =>
+    slot.kind === "lesson"
+      ? {
+          id: slot.lesson.id,
+          start: slot.start,
+          end: slot.end,
+          title: slot.lesson.subject,
+          code: slot.lesson.code || undefined,
+          subtitle: slot.lesson.room || undefined,
+          lunch: dedupedLunch[i],
+        }
+      : {
+          id: `gap:${slot.afterLessonId}`,
+          start: slot.start,
+          end: slot.end,
+          title: "Hyppytunti",
+          isFreeSlot: true,
+          lunch: dedupedLunch[i],
+        }
+  );
+
+  // A lunch that falls outside every shared lesson and every free slot
+  // still belongs on the day.
+  if (lunch && !dedupedLunch.some(Boolean)) {
+    entries.push({
+      id: "lunch",
+      start: clockValue(lunch.startTime),
+      end: clockValue(lunch.endTime),
+      title: "Lounas",
+    });
   }
 
-  // A lunch that falls outside every shared lesson still belongs on the day.
-  if (lunchEntry && !lunchPlaced) entries.push(lunchEntry);
+  const sortedEntries = entries.sort((a, b) => a.start.localeCompare(b.start));
 
-  return entries.sort((a, b) => a.start.localeCompare(b.start));
+  // A free slot only makes sense right after a lesson that just ended —
+  // drop one that would otherwise open the list.
+  return sortedEntries.filter((entry, i) => {
+    if (!entry.isFreeSlot) return true;
+    const prev = sortedEntries[i - 1];
+    return !!prev && !prev.isFreeSlot && prev.id !== "lunch";
+  });
 }
 
 export default function FriendProfileSheetContent({
@@ -114,6 +158,7 @@ export default function FriendProfileSheetContent({
   const [scheduleDay, setScheduleDay] = useState(() =>
     formatLocalISO(getActiveSchoolDay())
   );
+  const [scheduleIsToday, setScheduleIsToday] = useState(true);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState(false);
   const [actionPending, setActionPending] = useState(false);
@@ -126,14 +171,54 @@ export default function FriendProfileSheetContent({
     // a weekend, still asks for the school day it is about to render.
     const activeDay = getActiveSchoolDay();
     const activeDayISO = formatLocalISO(activeDay);
-    setScheduleDay(activeDayISO);
     setScheduleLoading(true);
     setScheduleError(false);
     try {
       const schedule = await fetchFriendSharedSchedule(friend.id, activeDay);
-      const dayLessons = (schedule?.lessons ?? []).filter(
+      const todaysLessons = (schedule?.lessons ?? []).filter(
         (lesson) => lesson.date === activeDayISO
       );
+
+      // Once the friend's day is over (30 min past their last shared
+      // lesson's end), show their next school day instead of an empty card.
+      const lastLessonEnd = todaysLessons.reduce(
+        (latest, lesson) =>
+          clockValue(lesson.end) > latest ? clockValue(lesson.end) : latest,
+        ""
+      );
+      const nowClockValue = clockValue(new Date().toTimeString());
+      const showNextDay =
+        !!lastLessonEnd && nowClockValue >= addMinutesClock(lastLessonEnd, 30);
+
+      let targetDay = activeDay;
+      let targetDayISO = activeDayISO;
+      let dayLessons = todaysLessons;
+
+      if (showNextDay) {
+        targetDay = getNextSchoolDay(activeDay);
+        targetDayISO = formatLocalISO(targetDay);
+
+        const sameWeek =
+          formatLocalISO(getMondayOfWeek(0, targetDay)) ===
+          formatLocalISO(getMondayOfWeek(0, activeDay));
+
+        if (sameWeek) {
+          dayLessons = (schedule?.lessons ?? []).filter(
+            (lesson) => lesson.date === targetDayISO
+          );
+        } else {
+          const nextWeekSchedule = await fetchFriendSharedSchedule(
+            friend.id,
+            targetDay
+          );
+          dayLessons = (nextWeekSchedule?.lessons ?? []).filter(
+            (lesson) => lesson.date === targetDayISO
+          );
+        }
+      }
+
+      setScheduleDay(targetDayISO);
+      setScheduleIsToday(!showNextDay);
       setLessons(dayLessons);
 
       // Their lunch window comes from the same course-code lookup the own
@@ -146,7 +231,7 @@ export default function FriendProfileSheetContent({
         setLunch(null);
       } else {
         try {
-          const rows = await getLunchShiftsForWeekday(isoWeekdayOf(activeDay));
+          const rows = await getLunchShiftsForWeekday(isoWeekdayOf(targetDay));
           setLunch(matchLunchShift(codes, rows));
         } catch (error) {
           console.warn("Friend lunch shift could not be resolved", error);
@@ -297,6 +382,7 @@ export default function FriendProfileSheetContent({
         dayLabel={dayLabel(scheduleDay)}
         entries={scheduleEntryList}
         loading={scheduleLoading}
+        isToday={scheduleIsToday}
         errorText={
           scheduleError
             ? "Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen."
@@ -418,7 +504,7 @@ const styles = StyleSheet.create({
   locationTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 16 },
   locationUpdated: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: "#DEE3E9", marginVertical: 22 },
-  dividerDark: { backgroundColor: "#3A4048" },
+  dividerDark: { backgroundColor: "#3A3D42" },
   actions: { gap: 4 },
   actionButton: { minHeight: 46, justifyContent: "center", borderRadius: 12, paddingHorizontal: 12 },
   actionText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
@@ -427,15 +513,15 @@ const styles = StyleSheet.create({
   emptyText: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 15 },
   textPrimaryDark: { color: "#F5F7FA" },
   textMutedDark: { color: "#ABB3BE" },
-  surfaceDark: { backgroundColor: "#292D33" },
-  borderDark: { borderColor: "#3C424A" },
+  surfaceDark: { backgroundColor: "#232427" },
+  borderDark: { borderColor: "#3A3D42" },
   reportBackdrop: { flex: 1, backgroundColor: "#00000080", justifyContent: "center", padding: 24 },
   reportDialog: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 20 },
-  dialogDark: { backgroundColor: "#23262B" },
+  dialogDark: { backgroundColor: "#202226" },
   reportTitle: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 20 },
   reportDescription: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 6 },
   reportInput: { minHeight: 110, marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: "#D9DEE5", padding: 12, color: "#18202A", fontFamily: "Figtree-Regular", fontSize: 15, textAlignVertical: "top" },
-  reportInputDark: { backgroundColor: "#2B2F35", borderColor: "#444A53" },
+  reportInputDark: { backgroundColor: "#2B2F35", borderColor: "#3A3D42" },
   reportActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 16 },
   dialogButton: { minWidth: 84, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   cancelText: { color: "#3E4854", fontFamily: "Figtree-SemiBold", fontSize: 15 },

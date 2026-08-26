@@ -71,6 +71,17 @@ export function getActiveSchoolDay(baseDate = new Date()): Date {
   return day;
 }
 
+/** The next school day after `baseDate`, skipping straight over a weekend. */
+export function getNextSchoolDay(baseDate = new Date()): Date {
+  const next = new Date(baseDate);
+  next.setDate(next.getDate() + 1);
+  next.setHours(0, 0, 0, 0);
+  const weekday = next.getDay();
+  if (weekday === 0) next.setDate(next.getDate() + 1); // Sunday -> Monday
+  else if (weekday === 6) next.setDate(next.getDate() + 2); // Saturday -> Monday
+  return next;
+}
+
 /** ISO weekday for a date: 1 on Monday through 7 on Sunday. */
 export function isoWeekdayOf(date: Date): number {
   const weekday = date.getDay();

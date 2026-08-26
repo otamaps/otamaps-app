@@ -156,7 +156,7 @@ export default function WilmaGradesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f7fb" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
   tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   summaryLabel: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085" },
   summaryValue: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#202939" },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 10 },
-  cardDark: { backgroundColor: "#292929" },
+  cardDark: { backgroundColor: "#232427" },
   subjectHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   subjectName: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#202939" },
   grade: { minWidth: 40, textAlign: "center", fontFamily: "Figtree-Bold", fontSize: 22, color: "#4A89EE" },

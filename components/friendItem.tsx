@@ -75,7 +75,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
       style={({ pressed }) => [
         styles.container,
         pressed && styles.pressed,
-        isDark && pressed && { backgroundColor: "#2b7fff10" },
+        isDark && pressed && { backgroundColor: "#51A2FF14" },
       ]}
       onPress={onPress}
     >

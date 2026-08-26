@@ -268,7 +268,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
 
     const equipment = useMemo(() => formatEquipment(room?.equipment ?? null), [room?.equipment]);
     const background = isDark ? "#16181C" : "#F7F8FA";
-    const card = isDark ? "#23262C" : "#FFFFFF";
+    const card = isDark ? "#202226" : "#FFFFFF";
     const primaryText = isDark ? "#F5F7FA" : "#14171C";
     const secondaryText = isDark ? "#AEB4BE" : "#657080";
     const accent = "#397BE8";

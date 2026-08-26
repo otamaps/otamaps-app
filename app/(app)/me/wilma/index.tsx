@@ -72,8 +72,8 @@ export default function WilmaSettings() {
     }
   };
 
-  const background = isDark ? "#1E1E1E" : "#F5F7FA";
-  const surface = isDark ? "#292929" : "#FFFFFF";
+  const background = isDark ? "#18191B" : "#F5F7FA";
+  const surface = isDark ? "#232427" : "#FFFFFF";
   const textColor = isDark ? "#FFFFFF" : "#101828";
   const mutedColor = isDark ? "#B3B3B3" : "#667085";
 
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 14,
   },
-  inputDark: { backgroundColor: "#292929", borderColor: "#444", color: "#FFFFFF" },
+  inputDark: { backgroundColor: "#232427", borderColor: "#444", color: "#FFFFFF" },
   button: {
     alignItems: "center",
     backgroundColor: "#3478F5",

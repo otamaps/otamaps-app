@@ -178,9 +178,9 @@ export default function TeachersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
-  headerDark: { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 8, margin: 12, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e5e5" },
   searchBoxDark: { backgroundColor: "#2b2b2b", borderColor: "#444" },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   retryButton: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, backgroundColor: "#eef4ff" },
   retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#eee" },
-  rowDark: { backgroundColor: "#252525", borderBottomColor: "#3a3a3a" },
+  rowDark: { backgroundColor: "#232427", borderBottomColor: "#3a3a3a" },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#eef4ff" },
   avatarDark: { backgroundColor: "#25334a" },
   rowText: { flex: 1 },

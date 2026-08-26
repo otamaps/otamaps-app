@@ -88,9 +88,9 @@ export default function ReplyMessageScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
-  headerDark: { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   headerText: { flex: 1 },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   subtitle: { marginTop: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#888" },

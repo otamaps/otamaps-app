@@ -250,8 +250,8 @@ const GlobalSearch = forwardRef(function GlobalSearch(
         style={[
           styles.resultItem,
           isDark && {
-            backgroundColor: "#1e1e1e",
-            borderBottomColor: "#303030",
+            backgroundColor: "#18191B",
+            borderBottomColor: "#232427",
           },
         ]}
         onPress={() => handleResultPress(item)}
@@ -339,7 +339,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
             {
               marginRight: searchMarginRight,
             },
-            isDark && { backgroundColor: "#1e1e1e" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
         >
           <MaterialCommunityIcons
@@ -367,7 +367,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
         <View
           style={[
             styles.centerContainer,
-            isDark && { backgroundColor: "#1e1e1e" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
         >
           <Pressable style={styles.button}>
@@ -503,7 +503,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
           <Animated.View
             style={[
               styles.resultsContainer,
-              isDark && { backgroundColor: "#1e1e1e", borderColor: "#303030" },
+              isDark && { backgroundColor: "#18191B", borderColor: "#232427" },
               {
                 maxHeight: 300,
                 opacity: searchResultsHeight.interpolate({

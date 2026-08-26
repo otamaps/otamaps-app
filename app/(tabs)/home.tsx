@@ -1,17 +1,19 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import {
+  addMinutesClock,
+  clockMinutes,
   clockValue,
+  findFreeSlots,
+  freeSlotHeight,
   LunchMatch,
   lunchSplit,
   matchLunchShift,
 } from "@/lib/lunchShiftCore";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
-import { reportHandledError } from "@/lib/sentry";
 import { isTransientNetworkError } from "@/lib/networkErrors";
+import { reportHandledError } from "@/lib/sentry";
 import { syncSharedWeeklySchedule } from "@/lib/sharedSchedule";
-import { lessonLabel } from "@/lib/wilma/lessonLabels";
-import { isoWeekdayOf } from "@/lib/wilma/scheduleDates";
 import {
   AttendanceEntry,
   clearSession,
@@ -29,6 +31,13 @@ import {
   WilmaMessage,
   WilmaStudentProfile,
 } from "@/lib/wilma/graphqlClient";
+import { lessonLabel } from "@/lib/wilma/lessonLabels";
+import {
+  formatLocalISO,
+  getNextSchoolDay,
+  isoWeekdayOf,
+  weekdayLabel,
+} from "@/lib/wilma/scheduleDates";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -67,66 +76,111 @@ function formatTime(t: string) {
 }
 
 type TodayRow = { key: string; start: string; end: string } & (
-  | { kind: "lesson"; lesson: ScheduleLesson }
+  | {
+      kind: "lesson";
+      lesson: ScheduleLesson;
+      lunch: { start: string; end: string } | null;
+    }
+  | { kind: "freeslot"; lunch: { start: string; end: string } | null }
   | { kind: "lunch" }
 );
 
+function nestedLunchFor(
+  start: string,
+  end: string,
+  lunch: LunchMatch | null,
+): { start: string; end: string } | null {
+  const split = lunch ? lunchSplit(start, end, lunch) : null;
+  return split && lunch
+    ? { start: clockValue(lunch.startTime), end: clockValue(lunch.endTime) }
+    : null;
+}
+
+type TodaySlot =
+  | { kind: "lesson"; lesson: ScheduleLesson; start: string; end: string }
+  | { kind: "freeslot"; afterLessonId: number; start: string; end: string };
+
 function todayRows(
   lessons: ScheduleLesson[],
-  lunch: LunchMatch | null
+  lunch: LunchMatch | null,
 ): TodayRow[] {
-  const rows: TodayRow[] = [];
-  const lunchRow: TodayRow | null = lunch
-    ? {
-        kind: "lunch",
-        key: "lunch",
-        start: clockValue(lunch.startTime),
-        end: clockValue(lunch.endTime),
-      }
-    : null;
-  let lunchPlaced = false;
+  const sortedLessons = [...lessons].sort((a, b) =>
+    a.start.localeCompare(b.start),
+  );
+  const freeSlots = findFreeSlots(sortedLessons);
 
-  for (const lesson of lessons) {
-    // Lunch sits inside the long midday block, so that lesson renders as the
-    // part before lunch and the part after it rather than as one row the lunch
-    // appears to follow.
-    const split = lunch ? lunchSplit(lesson.start, lesson.end, lunch) : null;
-    if (!split) {
-      rows.push({
-        kind: "lesson",
-        lesson,
-        key: String(lesson.reservationId),
-        start: clockValue(lesson.start),
-        end: clockValue(lesson.end),
-      });
-      continue;
-    }
-    if (split.before) {
-      rows.push({
-        kind: "lesson",
-        lesson,
-        key: `${lesson.reservationId}:before`,
-        ...split.before,
+  // Lessons and their qualifying gaps, in one chronological list — short
+  // passing-period breaks are filtered out by findFreeSlots already.
+  const slots: TodaySlot[] = [];
+  sortedLessons.forEach((lesson) => {
+    slots.push({
+      kind: "lesson",
+      lesson,
+      start: clockValue(lesson.start),
+      end: clockValue(lesson.end),
+    });
+    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
+    if (gap) {
+      slots.push({
+        kind: "freeslot",
+        afterLessonId: lesson.reservationId,
+        ...gap,
       });
     }
-    if (lunchRow && !lunchPlaced) {
-      rows.push(lunchRow);
-      lunchPlaced = true;
-    }
-    if (split.after) {
-      rows.push({
-        kind: "lesson",
-        lesson,
-        key: `${lesson.reservationId}:after`,
-        ...split.after,
-      });
-    }
+  });
+
+  // A lunch spanning the short boundary between two adjacent slots (a lesson
+  // ending right where the next one starts, or a lesson and its free slot)
+  // would otherwise get nested — and shown — in both. Keep it only on the
+  // last slot of each run that overlaps it.
+  const rawLunch = slots.map((slot) =>
+    nestedLunchFor(slot.start, slot.end, lunch),
+  );
+  const dedupedLunch = rawLunch.map((entry, i) =>
+    rawLunch[i + 1] ? null : entry,
+  );
+
+  // Lunch sits inside the long midday block, so rather than splitting the
+  // lesson into a "before"/"after" pair of rows, the lesson stays a single
+  // row that renders taller and shows the lunch window nested inside it.
+  const rows: TodayRow[] = slots.map((slot, i) =>
+    slot.kind === "lesson"
+      ? {
+          kind: "lesson",
+          lesson: slot.lesson,
+          key: String(slot.lesson.reservationId),
+          start: slot.start,
+          end: slot.end,
+          lunch: dedupedLunch[i],
+        }
+      : {
+          kind: "freeslot",
+          key: `gap:${slot.afterLessonId}`,
+          start: slot.start,
+          end: slot.end,
+          lunch: dedupedLunch[i],
+        },
+  );
+
+  // A lunch that falls outside every lesson and every free slot still
+  // belongs on the day.
+  if (lunch && !dedupedLunch.some(Boolean)) {
+    rows.push({
+      kind: "lunch",
+      key: "lunch",
+      start: clockValue(lunch.startTime),
+      end: clockValue(lunch.endTime),
+    });
   }
 
-  // A lunch that falls outside every lesson still belongs on the day.
-  if (lunchRow && !lunchPlaced) rows.push(lunchRow);
+  const sortedRows = rows.sort((a, b) => a.start.localeCompare(b.start));
 
-  return rows.sort((a, b) => a.start.localeCompare(b.start));
+  // A free slot only makes sense right after a lesson that just ended —
+  // drop one that would otherwise open the list.
+  return sortedRows.filter((row, i) => {
+    if (row.kind !== "freeslot") return true;
+    return i > 0 && sortedRows[i - 1].kind === "lesson";
+  });
 }
 
 // Dates from the API arrive either as ISO "YYYY-MM-DD" (dateArray) or
@@ -176,9 +230,11 @@ function SectionCard({
   isDark: boolean;
 }) {
   return (
-    <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
+    <View style={[styles.card, isDark && { backgroundColor: "#232427" }]}>
       <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, isDark && { color: "#fff" }]}>{title}</Text>
+        <Text style={[styles.cardTitle, isDark && { color: "#fff" }]}>
+          {title}
+        </Text>
         {badge !== undefined && badge > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge}</Text>
@@ -247,7 +303,9 @@ function LoginView({
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Kirjautuminen epäonnistui";
       if (isNetworkError(msg)) {
-        setError("Ei yhteyttä palvelimeen. Tarkista, että GraphQL-palvelin on käynnissä.");
+        setError(
+          "Ei yhteyttä palvelimeen. Tarkista, että GraphQL-palvelin on käynnissä.",
+        );
       } else if (msg.includes("UNAUTHORIZED") || msg.includes("Unauthorized")) {
         setError("Väärä käyttäjätunnus tai salasana.");
       } else {
@@ -261,12 +319,12 @@ function LoginView({
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
     >
       <ScrollView
         contentContainerStyle={[
           styles.loginContent,
-          isDark && { backgroundColor: "#1e1e1e" },
+          isDark && { backgroundColor: "#18191B" },
         ]}
         keyboardShouldPersistTaps="handled"
       >
@@ -286,7 +344,7 @@ function LoginView({
           </Text>
         </View>
 
-        <View style={[styles.card, isDark && { backgroundColor: "#303030" }]}>
+        <View style={[styles.card, isDark && { backgroundColor: "#232427" }]}>
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, isDark && { color: "#d4d4d4" }]}>
               Käyttäjätunnus
@@ -350,7 +408,9 @@ function LoginView({
             disabled={loading}
           >
             {loading ? (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 <ActivityIndicator color="#fff" size="small" />
                 <Text style={styles.loginBtnText}>Kirjaudutaan...</Text>
               </View>
@@ -361,7 +421,7 @@ function LoginView({
         </View>
 
         <View
-          style={[styles.noteRow, isDark && { backgroundColor: "#252525" }]}
+          style={[styles.noteRow, isDark && { backgroundColor: "#232427" }]}
         >
           <PlatformSymbol
             ios="info.circle"
@@ -388,6 +448,8 @@ type DashboardData = {
   messages: WilmaMessage[];
   attendance: AttendanceEntry[];
   lunch: LunchMatch | null;
+  /** Set once the day's lessons are done and the "Tänään" card shows the next school day instead. */
+  scheduleDayLabel: string | null;
 };
 
 function Dashboard({
@@ -401,6 +463,19 @@ function Dashboard({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Drives which lesson row is highlighted as "current" and which are dimmed
+  // as past; refreshed periodically rather than left stale for the whole day.
+  const [nowClock, setNowClock] = useState(() =>
+    formatTime(new Date().toTimeString()),
+  );
+  useEffect(() => {
+    const id = setInterval(
+      () => setNowClock(formatTime(new Date().toTimeString())),
+      30000,
+    );
+    return () => clearInterval(id);
+  }, []);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -422,16 +497,76 @@ function Dashboard({
           .filter((l) => l.day === weekday && l.dateArray.includes(today))
           .sort((a, b) => a.start.localeCompare(b.start));
 
+        // Once the school day is over (30 min past the last lesson's end),
+        // the "Tänään" card switches to showing the next school day instead
+        // of sitting empty for the rest of the evening.
+        const lastLessonEnd = todaysLessons.reduce(
+          (latest, l) =>
+            clockValue(l.end) > latest ? clockValue(l.end) : latest,
+          "",
+        );
+        const nowClockValue = formatTime(new Date().toTimeString());
+        const showNextDay =
+          !!lastLessonEnd &&
+          nowClockValue >= addMinutesClock(lastLessonEnd, 30);
+
+        let scheduleLessons = todaysLessons;
+        let scheduleWeekday = weekday;
+        let scheduleDayLabel: string | null = null;
+
+        if (showNextDay) {
+          const nextDay = getNextSchoolDay(new Date());
+          const nextDayISO = formatLocalISO(nextDay);
+          scheduleWeekday = isoWeekdayOf(nextDay);
+          scheduleDayLabel = weekdayLabel(nextDay);
+
+          let nextDayLessons = scheduleData.schedule
+            .filter(
+              (l) =>
+                l.day === scheduleWeekday && l.dateArray.includes(nextDayISO),
+            )
+            .sort((a, b) => a.start.localeCompare(b.start));
+
+          // The "current" schedule fetch may not cover a next school day that
+          // falls in a different month (e.g. the last school day of a month).
+          if (
+            !nextDayLessons.length &&
+            nextDay.getMonth() !== new Date().getMonth()
+          ) {
+            try {
+              const monthData = await fetchSchedule(
+                `1.${nextDay.getMonth() + 1}.${nextDay.getFullYear()}`,
+                { forceRefresh: isRefresh },
+              );
+              nextDayLessons = monthData.schedule
+                .filter(
+                  (l) =>
+                    l.day === scheduleWeekday &&
+                    l.dateArray.includes(nextDayISO),
+                )
+                .sort((a, b) => a.start.localeCompare(b.start));
+            } catch (error) {
+              reportHandledError(error, {
+                area: "schedule",
+                operation: "fetch_next_school_day",
+                level: "warning",
+              });
+            }
+          }
+
+          scheduleLessons = nextDayLessons;
+        }
+
         const upcomingExams = scheduleData.exams
           .filter((e) => finnishToISO(e.date) >= today)
           .sort((a, b) =>
-            finnishToISO(a.date).localeCompare(finnishToISO(b.date))
+            finnishToISO(a.date).localeCompare(finnishToISO(b.date)),
           )
           .slice(0, 3);
 
         const sortedAtt = [...att]
           .sort((a, b) =>
-            finnishToISO(b.date).localeCompare(finnishToISO(a.date))
+            finnishToISO(b.date).localeCompare(finnishToISO(a.date)),
           )
           .slice(0, 8);
 
@@ -447,15 +582,18 @@ function Dashboard({
 
         let lunch: LunchMatch | null = null;
         try {
-          const lunchRows = await getLunchShiftsForWeekday(weekday);
-          const todaysCourseCodes = todaysLessons
+          const lunchRows = await getLunchShiftsForWeekday(scheduleWeekday);
+          const scheduleCourseCodes = scheduleLessons
             .map(
               (l) =>
-                lessonLabel(l.groups[0]?.shortCaption, l.groups[0]?.fullCaption, l.class)
-                  .code
+                lessonLabel(
+                  l.groups[0]?.shortCaption,
+                  l.groups[0]?.fullCaption,
+                  l.class,
+                ).code,
             )
             .filter(Boolean);
-          lunch = matchLunchShift(todaysCourseCodes, lunchRows);
+          lunch = matchLunchShift(scheduleCourseCodes, lunchRows);
         } catch (error) {
           reportHandledError(error, {
             area: "lunch_shift",
@@ -466,11 +604,12 @@ function Dashboard({
 
         setData({
           profile,
-          lessons: todaysLessons,
+          lessons: scheduleLessons,
           exams: upcomingExams,
           messages: msgs.slice(0, 5),
           attendance: sortedAtt,
           lunch,
+          scheduleDayLabel,
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Lataus epäonnistui";
@@ -487,13 +626,13 @@ function Dashboard({
         setRefreshing(false);
       }
     },
-    [onLogout]
+    [onLogout],
   );
 
   useFocusEffect(
     useCallback(() => {
       void load();
-    }, [load])
+    }, [load]),
   );
 
   const onRefresh = useCallback(() => {
@@ -506,10 +645,13 @@ function Dashboard({
     return (
       <SafeAreaView
         edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       >
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <ActivityIndicator
+            size="large"
+            color={isDark ? "#51a2ff" : "#4A89EE"}
+          />
           <Text style={[styles.loadingLabel, isDark && { color: "#888" }]}>
             Ladataan tietoja...
           </Text>
@@ -524,7 +666,7 @@ function Dashboard({
     return (
       <SafeAreaView
         edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       >
         <View style={styles.centered}>
           <PlatformSymbol
@@ -542,7 +684,7 @@ function Dashboard({
               : loadError}
           </Text>
           <Pressable
-            style={[styles.retryBtn, isDark && { backgroundColor: "#303030" }]}
+            style={[styles.retryBtn, isDark && { backgroundColor: "#232427" }]}
             onPress={() => load()}
           >
             <PlatformSymbol
@@ -564,13 +706,13 @@ function Dashboard({
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
     >
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
           styles.dashContent,
-          isDark && { backgroundColor: "#1e1e1e" },
+          isDark && { backgroundColor: "#18191B" },
         ]}
         refreshControl={
           <RefreshControl
@@ -583,55 +725,100 @@ function Dashboard({
         {/* Header */}
         <View style={styles.dashHeader}>
           <View>
-            <Text style={[styles.dashGreeting, isDark && { color: "#fff" }]}> 
+            <Text style={[styles.dashGreeting, isDark && { color: "#fff" }]}>
               Hei, {data?.profile.firstName || "opiskelija"}! 👋
             </Text>
-            <Text style={[styles.dashDate, isDark && { color: "#aaa" }]}> 
+            <Text style={[styles.dashDate, isDark && { color: "#aaa" }]}>
               {todayFinnish()}
             </Text>
             {!!data?.profile.studentClass && (
-              <Text style={[styles.dashClass, isDark && { color: "#888" }]}> 
+              <Text style={[styles.dashClass, isDark && { color: "#888" }]}>
                 Ryhmä {data.profile.studentClass}
               </Text>
             )}
           </View>
         </View>
 
-        {/* Today's lessons */}
+        {/* Today's lessons (or, once the day is done, the next school day's) */}
         <SectionCard
-          title="Tänään"
+          title={data?.scheduleDayLabel ?? "Tänään"}
           onMore={() => router.push("/wilma/schedule")}
           isDark={isDark}
         >
           {!data?.lessons.length && !data?.lunch ? (
-            <EmptyRow label="Ei tunteja tänään" isDark={isDark} />
+            <EmptyRow
+              label={
+                data?.scheduleDayLabel ? "Ei tunteja" : "Ei tunteja tänään"
+              }
+              isDark={isDark}
+            />
           ) : (
-            todayRows(data?.lessons ?? [], data?.lunch ?? null).map(
-              (row, i) => {
+            (() => {
+              const rows = todayRows(data?.lessons ?? [], data?.lunch ?? null);
+              return rows.map((row, i) => {
+                // A free slot already reads as a break in the list via its
+                // dashed border, so a divider directly touching it just
+                // doubles up on that same visual cue.
+                const showDivider =
+                  i > 0 &&
+                  row.kind !== "freeslot" &&
+                  rows[i - 1].kind !== "freeslot";
+                // Without that divider, a free slot needs a little breathing
+                // room from the lesson that just ended above it.
+                const spaceAboveFreeSlot =
+                  row.kind === "freeslot" &&
+                  i > 0 &&
+                  rows[i - 1].kind === "lesson";
+
+                // Past/current highlighting only makes sense against today's
+                // clock — once the card is showing the next school day, none
+                // of its rows are "past" or "current" yet.
+                const isShowingToday = !data?.scheduleDayLabel;
+                const isPast = isShowingToday && row.end <= nowClock;
+                const isCurrent =
+                  isShowingToday && row.start <= nowClock && nowClock < row.end;
+                const timeColor = isCurrent
+                  ? isDark
+                    ? "#4ADE80"
+                    : "#16A34A"
+                  : isDark
+                    ? "#51a2ff"
+                    : "#4A89EE";
+                const timeSubColor = isCurrent
+                  ? isDark
+                    ? "#4ADE8080"
+                    : "#16A34A80"
+                  : isDark
+                    ? "#51a2ff70"
+                    : "#4A89EE80";
+
                 if (row.kind === "lunch") {
                   return (
                     <React.Fragment key="lunch">
-                      {i > 0 && <Divider isDark={isDark} />}
-                      <View style={styles.lessonRow}>
+                      {showDivider && <Divider isDark={isDark} />}
+                      <View
+                        style={[
+                          styles.lessonRow,
+                          isCurrent && styles.rowCurrent,
+                          isCurrent && isDark && styles.rowCurrentDark,
+                          isPast && styles.rowPast,
+                        ]}
+                      >
                         <View
                           style={[
                             styles.timeTag,
-                            isDark && { backgroundColor: "#4A89EE18" },
+                            isDark && { backgroundColor: "#51A2FF1F" },
+                            isCurrent && styles.timeTagCurrent,
+                            isCurrent && isDark && styles.timeTagCurrentDark,
                           ]}
                         >
                           <Text
-                            style={[
-                              styles.timeTagText,
-                              isDark && { color: "#51a2ff" },
-                            ]}
+                            style={[styles.timeTagText, { color: timeColor }]}
                           >
                             {row.start}
                           </Text>
                           <Text
-                            style={[
-                              styles.timeTagSub,
-                              isDark && { color: "#51a2ff70" },
-                            ]}
+                            style={[styles.timeTagSub, { color: timeSubColor }]}
                           >
                             {row.end}
                           </Text>
@@ -652,6 +839,109 @@ function Dashboard({
                   );
                 }
 
+                if (row.kind === "freeslot") {
+                  const freeSlotTimeColor = isCurrent
+                    ? timeColor
+                    : isDark
+                      ? "#9CA3AF"
+                      : "#8A929D";
+                  const freeSlotTimeSubColor = isCurrent
+                    ? timeSubColor
+                    : isDark
+                      ? "#9CA3AF80"
+                      : "#8A929D80";
+                  // The gap's real end always lands exactly on the next
+                  // lesson's start, so the two rows would show the same time
+                  // back to back — trim the label a few minutes early so it
+                  // doesn't read as a duplicate.
+                  const freeSlotDisplayEnd = addMinutesClock(row.end, -5);
+                  const tallHeight = freeSlotHeight(
+                    clockMinutes(row.end) - clockMinutes(row.start),
+                  );
+                  return (
+                    <React.Fragment key={row.key}>
+                      {showDivider && <Divider isDark={isDark} />}
+                      <View
+                        style={[
+                          styles.lessonRow,
+                          styles.freeSlotRow,
+                          isDark && styles.freeSlotRowDark,
+                          !!row.lunch && styles.lessonRowWithLunch,
+                          isCurrent && styles.rowCurrent,
+                          isCurrent && isDark && styles.rowCurrentDark,
+                          isPast && styles.rowPast,
+                          spaceAboveFreeSlot && styles.freeSlotSpaceAbove,
+                          !!tallHeight && {
+                            minHeight: tallHeight,
+                            alignItems: "center",
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.timeTag,
+                            styles.freeSlotTimeTag,
+                            isDark && styles.freeSlotTimeTagDark,
+                            isCurrent && styles.timeTagCurrent,
+                            isCurrent && isDark && styles.timeTagCurrentDark,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.timeTagText,
+                              { color: freeSlotTimeColor },
+                            ]}
+                          >
+                            {row.start}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.timeTagSub,
+                              { color: freeSlotTimeSubColor },
+                            ]}
+                          >
+                            {freeSlotDisplayEnd}
+                          </Text>
+                        </View>
+                        <View style={styles.lessonInfo}>
+                          <LessonTitleRow
+                            title="Hyppytunti"
+                            isDark={isDark}
+                            numberOfLines={1}
+                            titleStyle={[
+                              styles.freeSlotTitle,
+                              isDark && styles.freeSlotTitleDark,
+                            ]}
+                          />
+                          {!!row.lunch && (
+                            <View
+                              style={[
+                                styles.lunchChip,
+                                isDark && styles.lunchChipDark,
+                              ]}
+                            >
+                              <PlatformSymbol
+                                ios="fork.knife"
+                                android="restaurant"
+                                size={11}
+                                tintColor={isDark ? "#FBBF24" : "#B45309"}
+                              />
+                              <Text
+                                style={[
+                                  styles.lunchChipText,
+                                  isDark && styles.lunchChipTextDark,
+                                ]}
+                              >
+                                Lounas {row.lunch.start}–{row.lunch.end}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </React.Fragment>
+                  );
+                }
+
                 const lesson = row.lesson;
                 const group = lesson.groups[0];
                 const room = group?.rooms[0]?.longCaption ?? "";
@@ -659,31 +949,43 @@ function Dashboard({
                 const { code, title } = lessonLabel(
                   group?.shortCaption,
                   group?.fullCaption,
-                  lesson.class
+                  lesson.class,
                 );
                 return (
                   <React.Fragment key={row.key}>
-                    {i > 0 && <Divider isDark={isDark} />}
-                    <View style={styles.lessonRow}>
+                    {showDivider && <Divider isDark={isDark} />}
+                    <Pressable
+                      disabled={!room}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/map",
+                          params: { roomQuery: room },
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.lessonRow,
+                        !!row.lunch && styles.lessonRowWithLunch,
+                        // isCurrent && styles.rowCurrent,
+                        // isCurrent && isDark && styles.rowCurrentDark,
+                        isPast && styles.rowPast,
+                        pressed && !!room && styles.rowPressed,
+                      ]}
+                    >
                       <View
                         style={[
                           styles.timeTag,
-                          isDark && { backgroundColor: "#4A89EE18" },
+                          isDark && { backgroundColor: "#51A2FF1F" },
+                          isCurrent && styles.timeTagCurrent,
+                          isCurrent && isDark && styles.timeTagCurrentDark,
                         ]}
                       >
                         <Text
-                          style={[
-                            styles.timeTagText,
-                            isDark && { color: "#51a2ff" },
-                          ]}
+                          style={[styles.timeTagText, { color: timeColor }]}
                         >
                           {row.start}
                         </Text>
                         <Text
-                          style={[
-                            styles.timeTagSub,
-                            isDark && { color: "#51a2ff70" },
-                          ]}
+                          style={[styles.timeTagSub, { color: timeSubColor }]}
                         >
                           {row.end}
                         </Text>
@@ -708,12 +1010,35 @@ function Dashboard({
                         >
                           {[room, teacher].filter(Boolean).join(" · ")}
                         </Text>
+                        {!!row.lunch && (
+                          <View
+                            style={[
+                              styles.lunchChip,
+                              isDark && styles.lunchChipDark,
+                            ]}
+                          >
+                            <PlatformSymbol
+                              ios="fork.knife"
+                              android="restaurant"
+                              size={11}
+                              tintColor={isDark ? "#FBBF24" : "#B45309"}
+                            />
+                            <Text
+                              style={[
+                                styles.lunchChipText,
+                                isDark && styles.lunchChipTextDark,
+                              ]}
+                            >
+                              Lounas {row.lunch.start}–{row.lunch.end}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    </View>
+                    </Pressable>
                   </React.Fragment>
                 );
-              }
-            )
+              });
+            })()
           )}
         </SectionCard>
 
@@ -723,7 +1048,10 @@ function Dashboard({
             <EmptyRow label="Ei tulevia kokeita" isDark={isDark} />
           ) : (
             data.exams.map((exam, i) => {
-              const { code, title } = lessonLabel(exam.course, exam.courseTitle);
+              const { code, title } = lessonLabel(
+                exam.course,
+                exam.courseTitle,
+              );
               return (
                 <React.Fragment key={exam.examId}>
                   {i > 0 && <Divider isDark={isDark} />}
@@ -734,7 +1062,10 @@ function Dashboard({
                         code={code}
                         isDark={isDark}
                         numberOfLines={1}
-                        titleStyle={[styles.examCourse, isDark && { color: "#fff" }]}
+                        titleStyle={[
+                          styles.examCourse,
+                          isDark && { color: "#fff" },
+                        ]}
                       />
                       {exam.name ? (
                         <Text
@@ -818,11 +1149,9 @@ function Dashboard({
                     </Text>
                   </View>
                   <View style={styles.msgRight}>
-                    <Text
-                      style={[styles.msgDate, isDark && { color: "#888" }]}
-                    >
+                    <Text style={[styles.msgDate, isDark && { color: "#888" }]}>
                       {new Date(
-                        msg.timestamp.replace(" ", "T")
+                        msg.timestamp.replace(" ", "T"),
                       ).toLocaleDateString("fi-FI", {
                         day: "numeric",
                         month: "numeric",
@@ -854,16 +1183,11 @@ function Dashboard({
                 <React.Fragment key={`${entry.date}-${i}`}>
                   {i > 0 && <Divider isDark={isDark} />}
                   <View style={styles.attRow}>
-                    <Text
-                      style={[styles.attDate, isDark && { color: "#aaa" }]}
-                    >
+                    <Text style={[styles.attDate, isDark && { color: "#aaa" }]}>
                       {formatDateFI(entry.date)}
                     </Text>
                     <Text
-                      style={[
-                        styles.attCourse,
-                        isDark && { color: "#d4d4d4" },
-                      ]}
+                      style={[styles.attCourse, isDark && { color: "#d4d4d4" }]}
                       numberOfLines={1}
                     >
                       {entry.course}
@@ -874,9 +1198,7 @@ function Dashboard({
                         { backgroundColor: info.bg + "28" },
                       ]}
                     >
-                      <Text
-                        style={[styles.attChipText, { color: info.bg }]}
-                      >
+                      <Text style={[styles.attChipText, { color: info.bg }]}>
                         {info.label}
                       </Text>
                     </View>
@@ -899,8 +1221,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssit ja tehtävät</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kotitehtävät, tuntipäiväkirja ja kurssikokeet</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Kurssit ja tehtävät
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Kotitehtävät, tuntipäiväkirja ja kurssikokeet
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -921,8 +1251,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Kurssivalinnat</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Omat valinnat ja tarjottimet vain luku -tilassa</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Kurssivalinnat
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Omat valinnat ja tarjottimet vain luku -tilassa
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -943,8 +1281,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Tilojen lukujärjestykset</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Katso milloin luokkahuone on käytössä</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Tilojen lukujärjestykset
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Katso milloin luokkahuone on käytössä
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -965,8 +1311,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Opettajat ja henkilökunta</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Opettajien lukujärjestykset ja viestit</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Opettajat ja henkilökunta
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Opettajien lukujärjestykset ja viestit
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -987,8 +1341,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Tiedotteet</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Koulun ajankohtaiset tiedotteet</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Tiedotteet
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Koulun ajankohtaiset tiedotteet
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -1009,8 +1371,16 @@ function Dashboard({
               tintColor={isDark ? "#51a2ff" : "#4A89EE"}
             />
             <View style={styles.moreWilmaText}>
-              <Text style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}>Arvosanat</Text>
-              <Text style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}>Kurssisuoritukset, kokeet ja yo-tulokset</Text>
+              <Text
+                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+              >
+                Arvosanat
+              </Text>
+              <Text
+                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+              >
+                Kurssisuoritukset, kokeet ja yo-tulokset
+              </Text>
             </View>
             <PlatformSymbol
               ios="chevron.right"
@@ -1048,7 +1418,7 @@ export default function HomeScreen() {
       // No active token – try a silent re-auth with a hard deadline so we
       // never block the login form for more than STARTUP_TIMEOUT_MS.
       const timeout = new Promise<false>((resolve) =>
-        setTimeout(() => resolve(false), STARTUP_TIMEOUT_MS)
+        setTimeout(() => resolve(false), STARTUP_TIMEOUT_MS),
       );
       const ok = await Promise.race([reauthenticate(), timeout]);
       setSessionState(ok ? "loggedIn" : "loggedOut");
@@ -1060,7 +1430,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView
         edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       >
         <View style={styles.centered}>
           <ActivityIndicator
@@ -1077,18 +1447,12 @@ export default function HomeScreen() {
 
   if (sessionState === "loggedOut") {
     return (
-      <LoginView
-        isDark={isDark}
-        onLogin={() => setSessionState("loggedIn")}
-      />
+      <LoginView isDark={isDark} onLogin={() => setSessionState("loggedIn")} />
     );
   }
 
   return (
-    <Dashboard
-      isDark={isDark}
-      onLogout={() => setSessionState("loggedOut")}
-    />
+    <Dashboard isDark={isDark} onLogout={() => setSessionState("loggedOut")} />
   );
 }
 
@@ -1240,7 +1604,7 @@ const styles = StyleSheet.create({
   },
 
   // Dashboard
-  dashContent: { padding: 16, paddingBottom: 32 },
+  dashContent: { padding: 16, paddingBottom: 100 },
   dashHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1318,7 +1682,37 @@ const styles = StyleSheet.create({
   },
 
   // Lesson
-  lessonRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  lessonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginHorizontal: -8,
+  },
+  lessonRowWithLunch: { alignItems: "flex-start", paddingVertical: 8 },
+  rowCurrent: { backgroundColor: "#16A34A14" },
+  rowCurrentDark: { backgroundColor: "#4ADE8022" },
+  rowPast: { opacity: 0.45 },
+  rowPressed: { opacity: 0.6 },
+  freeSlotRow: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#D9DEE5",
+    paddingVertical: 7,
+  },
+  freeSlotRowDark: { borderColor: "#4A5058" },
+  freeSlotSpaceAbove: { marginVertical: 8 },
+  freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
+  freeSlotTimeTagDark: { backgroundColor: "#3A3F46" },
+  freeSlotTitle: {
+    fontFamily: "Figtree-SemiBold",
+    fontStyle: "italic",
+    fontSize: 15,
+    color: "#8A929D",
+  },
+  freeSlotTitleDark: { color: "#9CA3AF" },
   timeTag: {
     backgroundColor: "#EEF4FF",
     borderRadius: 8,
@@ -1327,6 +1721,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: 46,
   },
+  timeTagCurrent: { backgroundColor: "#16A34A1A" },
+  timeTagCurrentDark: { backgroundColor: "#4ADE8022" },
   timeTagText: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 13,
@@ -1350,6 +1746,24 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 2,
   },
+  lunchChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 5,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 6,
+  },
+  lunchChipDark: { backgroundColor: "#78350F55" },
+  lunchChipText: {
+    fontFamily: "Figtree-SemiBold",
+    fontSize: 12,
+    color: "#B45309",
+  },
+  lunchChipTextDark: { color: "#FBBF24" },
 
   // Exam
   examRow: {
@@ -1413,7 +1827,7 @@ const styles = StyleSheet.create({
     color: "#aaa",
   },
   eventChip: {
-    backgroundColor: "#4A89EE20",
+    backgroundColor: "#51A2FF1F",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,

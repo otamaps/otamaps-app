@@ -181,13 +181,13 @@ const Edit = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
     >
       <Stack.Screen
         options={{
           title: "Muokkaa tietoja",
           headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+            backgroundColor: isDark ? "#18191B" : "#fff",
           },
           headerTitleStyle: {
             color: isDark ? "#fff" : "#000",
@@ -207,11 +207,11 @@ const Edit = () => {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContainer,
-          isDark && { backgroundColor: "#1e1e1e" },
+          isDark && { backgroundColor: "#18191B" },
         ]}
       >
         <View
-          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
         >
           <Text style={[styles.label, isDark && { color: "#fff" }]}>Nimi</Text>
           <TextInput
@@ -235,7 +235,7 @@ const Edit = () => {
         </View>
 
         <View
-          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
         >
           <Text style={[styles.label, isDark && { color: "#fff" }]}>
             Luokka
@@ -267,7 +267,7 @@ const Edit = () => {
         </View>
 
         <View
-          style={[styles.section, isDark && { backgroundColor: "#1e1e1e" }]}
+          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
         >
           <Text style={[styles.label, isDark && { color: "#fff" }]}>
             Profiilin väri
@@ -294,7 +294,7 @@ const Edit = () => {
         <View
           style={[
             styles.previewSection,
-            isDark && { backgroundColor: "#1e1e1e", borderTopColor: "#404040" },
+            isDark && { backgroundColor: "#18191B", borderTopColor: "#404040" },
           ]}
         >
           <Text style={[styles.label, isDark && { color: "#fff" }]}>
@@ -325,7 +325,7 @@ const Edit = () => {
       <View
         style={[
           styles.footer,
-          isDark && { backgroundColor: "#1e1e1e", borderTopColor: "#404040" },
+          isDark && { backgroundColor: "#18191B", borderTopColor: "#404040" },
         ]}
       >
         <TouchableOpacity

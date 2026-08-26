@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     shadowRadius: 28,
     width: "100%",
   },
-  cardDark: { backgroundColor: "#252525" },
+  cardDark: { backgroundColor: "#232427" },
   iconCircle: {
     alignItems: "center",
     backgroundColor: "#3478F5",

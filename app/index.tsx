@@ -99,7 +99,7 @@ export default function Index() {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: isDark ? "#1e1e1e" : "transparent",
+        backgroundColor: isDark ? "#18191B" : "transparent",
       }}
     >
       <Stack.Screen options={{ headerShown: false }} />

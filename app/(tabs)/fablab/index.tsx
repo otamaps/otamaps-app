@@ -138,7 +138,7 @@ export default function FablabScreen() {
     };
   }, [fetchJobs]);
 
-  const bg = isDark ? '#1e1e1e' : '#fff';
+  const bg = isDark ? '#18191B' : '#fff';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>

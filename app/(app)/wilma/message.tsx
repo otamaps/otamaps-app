@@ -55,89 +55,97 @@ export default function MessageScreen() {
   const headerSubtitle = [threadSender, replyLabel].filter(Boolean).join(" · ");
 
   return (
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
     <SafeAreaView
-      style={[styles.container, isDark && styles.containerDark]}
+      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
       edges={["top"]}
     >
-      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.container, isDark && styles.containerDark]}>
+        <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={1}>
-            {headerTitle}
-          </Text>
-          {!!headerSubtitle && (
-            <Text style={[styles.headerSender, isDark && styles.mutedDark]} numberOfLines={1}>
-              {headerSubtitle}
+        <View style={[styles.header, isDark && styles.headerDark]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+            <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          </Pressable>
+          <View style={styles.headerText}>
+            <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={1}>
+              {headerTitle}
             </Text>
+            {!!headerSubtitle && (
+              <Text style={[styles.headerSender, isDark && styles.mutedDark]} numberOfLines={1}>
+                {headerSubtitle}
+              </Text>
+            )}
+          </View>
+          {!loading && !error && !!id && (
+            <Pressable
+              style={styles.replyButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Vastaa viestiketjuun"
+              onPress={() =>
+                router.push({
+                  pathname: "/wilma/reply" as never,
+                  params: {
+                    messageId: id,
+                    subject: headerTitle,
+                    sender: threadSender,
+                  },
+                })
+              }
+            >
+              <MaterialIcons name="reply" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            </Pressable>
           )}
         </View>
-        {!loading && !error && !!id && (
-          <Pressable
-            style={styles.replyButton}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Vastaa viestiketjuun"
-            onPress={() =>
-              router.push({
-                pathname: "/wilma/reply" as never,
-                params: {
-                  messageId: id,
-                  subject: headerTitle,
-                  sender: threadSender,
-                },
-              })
-            }
-          >
-            <MaterialIcons name="reply" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
-          </Pressable>
+
+        {loading && (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.centered}>
+            <MaterialIcons name="error-outline" size={48} color={isDark ? "#888" : "#ccc"} />
+            <Text style={[styles.errorText, isDark && styles.mutedDark]}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !error && detail && (
+          <WebView
+            source={{ html: buildMessageThreadHtml(detail, isDark, sender ?? "") }}
+            javaScriptEnabled={false}
+            domStorageEnabled={false}
+            style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#f5f7fb" }}
+            scrollEnabled
+            showsVerticalScrollIndicator={false}
+            originWhitelist={["*"]}
+            onShouldStartLoadWithRequest={(request) => {
+              if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
+              if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
+                void openExternalUrl(request.url);
+              }
+              return false;
+            }}
+          />
         )}
       </View>
-
-      {loading && (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
-        </View>
-      )}
-
-      {!loading && error && (
-        <View style={styles.centered}>
-          <MaterialIcons name="error-outline" size={48} color={isDark ? "#888" : "#ccc"} />
-          <Text style={[styles.errorText, isDark && styles.mutedDark]}>{error}</Text>
-        </View>
-      )}
-
-      {!loading && !error && detail && (
-        <WebView
-          source={{ html: buildMessageThreadHtml(detail, isDark, sender ?? "") }}
-          javaScriptEnabled={false}
-          domStorageEnabled={false}
-          style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "#f5f7fb" }}
-          scrollEnabled
-          showsVerticalScrollIndicator={false}
-          originWhitelist={["*"]}
-          onShouldStartLoadWithRequest={(request) => {
-            if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
-            if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
-              void openExternalUrl(request.url);
-            }
-            return false;
-          }}
-        />
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#f5f7fb" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff", gap: 12 },
-  headerDark: { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   backBtn: { padding: 2 },
   headerText: { flex: 1 },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 16, color: "#222" },

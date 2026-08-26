@@ -197,14 +197,14 @@ const AddFriendScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
       <Stack.Screen
         options={{
           title: "Kaverit",
-          headerStyle: { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+          headerStyle: { backgroundColor: isDark ? "#18191B" : "#fff" },
           headerTitleStyle: { color: isDark ? "#fff" : "#000" },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>
@@ -222,7 +222,7 @@ const AddFriendScreen = () => {
       <View
         style={[
           styles.tabBar,
-          isDark && { borderBottomColor: "#404040", backgroundColor: "#1e1e1e" },
+          isDark && { borderBottomColor: "#404040", backgroundColor: "#18191B" },
         ]}
       >
         <Pressable
@@ -263,7 +263,7 @@ const AddFriendScreen = () => {
       </View>
 
       {activeTab === "add" && (
-        <View style={[styles.content, isDark && { backgroundColor: "#1e1e1e" }]}>
+        <View style={[styles.content, isDark && { backgroundColor: "#18191B" }]}>
           <Text style={[styles.title, isDark && { color: "#fff" }]}>
             Anna kaverisi koodi
           </Text>
@@ -393,7 +393,7 @@ const AddFriendScreen = () => {
         <View
           style={[
             styles.requestsContent,
-            isDark && { backgroundColor: "#1e1e1e" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
         >
           {isLoadingRequests ? (

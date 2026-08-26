@@ -129,7 +129,7 @@ export default function LunchShiftAdminScreen() {
   };
 
   const background = isDark ? "#171717" : "#F4F6F8";
-  const card = isDark ? "#252525" : "#FFFFFF";
+  const card = isDark ? "#232427" : "#FFFFFF";
   const text = isDark ? "#F8F8F8" : "#20242A";
   const muted = isDark ? "#ACB3BD" : "#68717D";
 
@@ -198,11 +198,11 @@ export default function LunchShiftAdminScreen() {
             onPress={() => void copyPrompt()}
             style={({ pressed }) => [
               styles.submitButton,
-              { backgroundColor: isDark ? "#2D2D2D" : "#EDF2FB" },
+              { backgroundColor: isDark ? "#232427" : "#EDF2FB" },
               pressed && { opacity: 0.78 },
             ]}
           >
-            <Text style={[styles.submitText, { color: isDark ? "#AFC8FF" : "#276CE5" }]}>
+            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#276CE5" }]}>
               Kopioi kehote
             </Text>
           </Pressable>
@@ -223,8 +223,8 @@ export default function LunchShiftAdminScreen() {
               styles.jsonInput,
               {
                 color: text,
-                borderColor: isDark ? "#3B3B3B" : "#E3E7EC",
-                backgroundColor: isDark ? "#1E1E1E" : "#FAFBFC",
+                borderColor: isDark ? "#2E3034" : "#E3E7EC",
+                backgroundColor: isDark ? "#18191B" : "#FAFBFC",
               },
             ]}
           />
@@ -233,12 +233,12 @@ export default function LunchShiftAdminScreen() {
             onPress={preview}
             style={({ pressed }) => [
               styles.submitButton,
-              { backgroundColor: isDark ? "#2D2D2D" : "#EDF2FB" },
+              { backgroundColor: isDark ? "#232427" : "#EDF2FB" },
               !pasted.trim() && styles.disabled,
               pressed && { opacity: 0.78 },
             ]}
           >
-            <Text style={[styles.submitText, { color: isDark ? "#AFC8FF" : "#276CE5" }]}>
+            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#276CE5" }]}>
               Tarkista
             </Text>
           </Pressable>
@@ -247,7 +247,7 @@ export default function LunchShiftAdminScreen() {
             <View
               style={[
                 styles.activityBox,
-                { borderColor: isDark ? "#3B3B3B" : "#E3E7EC" },
+                { borderColor: isDark ? "#2E3034" : "#E3E7EC" },
               ]}
             >
               <Text style={[styles.activityLabel, { color: text }]}>

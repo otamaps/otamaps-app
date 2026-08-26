@@ -14,7 +14,7 @@ import {
 const About = () => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const backgroundColor = isDark ? "#1e1e1e" : "#fff";
+  const backgroundColor = isDark ? "#18191B" : "#fff";
   const router = useRouter();
 
   const [logoTapCount, setLogoTapCount] = React.useState(0);
@@ -46,7 +46,7 @@ const About = () => {
         options={{
           title: "Tietoja",
           headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+            backgroundColor: isDark ? "#18191B" : "#fff",
           },
           headerTitleStyle: {
             color: isDark ? "#fff" : "#000",

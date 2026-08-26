@@ -108,12 +108,12 @@ function LessonCard({
       <View
         style={[
           styles.lessonCard,
-          isDark && { backgroundColor: "#2a2a2a" },
+          isDark && { backgroundColor: "#232427" },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
         ]}
       >
-        <View style={[styles.timeTag, isDark && { backgroundColor: "#4A89EE18" }]}>
+        <View style={[styles.timeTag, isDark && { backgroundColor: "#51A2FF1F" }]}>
           <Text style={[styles.timeTagStart, isDark && { color: "#51a2ff" }]}>
             {formatTime(lesson.start)}
           </Text>
@@ -156,7 +156,7 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
     <View
       style={[
         styles.examCard,
-        isDark && { backgroundColor: "#2a2a2a", borderColor: "#ff9800" },
+        isDark && { backgroundColor: "#232427", borderColor: "#ff9800" },
       ]}
     >
       <MaterialIcons
@@ -355,7 +355,7 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       edges={["top"]}
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -364,7 +364,7 @@ export default function ScheduleScreen() {
       <View
         style={[
           styles.header,
-          isDark && { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+          isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
         ]}
       >
         <Pressable onPress={() => router.back()} hitSlop={8}>
@@ -384,7 +384,7 @@ export default function ScheduleScreen() {
       <View
         style={[
           styles.weekNav,
-          isDark && { backgroundColor: "#252525", borderBottomColor: "#333" },
+          isDark && { backgroundColor: "#232427", borderBottomColor: "#333" },
         ]}
       >
         <Pressable onPress={() => goToWeek(-1)} style={styles.navBtn} hitSlop={12}>
@@ -428,7 +428,7 @@ export default function ScheduleScreen() {
       ) : (
         <ScrollView
           ref={scrollRef}
-          style={[styles.body, isDark && { backgroundColor: "#1e1e1e" }]}
+          style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
           contentContainerStyle={styles.bodyContent}
           refreshControl={
             <RefreshControl
@@ -469,7 +469,7 @@ export default function ScheduleScreen() {
                     <View
                       style={[
                         styles.todayPill,
-                        isDark && { backgroundColor: "#4A89EE22" },
+                        isDark && { backgroundColor: "#51A2FF1F" },
                       ]}
                     >
                       <Text
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
-  emptyDayDark: { borderColor: "#333", backgroundColor: "#25252580" },
+  emptyDayDark: { borderColor: "#333", backgroundColor: "#23242780" },
   emptyDayText: {
     fontFamily: "Figtree-Regular",
     fontSize: 13,

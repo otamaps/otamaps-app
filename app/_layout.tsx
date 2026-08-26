@@ -162,7 +162,7 @@ export default Sentry.wrap(function RootLayout() {
 
   return (
     <View
-      style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "transparent" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "transparent" }}
     >
       <InstantSearch searchClient={searchClient} indexName="rooms_rows">
         <RootLayoutNav />

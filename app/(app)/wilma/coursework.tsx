@@ -81,7 +81,9 @@ function rowsFor(courses: WilmaCourse[], tab: CourseworkTab): CourseworkRow[] {
 
   return rows.sort((a, b) => {
     const delta = dateValue(a.date) - dateValue(b.date);
-    return tab === "DIARY" ? -delta : delta;
+    // Homework matches the diary's newest-first order so upcoming deadlines
+    // aren't buried at the bottom of the list (see GitHub issue #3).
+    return tab === "DIARY" || tab === "HOMEWORK" ? -delta : delta;
   });
 }
 
@@ -198,7 +200,7 @@ export default function WilmaCourseworkScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f7fb" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
   tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
   list: { padding: 16, gap: 12 },
   emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 28 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  cardDark: { backgroundColor: "#292929" },
+  cardDark: { backgroundColor: "#232427" },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   courseChip: { borderRadius: 7, backgroundColor: "#eaf1ff", paddingHorizontal: 8, paddingVertical: 4 },
   courseChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#4A89EE" },

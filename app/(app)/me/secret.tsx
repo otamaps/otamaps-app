@@ -28,7 +28,7 @@ const Settings = () => {
     <SafeAreaView
       style={[
         styles.container,
-        isDark && { backgroundColor: "#1e1e1e" },
+        isDark && { backgroundColor: "#18191B" },
         { padding: 0 },
       ]}
     >
@@ -36,7 +36,7 @@ const Settings = () => {
         options={{
           title: "Secret",
           headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+            backgroundColor: isDark ? "#18191B" : "#fff",
           },
           headerTitleStyle: {
             color: isDark ? "#fff" : "#000",
@@ -54,7 +54,7 @@ const Settings = () => {
         }}
       />
       <View
-        style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       >
         <StatusBar style={isDark ? "light" : "dark"} />
 

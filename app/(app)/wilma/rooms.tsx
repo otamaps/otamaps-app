@@ -70,13 +70,13 @@ export default function WilmaRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" }, containerDark: { backgroundColor: "#1e1e1e" },
+  container: { flex: 1, backgroundColor: "#f5f7fb" }, containerDark: { backgroundColor: "#18191B" },
   header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" }, borderDark: { borderBottomColor: "#333" },
   search: { margin: 16, marginBottom: 4, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12 },
-  searchDark: { backgroundColor: "#292929" }, input: { flex: 1, height: 44, fontFamily: "Figtree-Regular", fontSize: 14, color: "#222" },
+  searchDark: { backgroundColor: "#232427" }, input: { flex: 1, height: 44, fontFamily: "Figtree-Regular", fontSize: 14, color: "#222" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 }, list: { padding: 16, gap: 8 }, emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, backgroundColor: "#fff" }, rowDark: { backgroundColor: "#292929" },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, backgroundColor: "#fff" }, rowDark: { backgroundColor: "#232427" },
   roomIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#eaf1ff" },
   code: { fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#202939" }, name: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 2 },
   empty: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" }, retry: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#eaf1ff", borderRadius: 10 }, retryText: { color: "#4A89EE", fontFamily: "Figtree-SemiBold" }, textLight: { color: "#fff" },

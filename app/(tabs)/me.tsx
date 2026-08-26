@@ -210,7 +210,7 @@ const Me = () => {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: isDark ? "#1e1e1e" : "transparent",
+          backgroundColor: isDark ? "#18191B" : "transparent",
         }}
       >
         <ActivityIndicator size="large" color={isDark ? "#fff" : "#4A89EE"} />
@@ -220,7 +220,7 @@ const Me = () => {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "transparent" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "transparent" }}
     >
       <View
         style={{
@@ -228,7 +228,7 @@ const Me = () => {
           alignItems: "center",
           justifyContent: "space-between",
           // marginTop: 40,
-          backgroundColor: isDark ? "#1e1e1e" : "transparent",
+          backgroundColor: isDark ? "#18191B" : "transparent",
         }}
       >
         <StatusBar style={isDark ? "light" : "dark"} />
@@ -237,13 +237,13 @@ const Me = () => {
             flex: 1,
             width: "100%",
             alignItems: "center",
-            backgroundColor: isDark ? "#1e1e1e" : "transparent",
+            backgroundColor: isDark ? "#18191B" : "transparent",
           }}
         >
           <View
             style={[
               styles.userContainer,
-              isDark && { backgroundColor: "#303030" },
+              isDark && { backgroundColor: "#232427" },
             ]}
           >
             <View style={styles.userRow}>
@@ -310,7 +310,7 @@ const Me = () => {
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 12,
-                    backgroundColor: isDark ? "#303030" : "#eeeeee",
+                    backgroundColor: isDark ? "#232427" : "#eeeeee",
                     borderRadius: 8,
                     flexDirection: "row",
                     alignItems: "center",
@@ -339,14 +339,14 @@ const Me = () => {
           <View
             style={[
               styles.optionsContainer,
-              isDark && { backgroundColor: "#303030" },
+              isDark && { backgroundColor: "#232427" },
             ]}
           >
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
                 isDark && {
-                  backgroundColor: "#303030",
+                  backgroundColor: "#232427",
                 },
 
                 pressed && styles.optionContainerPressed,
@@ -375,7 +375,7 @@ const Me = () => {
                 <Pressable
                   style={({ pressed }) => [
                     styles.optionContainer,
-                    isDark && { backgroundColor: "#303030" },
+                    isDark && { backgroundColor: "#232427" },
                     pressed && styles.optionContainerPressed,
                     isDark && pressed && { backgroundColor: "#525252" },
                     {
@@ -399,7 +399,7 @@ const Me = () => {
                     ios="checkmark.shield"
                     android="admin_panel_settings"
                     size={20}
-                    tintColor={isDark ? "#AFC8FF" : "#276CE5"}
+                    tintColor={isDark ? "#51A2FF" : "#276CE5"}
                   />
                 </Pressable>
                 <View
@@ -411,7 +411,7 @@ const Me = () => {
                 <Pressable
                   style={({ pressed }) => [
                     styles.optionContainer,
-                    isDark && { backgroundColor: "#303030" },
+                    isDark && { backgroundColor: "#232427" },
                     pressed && styles.optionContainerPressed,
                     isDark && pressed && { backgroundColor: "#525252" },
                     {
@@ -435,7 +435,7 @@ const Me = () => {
                     ios="fork.knife"
                     android="restaurant"
                     size={20}
-                    tintColor={isDark ? "#AFC8FF" : "#276CE5"}
+                    tintColor={isDark ? "#51A2FF" : "#276CE5"}
                   />
                 </Pressable>
                 <View
@@ -449,7 +449,7 @@ const Me = () => {
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
+                isDark && { backgroundColor: "#232427" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
                 {
@@ -498,7 +498,7 @@ const Me = () => {
                 <Pressable
                   style={({ pressed }) => [
                     styles.optionContainer,
-                    isDark && { backgroundColor: "#303030" },
+                    isDark && { backgroundColor: "#232427" },
                     pressed && styles.optionContainerPressed,
                     isDark && pressed && { backgroundColor: "#525252" },
                     {
@@ -547,7 +547,7 @@ const Me = () => {
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
+                isDark && { backgroundColor: "#232427" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -572,7 +572,7 @@ const Me = () => {
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
+                isDark && { backgroundColor: "#232427" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -597,7 +597,7 @@ const Me = () => {
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
+                isDark && { backgroundColor: "#232427" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
               ]}
@@ -618,7 +618,7 @@ const Me = () => {
             <Pressable
               style={({ pressed }) => [
                 styles.optionContainer,
-                isDark && { backgroundColor: "#303030" },
+                isDark && { backgroundColor: "#232427" },
                 pressed && styles.optionContainerPressed,
                 isDark && pressed && { backgroundColor: "#525252" },
                 { width: "90%", marginBottom: 16 },
@@ -641,7 +641,7 @@ const Me = () => {
           <Pressable
             style={({ pressed }) => [
               styles.optionContainer,
-              isDark && { backgroundColor: "#303030" },
+              isDark && { backgroundColor: "#232427" },
               pressed && styles.optionContainerPressed,
               isDark && pressed && { backgroundColor: "#525252" },
               { width: "90%" },

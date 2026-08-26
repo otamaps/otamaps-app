@@ -50,5 +50,5 @@ const styles = StyleSheet.create({
     // iOS clips a Text background to its border radius only when it may clip.
     overflow: "hidden",
   },
-  codeDark: { color: "#C2C9D2", backgroundColor: "#3A4048" },
+  codeDark: { color: "#C2C9D2", backgroundColor: "#3A3D42" },
 });

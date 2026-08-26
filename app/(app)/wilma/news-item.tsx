@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
 function documentHtml(body: string, isDark: boolean): string {
-  const background = isDark ? "#1e1e1e" : "#fff";
+  const background = isDark ? "#18191B" : "#fff";
   const foreground = isDark ? "#d4d4d4" : "#222";
   const border = isDark ? "#444" : "#ddd";
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
@@ -61,7 +61,7 @@ export default function WilmaNewsItemScreen() {
           source={{ html: documentHtml(detail?.htmlBody ?? "", isDark) }}
           javaScriptEnabled={false}
           domStorageEnabled={false}
-          style={{ flex: 1, backgroundColor: isDark ? "#1e1e1e" : "#fff" }}
+          style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#fff" }}
           originWhitelist={["*"]}
           onShouldStartLoadWithRequest={(request) => {
             if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
@@ -78,7 +78,7 @@ export default function WilmaNewsItemScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   headerDark: { borderBottomColor: "#333" },
   headerTitle: { flex: 1, fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },

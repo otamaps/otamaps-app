@@ -94,17 +94,17 @@ const LIGHT_THEME: OnboardingTheme = {
 };
 
 const DARK_THEME: OnboardingTheme = {
-  background: "#1E1E1E",
-  surface: "#252525",
+  background: "#18191B",
+  surface: "#232427",
   text: "#FFFFFF",
   secondaryText: "#B3B3B3",
   label: "#D0D5DD",
-  border: "#3A3A3A",
-  inputBackground: "#252525",
-  lockedBackground: "#303030",
+  border: "#2E3034",
+  inputBackground: "#232427",
+  lockedBackground: "#232427",
   lockedText: "#D0D5DD",
   progressInactive: "#475467",
-  infoBackground: "#303030",
+  infoBackground: "#232427",
   infoText: "#D0D5DD",
   success: "#6CE9A6",
   switchOffTrack: "#667085",

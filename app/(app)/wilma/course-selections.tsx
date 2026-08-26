@@ -242,11 +242,11 @@ export default function WilmaCourseSelectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" }, containerDark: { backgroundColor: "#1e1e1e" }, header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
+  container: { flex: 1, backgroundColor: "#f5f7fb" }, containerDark: { backgroundColor: "#18191B" }, header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" }, borderDark: { borderBottomColor: "#333" }, tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" }, tabActive: { borderBottomColor: "#4A89EE" }, tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#667085" }, tabTextActive: { color: "#4A89EE" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 }, content: { padding: 16, gap: 10 }, notice: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#eaf1ff", borderRadius: 12, padding: 12, marginBottom: 4 }, noticeDark: { backgroundColor: "#233047" }, noticeText: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#4b6282" },
-  cardDark: { backgroundColor: "#292929" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#4A89EE" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#202939" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
+  cardDark: { backgroundColor: "#232427" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#4A89EE" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#202939" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
   trayCard: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
   trayHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   periodHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },

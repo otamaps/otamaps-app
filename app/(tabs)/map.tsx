@@ -50,7 +50,12 @@ import {
   ShapeSource,
   SymbolLayer,
 } from "@rnmapbox/maps";
-import { router, useFocusEffect } from "expo-router";
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import type { Feature, MultiPolygon, Polygon } from "geojson";
 import React, {
@@ -71,6 +76,7 @@ import {
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 import FriendItem from "../../components/friendItem";
+import FriendListSkeleton from "../../components/FriendItemSkeleton";
 
 // Define the shape of our room feature properties
 type RoomFeatureProperties = {
@@ -135,6 +141,11 @@ const emptyGeoJSON: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
+
+/** Loose match key for a room name/number coming from free text (e.g. Wilma). */
+function normalizeRoomText(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
 
 const ROOM_LABEL_REFERENCE_ZOOM = 21;
 const MAX_ROOM_LABEL_TEXT_SIZE = 18;
@@ -386,6 +397,8 @@ export default function HomeScreen() {
     [friendId, friends]
   );
 
+  const [friendsLoading, setFriendsLoading] = useState(true);
+
   const refreshFriends = useCallback(async () => {
     const refreshedFriends = await getFriends(true);
     setFriends(refreshedFriends);
@@ -494,9 +507,15 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       const loadFriends = async () => {
-        const data = await getFriends(true); // Force refresh
-        setFriends(data);
-        console.log("[HomeScreen] Friends refreshed on focus:", data);
+        try {
+          const data = await getFriends(true); // Force refresh
+          setFriends(data);
+          console.log("[HomeScreen] Friends refreshed on focus:", data);
+        } finally {
+          // Only the very first fetch needs a loading state; later focuses
+          // just refresh the already-visible list in place.
+          setFriendsLoading(false);
+        }
       };
       const loadRequests = async () => {
         const data = await getRequests();
@@ -592,6 +611,27 @@ export default function HomeScreen() {
     [rooms, selectedRoomId, selectedFloor]
   );
 
+  // A lesson tapped on the Wilma tab hands off its room as free text (Wilma
+  // doesn't share a room id with the map's own room records), so it's
+  // resolved to a room here once the room list is loaded.
+  const { roomQuery } = useLocalSearchParams<{ roomQuery?: string }>();
+  useEffect(() => {
+    if (!roomQuery || !rooms.length) return;
+    const query = normalizeRoomText(roomQuery);
+    if (!query) return;
+
+    const match =
+      rooms.find((r) => normalizeRoomText(r.room_number) === query) ||
+      rooms.find((r) => normalizeRoomText(r.title) === query) ||
+      rooms.find((r) => {
+        const num = normalizeRoomText(r.room_number);
+        return num.length > 0 && (query.includes(num) || num.includes(query));
+      });
+
+    if (match) handleRoomPress(match.id, { focusMap: true });
+    router.setParams({ roomQuery: "" });
+  }, [roomQuery, rooms, handleRoomPress]);
+
   // Handle opening modal when room selection changes
   useEffect(() => {
     if (selectedRoomId) {
@@ -605,6 +645,37 @@ export default function HomeScreen() {
     friendModalRef.current?.present();
     mapBottomSheetRef.current?.snapToMin();
   }, []);
+
+  // Re-pressing the already-focused "Kartta" tab normally does nothing here,
+  // so it's repurposed as a one-tap way to step back: collapse the friend
+  // sheet from its tall snap point, then close it back to the friends list,
+  // and otherwise reset the main sheet to its default height.
+  const navigation = useNavigation();
+  useEffect(() => {
+    // expo-router's native tabs emit this purely as a notification — the tab
+    // switch (a no-op here, since this tab is already selected) has already
+    // been dispatched, and the event carries no working `preventDefault`.
+    const unsubscribe = navigation.addListener("tabPress" as never, () => {
+      if (!navigation.isFocused()) return;
+
+      const friendSheetIndex = friendModalRef.current?.getCurrentSnapIndex() ?? -1;
+      if (friendSheetIndex >= 0) {
+        if (friendSheetIndex === 2) {
+          friendModalRef.current?.snapToMid();
+        } else {
+          friendModalRef.current?.close();
+          mapBottomSheetRef.current?.snapToMid();
+        }
+        return;
+      }
+
+      const mainSheetIndex = mapBottomSheetRef.current?.getCurrentSnapIndex() ?? 1;
+      if (mainSheetIndex !== 1) {
+        mapBottomSheetRef.current?.snapToMid();
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handlePress = (e: { point: { x: number; y: number } }) => {
     console.log("Map pressed", e.point);
@@ -1430,7 +1501,7 @@ export default function HomeScreen() {
               onPress={recenterOnUser}
               style={({ pressed }) => [
                 styles.recenterButton,
-                { backgroundColor: isDark ? "#252525F2" : "#FFFFFFF2" },
+                { backgroundColor: isDark ? "#232427F2" : "#FFFFFFF2" },
                 !localUserLocation?.coordinates && styles.recenterDisabled,
                 pressed && { opacity: 0.75 },
               ]}
@@ -1503,7 +1574,7 @@ export default function HomeScreen() {
               <BottomSheetView
                 style={{
                   flex: 1,
-                  backgroundColor: isDark ? "#1e1e1e" : "white",
+                  backgroundColor: isDark ? "#18191B" : "white",
                   height: "100%",
                 }}
               >
@@ -1513,8 +1584,8 @@ export default function HomeScreen() {
                     style={[
                       styles.bleStatusContainer,
                       isDark && {
-                        backgroundColor: "#1e1e1e",
-                        borderBottomColor: "#1e1e1e",
+                        backgroundColor: "#18191B",
+                        borderBottomColor: "#18191B",
                       },
                     ]}
                   >
@@ -1565,6 +1636,7 @@ export default function HomeScreen() {
 
                 {selectedTab === "people" && (
                   <BottomSheetFlatList
+                    keyboardShouldPersistTaps="handled"
                     ListHeaderComponent={
                       <View style={styles.friendsListHeader}>
                         <Pressable
@@ -1577,8 +1649,8 @@ export default function HomeScreen() {
                           style={({ pressed }) => [
                             styles.queueListCard,
                             {
-                              backgroundColor: isDark ? "#303030" : "#F5F7FA",
-                              borderColor: isDark ? "#444A52" : "#E1E6ED",
+                              backgroundColor: isDark ? "#232427" : "#F5F7FA",
+                              borderColor: isDark ? "#3A3D42" : "#E1E6ED",
                             },
                             !queueStatus && styles.queueListCardDisabled,
                             pressed && { opacity: 0.75 },
@@ -1630,24 +1702,43 @@ export default function HomeScreen() {
                         </Pressable>
 
                         <View style={styles.friendSearchRow}>
-                          <TextInput
-                            placeholder="Hae kavereita..."
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholderTextColor={
-                              isDark ? "#B5B5B5" : "#a1a1a1"
-                            }
-                            onFocus={() => {
-                              mapBottomSheetRef.current?.snapToMax();
-                            }}
-                            style={[
-                              styles.friendSearchInput,
-                              {
-                                backgroundColor: isDark ? "#404040" : "#f5f5f5",
-                                color: isDark ? "white" : "black",
-                              },
-                            ]}
-                          />
+                          <View style={styles.friendSearchInputWrap}>
+                            <TextInput
+                              placeholder="Hae kavereita..."
+                              value={searchQuery}
+                              onChangeText={setSearchQuery}
+                              placeholderTextColor={
+                                isDark ? "#B5B5B5" : "#a1a1a1"
+                              }
+                              onFocus={() => {
+                                mapBottomSheetRef.current?.snapToMax();
+                              }}
+                              style={[
+                                styles.friendSearchInput,
+                                {
+                                  backgroundColor: isDark ? "#404040" : "#f5f5f5",
+                                  color: isDark ? "white" : "black",
+                                },
+                                !!searchQuery && styles.friendSearchInputWithClear,
+                              ]}
+                            />
+                            {!!searchQuery && (
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="Tyhjennä haku"
+                                hitSlop={10}
+                                onPress={() => setSearchQuery("")}
+                                style={styles.friendSearchClearButton}
+                              >
+                                <PlatformSymbol
+                                  ios="xmark.circle.fill"
+                                  android="cancel"
+                                  size={18}
+                                  tintColor={isDark ? "#B5B5B5" : "#a1a1a1"}
+                                />
+                              </Pressable>
+                            )}
+                          </View>
                           <Pressable
                             onPress={() => router.push("/friends/add")}
                             style={[
@@ -1710,11 +1801,15 @@ export default function HomeScreen() {
                       // Remove restrictive height and flex settings
                     }}
                     ListEmptyComponent={
-                      <View style={{ padding: 20, alignItems: "center" }}>
-                        <Text style={isDark && { color: "#e5e5e5" }}>
-                          Kavereita ei löytynyt
-                        </Text>
-                      </View>
+                      friendsLoading ? (
+                        <FriendListSkeleton />
+                      ) : (
+                        <View style={{ padding: 20, alignItems: "center" }}>
+                          <Text style={isDark && { color: "#e5e5e5" }}>
+                            Kavereita ei löytynyt
+                          </Text>
+                        </View>
+                      )
                     }
                     ListFooterComponent={
                       <Pressable
@@ -1723,7 +1818,7 @@ export default function HomeScreen() {
                           pressed && styles.addFriendButtonPressed,
                           isDark && {
                             backgroundColor: "#2b7fff50",
-                            borderColor: "#8ec5ff50",
+                            borderColor: "#51A2FF50",
                           },
                         ]}
                         onPress={() => {
@@ -1735,12 +1830,12 @@ export default function HomeScreen() {
                           ios="person.badge.plus"
                           android="person_add"
                           size={20}
-                          tintColor={isDark ? "#8ec5ff" : "#4A89EE"}
+                          tintColor={isDark ? "#51A2FF" : "#4A89EE"}
                         />
                         <Text
                           style={[
                             styles.addFriendText,
-                            isDark && { color: "#8ec5ff" },
+                            isDark && { color: "#51A2FF" },
                           ]}
                         >
                           Lisää kaveri
@@ -1947,12 +2042,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  friendSearchInputWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
   friendSearchInput: {
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
     flex: 1,
+  },
+  friendSearchInputWithClear: {
+    paddingRight: 36,
+  },
+  friendSearchClearButton: {
+    position: "absolute",
+    right: 8,
+    padding: 4,
   },
   addFriendIconButton: {
     marginLeft: 6,

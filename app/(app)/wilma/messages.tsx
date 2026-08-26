@@ -100,7 +100,7 @@ function MessageRow({
 
   return (
     <Pressable
-      style={[styles.row, isDark && { backgroundColor: "#252525", borderBottomColor: "#333" }]}
+      style={[styles.row, isDark && { backgroundColor: "#232427", borderBottomColor: "#333" }]}
       onPress={onPress}
       android_ripple={{ color: "#00000010" }}
     >
@@ -144,7 +144,7 @@ function MessageRow({
         {(msg.isEvent || applying || msg.replies > 0) && (
           <View style={styles.chipRow}>
             {msg.isEvent && (
-              <View style={[styles.chip, { backgroundColor: "#4A89EE20" }]}>
+              <View style={[styles.chip, { backgroundColor: "#51A2FF1F" }]}>
                 <Text style={[styles.chipText, { color: "#4A89EE" }]}>
                   Tapahtuma
                 </Text>
@@ -234,7 +234,7 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       edges={["top"]}
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -243,7 +243,7 @@ export default function MessagesScreen() {
       <View
         style={[
           styles.header,
-          isDark && { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+          isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
         ]}
       >
         <Pressable onPress={() => router.back()} hitSlop={8}>
@@ -271,7 +271,7 @@ export default function MessagesScreen() {
         )}
       </View>
 
-      <View style={[styles.folderTabs, isDark && { backgroundColor: "#1e1e1e", borderBottomColor: "#333" }]}>
+      <View style={[styles.folderTabs, isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" }]}>
         {([
           ["INBOX", "Saapuneet"],
           ["OUTBOX", "Lähetetyt"],
@@ -317,7 +317,7 @@ export default function MessagesScreen() {
             {error}
           </Text>
           <Pressable
-            style={[styles.retryBtn, isDark && { backgroundColor: "#303030" }]}
+            style={[styles.retryBtn, isDark && { backgroundColor: "#232427" }]}
             onPress={() => load()}
           >
             <MaterialIcons
@@ -374,9 +374,9 @@ export default function MessagesScreen() {
           )}
           contentContainerStyle={[
             styles.listContent,
-            isDark && { backgroundColor: "#1e1e1e" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
-          style={[styles.list, isDark && { backgroundColor: "#1e1e1e" }]}
+          style={[styles.list, isDark && { backgroundColor: "#18191B" }]}
         />
       )}
     </SafeAreaView>

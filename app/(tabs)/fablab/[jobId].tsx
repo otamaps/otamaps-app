@@ -64,7 +64,7 @@ function StatusStepper({ status, isDark }: { status: PrintJobStatus; isDark: boo
                 {isCurrent && <View style={st.innerDot} />}
               </View>
               {!isLast && (
-                <View style={[st.line, { backgroundColor: isDone ? GREEN : isDark ? '#2a2a2a' : '#e5e5e5' }]} />
+                <View style={[st.line, { backgroundColor: isDone ? GREEN : isDark ? '#232427' : '#e5e5e5' }]} />
               )}
             </View>
             <Text
@@ -218,7 +218,7 @@ export default function PrintJobScreen() {
     }
   };
 
-  const bg = isDark ? '#1e1e1e' : '#fff';
+  const bg = isDark ? '#18191B' : '#fff';
   const cardBg = isDark ? '#1a1a1a' : '#f5f5f5';
 
   if (loading) {

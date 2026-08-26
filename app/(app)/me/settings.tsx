@@ -219,8 +219,8 @@ export default function Settings() {
     );
   }
 
-  const surface = isDark ? "#252525" : "#FFFFFF";
-  const background = isDark ? "#1E1E1E" : "#F5F7FA";
+  const surface = isDark ? "#232427" : "#FFFFFF";
+  const background = isDark ? "#18191B" : "#F5F7FA";
   const titleColor = isDark ? "#FFFFFF" : "#101828";
   const descriptionColor = isDark ? "#B3B3B3" : "#667085";
 
@@ -373,7 +373,7 @@ function SettingSwitch({
 }
 
 function Divider({ isDark }: { isDark: boolean }) {
-  return <View style={[styles.divider, { backgroundColor: isDark ? "#3A3A3A" : "#EAECF0" }]} />;
+  return <View style={[styles.divider, { backgroundColor: isDark ? "#2E3034" : "#EAECF0" }]} />;
 }
 
 function LinkRow({

@@ -112,7 +112,7 @@ export default function WilmaNewsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f7fb" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, backgroundColor: "transparent", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   borderDark: { borderBottomColor: "#333" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   list: { padding: 16, gap: 12 },
   emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 28 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  cardDark: { backgroundColor: "#292929" },
+  cardDark: { backgroundColor: "#232427" },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   date: { fontFamily: "Figtree-Medium", fontSize: 12, color: "#667085" },
   title: { fontFamily: "Figtree-SemiBold", fontSize: 17, lineHeight: 22, color: "#202939" },

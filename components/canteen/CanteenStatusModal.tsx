@@ -329,7 +329,7 @@ export default function CanteenStatusModal({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
-  safeAreaDark: { backgroundColor: "#1E2024" },
+  safeAreaDark: { backgroundColor: "#202226" },
   header: { minHeight: 76, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#E4E8ED", paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   eyebrow: { color: "#77818E", fontFamily: "Figtree-SemiBold", fontSize: 11, letterSpacing: 1.2 },
   title: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 24, marginTop: 2 },
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   sectionCaption: { color: "#77818E", fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 19, marginTop: 3 },
   levelGrid: { gap: 9 },
   levelButton: { minHeight: 50, borderRadius: 15, borderWidth: 1.5, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 11, backgroundColor: "#FFFFFF" },
-  levelButtonDark: { backgroundColor: "#292D33" },
+  levelButtonDark: { backgroundColor: "#232427" },
   levelDot: { width: 12, height: 12, borderRadius: 6 },
   levelText: { flex: 1, color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 15 },
   contributionCard: { flexDirection: "row", gap: 12, backgroundColor: "#F4F7FC", borderRadius: 18, padding: 16, marginTop: 16 },
@@ -366,8 +366,8 @@ const styles = StyleSheet.create({
   diets: { color: "#77818E", fontFamily: "Figtree-Regular", fontSize: 12, marginTop: 2 },
   sourceButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 14 },
   sourceButtonText: { color: "#276CE5", fontFamily: "Figtree-SemiBold", fontSize: 14 },
-  surfaceDark: { backgroundColor: "#292D33" },
-  borderDark: { borderColor: "#3C424A" },
+  surfaceDark: { backgroundColor: "#232427" },
+  borderDark: { borderColor: "#3A3D42" },
   textPrimaryDark: { color: "#F5F7FA" },
   textMutedDark: { color: "#ABB3BE" },
   disabled: { opacity: 0.45 },

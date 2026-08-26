@@ -216,6 +216,65 @@ export function clockValue(value: string): string {
   return value.slice(0, 5);
 }
 
+/** Adds whole minutes to a `HH:MM` clock value, for same-day comparisons. */
+export function addMinutesClock(clock: string, minutes: number): string {
+  const [h, m] = clock.split(":").map(Number);
+  const total = Math.min(Math.max(h * 60 + m + minutes, 0), 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** Minutes since midnight for a `HH:MM` (or `HH:MM:SS`) clock value. */
+export function clockMinutes(clock: string): number {
+  const [h, m] = clockValue(clock).split(":").map(Number);
+  return h * 60 + m;
+}
+
+export type FreeSlot = { start: string; end: string };
+
+/** Below this, a free slot renders at the normal row height. */
+const FREE_SLOT_TALL_THRESHOLD_MINUTES = 105;
+const FREE_SLOT_BASELINE_MINUTES = 75;
+const FREE_SLOT_BASELINE_HEIGHT = 56;
+const FREE_SLOT_MAX_HEIGHT = 200;
+
+/**
+ * A minimum row height for a free slot longer than
+ * `FREE_SLOT_TALL_THRESHOLD_MINUTES`, scaled roughly against a typical
+ * lesson's length so a long "Hyppytunti" reads as visibly longer than the
+ * lessons around it. Returns `undefined` below the threshold, meaning the
+ * row should just use its normal content-driven height. Capped so a whole
+ * free afternoon doesn't blow out the layout.
+ */
+export function freeSlotHeight(durationMinutes: number): number | undefined {
+  if (durationMinutes <= FREE_SLOT_TALL_THRESHOLD_MINUTES) return undefined;
+  return Math.min(
+    FREE_SLOT_MAX_HEIGHT,
+    Math.round(FREE_SLOT_BASELINE_HEIGHT * (durationMinutes / FREE_SLOT_BASELINE_MINUTES))
+  );
+}
+
+/** Below this, a gap between two lessons is a passing period, not a free slot. */
+export const FREE_SLOT_MIN_GAP_MINUTES = 20;
+
+/**
+ * Gaps strictly between two consecutive lessons — a schedule's "Hyppytunti"
+ * (free/jump period) — long enough to be real free time rather than a
+ * passing-period break. `lessons` must already be sorted by start time.
+ */
+export function findFreeSlots(
+  lessons: { start: string; end: string }[]
+): FreeSlot[] {
+  const slots: FreeSlot[] = [];
+  for (let i = 0; i < lessons.length - 1; i++) {
+    const start = clockValue(lessons[i].end);
+    const end = clockValue(lessons[i + 1].start);
+    if (clockMinutes(end) - clockMinutes(start) > FREE_SLOT_MIN_GAP_MINUTES) {
+      slots.push({ start, end });
+    }
+  }
+  return slots;
+}
+
 export type LessonFragment = { start: string; end: string };
 
 /**

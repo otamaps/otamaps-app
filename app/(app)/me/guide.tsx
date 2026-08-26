@@ -21,11 +21,11 @@ const GuideItem = ({
   text: string;
   isDark: boolean;
 }) => (
-  <View style={[styles.guideItem, isDark && { backgroundColor: "#1e1e1e" }]}>
+  <View style={[styles.guideItem, isDark && { backgroundColor: "#18191B" }]}>
     <View
       style={[
         styles.iconContainer,
-        isDark && { backgroundColor: "#4A89EE20", borderColor: "#4A89EE" },
+        isDark && { backgroundColor: "#51A2FF1F", borderColor: "#4A89EE" },
       ]}
     >
       <MaterialIcons name={icon as any} size={20} color="#4A89EE" />
@@ -41,12 +41,12 @@ const Guide = () => {
   const isDark = useColorScheme() === "dark";
   return (
     <ScrollView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
     >
       <Stack.Screen
         options={{
           title: "Käyttöohje",
-          headerStyle: { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+          headerStyle: { backgroundColor: isDark ? "#18191B" : "#fff" },
           headerTitleStyle: { color: isDark ? "#fff" : "#000" },
           headerTintColor: isDark ? "#fff" : "#000",
           headerLeft: () => (
@@ -100,7 +100,7 @@ const Guide = () => {
       <View
         style={[
           styles.tipBox,
-          isDark && { backgroundColor: "#4A89EE10", borderColor: "#4A89EE20" },
+          isDark && { backgroundColor: "#51A2FF14", borderColor: "#51A2FF1F" },
         ]}
       >
         <Text style={[styles.tipTitle, isDark && { color: "white" }]}>

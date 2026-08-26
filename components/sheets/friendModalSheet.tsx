@@ -5,6 +5,7 @@ import React, {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { StyleSheet, useColorScheme, View } from "react-native";
 
@@ -13,6 +14,8 @@ export type FriendModalSheetRef = {
   snapToMid: () => void;
   snapToMax: () => void;
   close: () => void;
+  /** -1 while dismissed, otherwise the current snap index (0 = min, 1 = mid, 2 = max). */
+  getCurrentSnapIndex: () => number;
 };
 
 type FriendModalSheetProps = {
@@ -24,6 +27,7 @@ type FriendModalSheetProps = {
 const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
   ({ children, onDismiss, initialSnap = "mid" }, ref) => {
     const sheetRef = useRef<BottomSheetModal>(null);
+    const [currentSnapIndex, setCurrentSnapIndex] = useState(-1);
 
     const isDark = useColorScheme() === "dark";
 
@@ -50,6 +54,7 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
       snapToMid: () => sheetRef.current?.snapToIndex(1),
       snapToMax: () => sheetRef.current?.snapToIndex(2),
       close: () => sheetRef.current?.close(),
+      getCurrentSnapIndex: () => currentSnapIndex,
     }));
 
     return (
@@ -57,10 +62,14 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
         ref={sheetRef}
         snapPoints={snapPoints}
         enablePanDownToClose={true}
-        onDismiss={onDismiss}
-        backgroundStyle={{ backgroundColor: isDark ? "#1E2024" : "#FFFFFF" }}
+        onDismiss={() => {
+          setCurrentSnapIndex(-1);
+          onDismiss();
+        }}
+        onChange={setCurrentSnapIndex}
+        backgroundStyle={{ backgroundColor: isDark ? "#202226" : "#FFFFFF" }}
         handleStyle={{
-          backgroundColor: isDark ? "#1e1e1e" : "#fff",
+          backgroundColor: isDark ? "#18191B" : "#fff",
           borderTopLeftRadius: 14,
           borderTopRightRadius: 14,
         }}
@@ -71,12 +80,12 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
         <BottomSheetScrollView
           contentContainerStyle={[
             styles.contentContainer,
-            isDark && { backgroundColor: "#1e1e1e" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
           showsVerticalScrollIndicator={false}
         >
           <View
-            style={[styles.content, isDark && { backgroundColor: "#1e1e1e" }]}
+            style={[styles.content, isDark && { backgroundColor: "#18191B" }]}
           >
             {children}
           </View>

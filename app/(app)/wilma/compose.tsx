@@ -91,9 +91,9 @@ export default function ComposeMessageScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#1e1e1e" },
+  containerDark: { backgroundColor: "#18191B" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
-  headerDark: { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   content: { padding: 16, gap: 8 },
   label: { marginTop: 8, fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" },

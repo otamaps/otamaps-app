@@ -92,7 +92,7 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
         enableHandlePanningGesture={true}
         style={styles.container}
         backgroundStyle={
-          isDark ? { backgroundColor: "#1e1e1e" } : { backgroundColor: "#fff" }
+          isDark ? { backgroundColor: "#18191B" } : { backgroundColor: "#fff" }
         }
         handleIndicatorStyle={isDark ? styles.darkHandle : styles.handle}
         keyboardBehavior="extend"
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
   },
   darkBackground: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "#18191B",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },

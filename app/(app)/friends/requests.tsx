@@ -108,7 +108,7 @@ const RequestsScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
@@ -119,7 +119,7 @@ const RequestsScreen = () => {
             color: isDark ? "#fff" : "#333",
           },
           headerStyle: {
-            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+            backgroundColor: isDark ? "#18191B" : "#fff",
           },
           headerLeft: () => (
             <Pressable onPress={() => router.back()}>

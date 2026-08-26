@@ -443,7 +443,7 @@ export default function NewPrintScreen() {
     }
   };
 
-  const bg = isDark ? '#1e1e1e' : '#fff';
+  const bg = isDark ? '#18191B' : '#fff';
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: bg }]}>
@@ -553,7 +553,7 @@ const s = StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: 14, fontFamily: 'Figtree-Regular' },
   rowValue: { fontSize: 14, fontFamily: 'Figtree-SemiBold', maxWidth: '65%', textAlign: 'right' },
-  divider: { height: 1, backgroundColor: '#2a2a2a', marginVertical: 4 },
+  divider: { height: 1, backgroundColor: '#232427', marginVertical: 4 },
   navRow: { flexDirection: 'row', alignItems: 'center', marginTop: 'auto', paddingTop: 16 },
   primaryBtn: {
     flexDirection: 'row',

@@ -26,11 +26,11 @@ const InfoItem = ({
 	text: string;
 	isDark: boolean;
 }) => (
-	<View style={[styles.item, isDark && { backgroundColor: "#1e1e1e" }]}>
+	<View style={[styles.item, isDark && { backgroundColor: "#18191B" }]}>
 		<View
 			style={[
 				styles.iconContainer,
-				isDark && { backgroundColor: "#4A89EE20", borderColor: "#4A89EE" },
+				isDark && { backgroundColor: "#51A2FF1F", borderColor: "#4A89EE" },
 			]}
 		>
 			<MaterialIcons name={icon as any} size={20} color="#4A89EE" />
@@ -85,12 +85,12 @@ const Fablab = () => {
 
 	return (
 		<ScrollView
-			style={[styles.container, isDark && { backgroundColor: "#1e1e1e" }]}
+			style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
 		>
 			<Stack.Screen
 				options={{
 					title: "Fablab",
-					headerStyle: { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+					headerStyle: { backgroundColor: isDark ? "#18191B" : "#fff" },
 					headerTitleStyle: { color: isDark ? "#fff" : "#000" },
 					headerTintColor: isDark ? "#fff" : "#000",
 					headerLeft: () => (
@@ -109,7 +109,7 @@ const Fablab = () => {
 			<View
 				style={[
 					styles.toggleCard,
-					isDark && { backgroundColor: "#1e1e1e", borderColor: "#404040" },
+					isDark && { backgroundColor: "#18191B", borderColor: "#404040" },
 				]}
 			>
 				<View style={styles.toggleHeader}>
@@ -150,7 +150,7 @@ const Fablab = () => {
 			<View
 				style={[
 					styles.tipBox,
-					isDark && { backgroundColor: "#4A89EE10", borderColor: "#4A89EE20" },
+					isDark && { backgroundColor: "#51A2FF14", borderColor: "#51A2FF1F" },
 				]}
 			>
 				<Text style={[styles.tipTitle, isDark && { color: "white" }]}>Vinkki:</Text>

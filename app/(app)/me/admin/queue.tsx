@@ -109,7 +109,7 @@ export default function QueueAdminScreen() {
   };
 
   const background = isDark ? "#171717" : "#F4F6F8";
-  const card = isDark ? "#252525" : "#FFFFFF";
+  const card = isDark ? "#232427" : "#FFFFFF";
   const text = isDark ? "#F8F8F8" : "#20242A";
   const muted = isDark ? "#ACB3BD" : "#68717D";
 
@@ -174,7 +174,7 @@ export default function QueueAdminScreen() {
               ? ` · ${formatTime(status.status_observed_at)}`
               : ""}
           </Text>
-          <View style={[styles.activityBox, { borderColor: isDark ? "#3B3B3B" : "#E3E7EC" }]}>
+          <View style={[styles.activityBox, { borderColor: isDark ? "#2E3034" : "#E3E7EC" }]}>
             <Text style={[styles.activityValue, { color: text }]}>
               {activity?.sample_count_10m ?? 0}
             </Text>
@@ -208,7 +208,7 @@ export default function QueueAdminScreen() {
                       backgroundColor: selected
                         ? `${color}20`
                         : isDark
-                        ? "#2D2D2D"
+                        ? "#232427"
                         : "#FAFBFC",
                     },
                     pressed && { opacity: 0.72 },
@@ -252,7 +252,7 @@ export default function QueueAdminScreen() {
                 key={item.id}
                 style={[
                   styles.historyRow,
-                  { borderTopColor: isDark ? "#393939" : "#EBEEF2" },
+                  { borderTopColor: isDark ? "#2E3034" : "#EBEEF2" },
                 ]}
               >
                 <View style={styles.historyMain}>
