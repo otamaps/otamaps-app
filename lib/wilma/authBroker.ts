@@ -1,8 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import {
-  createFetchTimeoutError,
-  isFetchCancellation,
-} from "../networkErrors";
+import { createFetchTimeoutError, isFetchCancellation } from "../networkErrors";
 import { reportHandledError } from "../sentry";
 import { supabase } from "../supabase";
 import { clearAll, saveCredentials, saveSession } from "./graphqlClient";
@@ -11,7 +8,8 @@ const API_BASE_URL = (
   process.env.EXPO_PUBLIC_OTAMAPS_API_URL || "https://api.otamaps.fi"
 ).replace(/\/$/, "");
 const PENDING_LINK_KEY = "wilma_legacy_link_attempt";
-const KEYCHAIN_UNAVAILABLE = /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
+const KEYCHAIN_UNAVAILABLE =
+  /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
 let pendingLinkMemo: PendingLink | null | undefined;
 // A successful Wilma-primary sign-in includes the upstream Wilma login,
 // profile parsing, identity lookup/creation, and Supabase token minting. Those
@@ -55,13 +53,10 @@ type ApiErrorBody = {
 async function postJson<T>(
   path: string,
   body: Record<string, string>,
-  accessToken?: string
+  accessToken?: string,
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    AUTH_REQUEST_TIMEOUT_MS
-  );
+  const timeout = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
@@ -75,7 +70,7 @@ async function postJson<T>(
     const payload = (await response.json()) as T & ApiErrorBody;
     if (!response.ok) {
       const error = new Error(
-        payload.error?.message || "Kirjautumispalvelu ei ole käytettävissä."
+        payload.error?.message || "Kirjautumispalvelu ei ole käytettävissä.",
       );
       (error as Error & { code?: string }).code = payload.error?.code;
       throw error;
@@ -85,7 +80,7 @@ async function postJson<T>(
     if (isFetchCancellation(error, controller.signal)) {
       const timeoutError = createFetchTimeoutError(
         "Kirjautumispalvelun yhteys aikakatkaistiin.",
-        error
+        error,
       );
       reportHandledError(timeoutError, {
         area: "wilma.auth",
@@ -105,7 +100,7 @@ async function postJson<T>(
 
 export function startWilmaAuthentication(
   username: string,
-  password: string
+  password: string,
 ): Promise<WilmaStartResult> {
   return postJson<WilmaStartResult>("/v1/auth/wilma/start", {
     username,
@@ -114,7 +109,7 @@ export function startWilmaAuthentication(
 }
 
 export function createWilmaAccount(
-  attemptToken: string
+  attemptToken: string,
 ): Promise<WilmaSessionExchange> {
   return postJson<WilmaSessionExchange>("/v1/auth/wilma/create", {
     attemptToken,
@@ -124,7 +119,7 @@ export function createWilmaAccount(
 export async function finishWilmaSupabaseExchange(
   exchange: WilmaSessionExchange,
   username: string,
-  password: string
+  password: string,
 ) {
   const { data, error } = await supabase.auth.verifyOtp({
     token_hash: exchange.tokenHash,
@@ -133,7 +128,9 @@ export async function finishWilmaSupabaseExchange(
   if (error) throw error;
   if (!data.user || data.user.id !== exchange.expectedUserId) {
     await supabase.auth.signOut();
-    throw new Error("Supabase-istunnon käyttäjä ei vastannut Wilma-tunnistetta.");
+    throw new Error(
+      "Supabase-istunnon käyttäjä ei vastannut Wilma-tunnistetta.",
+    );
   }
   try {
     await Promise.all([
@@ -155,12 +152,12 @@ export async function finishWilmaSupabaseExchange(
 export async function savePendingLegacyLink(
   attemptToken: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<void> {
   await SecureStore.setItemAsync(
     PENDING_LINK_KEY,
     JSON.stringify({ attemptToken, username, password } satisfies PendingLink),
-    { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }
+    { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY },
   );
   pendingLinkMemo = { attemptToken, username, password };
 }
@@ -191,24 +188,25 @@ export async function clearPendingLegacyLink(): Promise<void> {
 }
 
 export async function completePendingLegacyLink(
-  accessToken?: string
+  accessToken?: string,
 ): Promise<boolean> {
   const pending = await getPendingLegacyLink();
   if (!pending) return false;
   const token =
-    accessToken || (await supabase.auth.getSession()).data.session?.access_token;
+    accessToken ||
+    (await supabase.auth.getSession()).data.session?.access_token;
   if (!token) throw new Error("Vanhan OtaMaps-tilin istunto puuttuu.");
 
   try {
     const linked = await postJson<WilmaLinkedSession>(
       "/v1/auth/wilma/link-legacy",
       { attemptToken: pending.attemptToken },
-      token
+      token,
     );
     const currentUserId = (await supabase.auth.getUser()).data.user?.id;
     if (!currentUserId || currentUserId !== linked.expectedUserId) {
       throw new Error(
-        "Yhdistetty OtaMaps-tili ei vastannut kirjautunutta käyttäjää."
+        "Yhdistetty OtaMaps-tili ei vastannut kirjautunutta käyttäjää.",
       );
     }
     await Promise.all([
@@ -229,7 +227,7 @@ export async function completePendingLegacyLink(
 
 export async function connectWilmaAccount(
   username: string,
-  password: string
+  password: string,
 ): Promise<WilmaLinkedSession> {
   const {
     data: { session },
@@ -242,7 +240,7 @@ export async function connectWilmaAccount(
   const linked = await postJson<WilmaLinkedSession>(
     "/v1/auth/wilma/connect",
     { username: username.trim(), password },
-    session.access_token
+    session.access_token,
   );
   if (linked.expectedUserId !== session.user.id) {
     throw new Error("Yhdistetty Wilma-tili ei vastannut OtaMaps-käyttäjää.");
