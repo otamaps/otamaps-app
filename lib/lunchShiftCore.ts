@@ -253,26 +253,88 @@ export function freeSlotHeight(durationMinutes: number): number | undefined {
   );
 }
 
+/** A lesson this long or longer (three hours) renders taller than usual. */
+const LESSON_TALL_THRESHOLD_MINUTES = 180;
+
+/**
+ * A minimum row height for a lesson at least `LESSON_TALL_THRESHOLD_MINUTES`
+ * long, scaled the same way as `freeSlotHeight` so a three-hour-plus lesson
+ * reads as visibly taller than the ordinary ~75 minute ones around it.
+ * Returns `undefined` below the threshold, meaning the row should just use
+ * its normal content-driven height.
+ */
+export function lessonHeight(durationMinutes: number): number | undefined {
+  if (durationMinutes < LESSON_TALL_THRESHOLD_MINUTES) return undefined;
+  return Math.min(
+    FREE_SLOT_MAX_HEIGHT,
+    Math.round(FREE_SLOT_BASELINE_HEIGHT * (durationMinutes / FREE_SLOT_BASELINE_MINUTES))
+  );
+}
+
 /** Below this, a gap between two lessons is a passing period, not a free slot. */
 export const FREE_SLOT_MIN_GAP_MINUTES = 20;
 
 /**
- * Gaps strictly between two consecutive lessons — a schedule's "Hyppytunti"
- * (free/jump period) — long enough to be real free time rather than a
- * passing-period break. `lessons` must already be sorted by start time.
+ * The school day's fixed lesson periods. A gap between two lessons that
+ * skips over more than one of these is split into one free slot per period
+ * (see `splitLessonGap`) rather than shown as a single oversized block.
  */
-export function findFreeSlots(
-  lessons: { start: string; end: string }[]
-): FreeSlot[] {
-  const slots: FreeSlot[] = [];
-  for (let i = 0; i < lessons.length - 1; i++) {
-    const start = clockValue(lessons[i].end);
-    const end = clockValue(lessons[i + 1].start);
-    if (clockMinutes(end) - clockMinutes(start) > FREE_SLOT_MIN_GAP_MINUTES) {
-      slots.push({ start, end });
-    }
+export const LESSON_SLOTS: FreeSlot[] = [
+  { start: "08:30", end: "09:45" },
+  { start: "10:00", end: "11:15" },
+  { start: "11:20", end: "13:15" },
+  { start: "13:30", end: "14:45" },
+  { start: "15:00", end: "16:15" },
+];
+
+export type DayGapPiece =
+  | { kind: "freeslot"; start: string; end: string }
+  | { kind: "lunch"; start: string; end: string };
+
+/**
+ * Splits the gap strictly between two consecutive lessons — a schedule's
+ * "Hyppytunti" (free/jump period), or the day's lunch break — into the
+ * pieces it should render as. `lessonA` ends where the gap starts, `lessonB`
+ * starts where it ends.
+ *
+ * - A gap of `FREE_SLOT_MIN_GAP_MINUTES` or less is a passing period, not a
+ *   real gap, and produces nothing.
+ * - When both flanking lessons are three hours or longer (`LESSON_TALL_THRESHOLD_MINUTES`),
+ *   the whole gap is the day's lunch break rather than a free slot — a day
+ *   condensed into two long blocks has no "Hyppytunti", just lunch between
+ *   them.
+ * - Otherwise it's genuine free time. A gap spanning more than one of the
+ *   day's fixed lesson slots (e.g. a lesson ending at 9:45 followed by one
+ *   starting at 13:30, skipping two whole periods) is returned as one piece
+ *   per period it fully covers, rather than a single piece spanning the
+ *   whole gap.
+ */
+export function splitLessonGap(
+  lessonA: { start: string; end: string },
+  lessonB: { start: string; end: string }
+): DayGapPiece[] {
+  const start = clockValue(lessonA.end);
+  const end = clockValue(lessonB.start);
+  if (clockMinutes(end) - clockMinutes(start) <= FREE_SLOT_MIN_GAP_MINUTES) {
+    return [];
   }
-  return slots;
+
+  const lessonADuration = clockMinutes(clockValue(lessonA.end)) - clockMinutes(clockValue(lessonA.start));
+  const lessonBDuration = clockMinutes(clockValue(lessonB.end)) - clockMinutes(clockValue(lessonB.start));
+  if (
+    lessonADuration >= LESSON_TALL_THRESHOLD_MINUTES &&
+    lessonBDuration >= LESSON_TALL_THRESHOLD_MINUTES
+  ) {
+    return [{ kind: "lunch", start, end }];
+  }
+
+  const coveredLessonSlots = LESSON_SLOTS.filter(
+    (slot) =>
+      clockMinutes(slot.start) >= clockMinutes(start) &&
+      clockMinutes(slot.end) <= clockMinutes(end)
+  );
+  const pieces = coveredLessonSlots.length ? coveredLessonSlots : [{ start, end }];
+  return pieces.map((piece) => ({ kind: "freeslot", ...piece }));
 }
 
 export type LessonFragment = { start: string; end: string };
@@ -317,15 +379,18 @@ export type DaySlot<L> =
 /**
  * One school day's lessons, interleaved with its free slots ("Hyppytunti")
  * and lunch window, in chronological order:
- *  - A free slot only appears in a real gap between two lessons (5–20 minute
- *    passing periods are excluded — see `findFreeSlots`).
- *  - Lunch nests inside whichever lesson or free slot it overlaps, sitting on
- *    its own row only when it falls outside every lesson and free slot.
+ *  - A gap only appears in a real gap between two lessons (5–20 minute
+ *    passing periods are excluded), and is either a free slot or, when both
+ *    flanking lessons are three-hour blocks, the day's lunch break — see
+ *    `splitLessonGap`.
+ *  - A configured lunch shift nests inside whichever lesson or free slot it
+ *    overlaps, sitting on its own row only when it falls outside every
+ *    lesson and free slot.
  *  - A lunch straddling the boundary between two adjacent slots is kept only
  *    on the later of the two, so it's never shown twice.
  *
  * `lessons` need not be pre-sorted. `getKey` derives a stable id per lesson,
- * used to key the free slot that follows it.
+ * used to key the free slot(s) that follow it.
  */
 export function buildDaySlots<L extends { start: string; end: string }>(
   lessons: L[],
@@ -333,24 +398,34 @@ export function buildDaySlots<L extends { start: string; end: string }>(
   getKey: (lesson: L) => string
 ): DaySlot<L>[] {
   const sortedLessons = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
-  const freeSlots = findFreeSlots(sortedLessons);
 
   type Slot =
     | { kind: "lesson"; lesson: L; start: string; end: string }
-    | { kind: "freeslot"; key: string; start: string; end: string };
+    | { kind: "freeslot"; key: string; start: string; end: string }
+    | { kind: "lunch"; start: string; end: string };
 
   const slots: Slot[] = [];
-  sortedLessons.forEach((lesson) => {
+  sortedLessons.forEach((lesson, i) => {
     slots.push({
       kind: "lesson",
       lesson,
       start: clockValue(lesson.start),
       end: clockValue(lesson.end),
     });
-    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
-    if (gap) {
-      slots.push({ kind: "freeslot", key: `gap:${getKey(lesson)}`, ...gap });
-    }
+    const nextLesson = sortedLessons[i + 1];
+    if (!nextLesson) return;
+    splitLessonGap(lesson, nextLesson).forEach((piece, pieceIndex) => {
+      slots.push(
+        piece.kind === "lunch"
+          ? { kind: "lunch", start: piece.start, end: piece.end }
+          : {
+              kind: "freeslot",
+              key: `gap:${getKey(lesson)}:${pieceIndex}`,
+              start: piece.start,
+              end: piece.end,
+            }
+      );
+    });
   });
 
   const nestedLunchFor = (start: string, end: string): LunchWindow | null => {
@@ -370,7 +445,9 @@ export function buildDaySlots<L extends { start: string; end: string }>(
   const rows: DaySlot<L>[] = slots.map((slot, i) =>
     slot.kind === "lesson"
       ? { kind: "lesson", lesson: slot.lesson, start: slot.start, end: slot.end, lunch: dedupedLunch[i] }
-      : { kind: "freeslot", key: slot.key, start: slot.start, end: slot.end, lunch: dedupedLunch[i] }
+      : slot.kind === "freeslot"
+        ? { kind: "freeslot", key: slot.key, start: slot.start, end: slot.end, lunch: dedupedLunch[i] }
+        : { kind: "lunch", start: slot.start, end: slot.end }
   );
 
   // A lunch that falls outside every lesson and every free slot still
@@ -385,10 +462,8 @@ export function buildDaySlots<L extends { start: string; end: string }>(
 
   const sortedRows = rows.sort((a, b) => a.start.localeCompare(b.start));
 
-  // A free slot only makes sense right after a lesson that just ended —
-  // drop one that would otherwise open the list.
-  return sortedRows.filter((row, i) => {
-    if (row.kind !== "freeslot") return true;
-    return i > 0 && sortedRows[i - 1].kind === "lesson";
-  });
+  // A free slot only makes sense after a lesson has already happened —
+  // drop one that would otherwise open the list. A chain of several split
+  // free slots (see `splitLessonGap`) is fine; only a leading one is dropped.
+  return sortedRows.filter((row, i) => row.kind !== "freeslot" || i > 0);
 }

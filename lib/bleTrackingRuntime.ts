@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo, { NetInfoSubscription } from "@react-native-community/netinfo";
-import { AppState, Platform } from "react-native";
+import { AppState, Platform, Settings } from "react-native";
 import {
   BleErrorCode,
   BleManager,
@@ -80,6 +80,16 @@ let stateSubscription: Subscription | null = null;
 let scanActive = false;
 let runtimeTimer: ReturnType<typeof setInterval> | null = null;
 let currentMode: TrackingRuntimeMode = "stopped";
+
+// Read via NSUserDefaults by applicationWillTerminate in ios/OtaMaps/AppDelegate.swift
+// (also applied by plugins/withIosForceQuitNotification.js on a future `expo prebuild`)
+// to decide whether to warn the user that force-quitting stops background tracking.
+const IOS_BACKGROUND_TRACKING_ACTIVE_KEY = "otamaps_background_tracking_active";
+
+function syncIosForceQuitWarning(active: boolean): void {
+  if (Platform.OS !== "ios") return;
+  Settings.set({ [IOS_BACKGROUND_TRACKING_ACTIVE_KEY]: active });
+}
 let hydrated = false;
 let hydrationPromise: Promise<void> | null = null;
 let pendingFix: LocationFix | null = null;
@@ -576,6 +586,7 @@ export async function startTrackingRuntime(
   }
 
   currentMode = mode;
+  syncIosForceQuitWarning(mode === "ios-background");
   trackingGeneration += 1;
   discardPendingAfterStop = false;
   snapshot.diagnostics.mode = mode;
@@ -650,6 +661,7 @@ async function stopRuntime(clearPending: boolean): Promise<void> {
   }
   scanActive = false;
   currentMode = "stopped";
+  syncIosForceQuitWarning(false);
   observations.clear();
   selection.reset();
   queuedFix = null;

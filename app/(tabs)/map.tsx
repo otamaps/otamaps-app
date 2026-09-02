@@ -216,6 +216,47 @@ export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const mapTilerKey = process.env.EXPO_PUBLIC_MAPTILER_KEY?.trim();
 
+  // MapTiler's hosted styles ship POI labels (shops, schools, etc.) turned on.
+  // Fetch the style JSON and switch those layers off client-side instead of
+  // editing the hosted style, since "place" (city/town) labels should stay.
+  const [mapStyleJSON, setMapStyleJSON] = useState<string | undefined>(
+    undefined
+  );
+
+  useEffect(() => {
+    if (!mapTilerKey) {
+      setMapStyleJSON(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    const styleUrl = `https://api.maptiler.com/maps/${
+      isDark ? "basic-v2-dark" : "basic-v2"
+    }/style.json?key=${encodeURIComponent(mapTilerKey)}`;
+
+    fetch(styleUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`MapTiler style request failed: ${res.status}`);
+        return res.json();
+      })
+      .then((style) => {
+        if (cancelled) return;
+        style.layers = (style.layers ?? []).map((layer: any) =>
+          layer["source-layer"] === "poi"
+            ? { ...layer, layout: { ...layer.layout, visibility: "none" } }
+            : layer
+        );
+        setMapStyleJSON(JSON.stringify(style));
+      })
+      .catch((error) => {
+        console.error("Failed to load MapTiler style:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDark, mapTilerKey]);
+
   const [geoData, setGeoData] = useState(null);
   const friendModalRef = useRef<FriendModalSheetRef>(null);
   const mapBottomSheetRef = useRef<BottomSheetMethods>(null);
@@ -335,6 +376,16 @@ export default function HomeScreen() {
       clearInterval(locationUpdateInterval);
     };
   }, [fetchLocalUserLocation]);
+
+  // Auto-select the floor the user is detected on when the map is opened.
+  // Only runs once (on first location fix) so it doesn't override manual floor changes later.
+  const hasAutoSelectedFloorRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoSelectedFloorRef.current) return;
+    if (localUserLocation?.floor == null) return;
+    hasAutoSelectedFloorRef.current = true;
+    setSelectedFloor(localUserLocation.floor);
+  }, [localUserLocation]);
 
   const fetchQueueStatus = useCallback(async () => {
     try {
@@ -1106,13 +1157,7 @@ export default function HomeScreen() {
           <MapView
             ref={mapRef}
             style={styles.map}
-            styleURL={
-              mapTilerKey
-                ? `https://api.maptiler.com/maps/${
-                    isDark ? "basic-v2-dark" : "01985d1f-e0d1-76c5-a7f0-a6cc81ebeb06"
-                  }/style.json?key=${encodeURIComponent(mapTilerKey)}`
-                : undefined
-            }
+            styleJSON={mapStyleJSON}
             compassViewMargins={{ x: 10, y: 40 }}
             pitchEnabled={true}
             scaleBarEnabled={false}
@@ -1158,15 +1203,19 @@ export default function HomeScreen() {
                   style={{
                     textField: ["get", "roomNumber"],
                     textSize: [
-                      "max",
-                      MIN_ROOM_LABEL_TEXT_SIZE,
+                      "interpolate",
+                      ["exponential", 2],
+                      ["zoom"],
+                      13.5,
                       [
-                        "interpolate",
-                        ["exponential", 2],
-                        ["zoom"],
-                        13.5,
+                        "max",
+                        MIN_ROOM_LABEL_TEXT_SIZE,
                         ["*", ["get", "roomNumberMaxTextSize"], 0.005524],
-                        ROOM_LABEL_REFERENCE_ZOOM,
+                      ],
+                      ROOM_LABEL_REFERENCE_ZOOM,
+                      [
+                        "max",
+                        MIN_ROOM_LABEL_TEXT_SIZE,
                         ["get", "roomNumberMaxTextSize"],
                       ],
                     ],

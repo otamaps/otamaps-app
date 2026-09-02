@@ -1,6 +1,7 @@
 internal import Expo
 import React
 import ReactAppDependencyProvider
+import UserNotifications
 
 @main
 class AppDelegate: ExpoAppDelegate {
@@ -48,6 +49,26 @@ class AppDelegate: ExpoAppDelegate {
   ) -> Bool {
     let result = RCTLinkingManager.application(application, continue: userActivity, restorationHandler: restorationHandler)
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
+  }
+
+  // Force-quitting kills Core Bluetooth scanning and opts the app out of
+  // background relaunch for beacon events, so warn the user while background
+  // BLE tracking is active. The flag is written from JS via react-native's
+  // Settings API (NSUserDefaults) in lib/bleTrackingRuntime.ts.
+  public override func applicationWillTerminate(_ application: UIApplication) {
+    if UserDefaults.standard.bool(forKey: "otamaps_background_tracking_active") {
+      let content = UNMutableNotificationContent()
+      content.title = "Keep OtaMaps running in the background"
+      content.body = "Force quitting doesn't save battery or speed up your phone — it just stops beacon tracking and location features until you reopen the app."
+      content.sound = .default
+      let request = UNNotificationRequest(
+        identifier: "otamaps.force_quit_warning",
+        content: content,
+        trigger: nil
+      )
+      UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+    super.applicationWillTerminate(application)
   }
 }
 

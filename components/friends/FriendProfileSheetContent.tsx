@@ -7,9 +7,9 @@ import type { Friend } from "@/lib/friendsHandler";
 import {
   addMinutesClock,
   clockValue,
-  findFreeSlots,
   lunchSplit,
   matchLunchShift,
+  splitLessonGap,
   type LunchMatch,
 } from "@/lib/lunchShiftCore";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
@@ -66,29 +66,36 @@ function nestedLunchFor(
 
 type ScheduleSlot =
   | { kind: "lesson"; lesson: SharedScheduleLesson; start: string; end: string }
-  | { kind: "freeslot"; afterLessonId: string; start: string; end: string };
+  | { kind: "freeslot"; id: string; start: string; end: string }
+  | { kind: "lunch"; id: string; start: string; end: string };
 
 function scheduleEntries(
   lessons: SharedScheduleLesson[],
   lunch: LunchMatch | null
 ): DayScheduleEntry[] {
   const sortedLessons = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
-  const freeSlots = findFreeSlots(sortedLessons);
 
-  // Lessons and their qualifying gaps, in one chronological list — short
-  // passing-period breaks are filtered out by findFreeSlots already.
+  // Lessons and the gap(s) after each — a real gap is either genuine free
+  // time or, between two three-hour blocks, the day's lunch break; see
+  // `splitLessonGap`. Short passing-period breaks produce nothing.
   const slots: ScheduleSlot[] = [];
-  sortedLessons.forEach((lesson) => {
+  sortedLessons.forEach((lesson, i) => {
     slots.push({
       kind: "lesson",
       lesson,
       start: clockValue(lesson.start),
       end: clockValue(lesson.end),
     });
-    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
-    if (gap) {
-      slots.push({ kind: "freeslot", afterLessonId: lesson.id, ...gap });
-    }
+    const nextLesson = sortedLessons[i + 1];
+    if (!nextLesson) return;
+    splitLessonGap(lesson, nextLesson).forEach((piece, pieceIndex) => {
+      const id = `gap:${lesson.id}:${piece.start}:${pieceIndex}`;
+      slots.push(
+        piece.kind === "lunch"
+          ? { kind: "lunch", id, start: piece.start, end: piece.end }
+          : { kind: "freeslot", id, start: piece.start, end: piece.end }
+      );
+    });
   });
 
   // A lunch spanning the short boundary between two adjacent slots (a lesson
@@ -102,26 +109,30 @@ function scheduleEntries(
   // lesson into a "before"/"after" pair of entries, the lesson stays a
   // single entry that renders taller and shows the lunch window nested
   // inside it.
-  const entries: DayScheduleEntry[] = slots.map((slot, i) =>
-    slot.kind === "lesson"
-      ? {
-          id: slot.lesson.id,
-          start: slot.start,
-          end: slot.end,
-          title: slot.lesson.subject,
-          code: slot.lesson.code || undefined,
-          subtitle: slot.lesson.room || undefined,
-          lunch: dedupedLunch[i],
-        }
-      : {
-          id: `gap:${slot.afterLessonId}`,
-          start: slot.start,
-          end: slot.end,
-          title: "Hyppytunti",
-          isFreeSlot: true,
-          lunch: dedupedLunch[i],
-        }
-  );
+  const entries: DayScheduleEntry[] = slots.map((slot, i) => {
+    if (slot.kind === "lesson") {
+      return {
+        id: slot.lesson.id,
+        start: slot.start,
+        end: slot.end,
+        title: slot.lesson.subject,
+        code: slot.lesson.code || undefined,
+        subtitle: slot.lesson.room || undefined,
+        lunch: dedupedLunch[i],
+      };
+    }
+    if (slot.kind === "lunch") {
+      return { id: slot.id, start: slot.start, end: slot.end, title: "Lounas" };
+    }
+    return {
+      id: slot.id,
+      start: slot.start,
+      end: slot.end,
+      title: "Hyppytunti",
+      isFreeSlot: true,
+      lunch: dedupedLunch[i],
+    };
+  });
 
   // A lunch that falls outside every shared lesson and every free slot
   // still belongs on the day.
@@ -136,13 +147,10 @@ function scheduleEntries(
 
   const sortedEntries = entries.sort((a, b) => a.start.localeCompare(b.start));
 
-  // A free slot only makes sense right after a lesson that just ended —
-  // drop one that would otherwise open the list.
-  return sortedEntries.filter((entry, i) => {
-    if (!entry.isFreeSlot) return true;
-    const prev = sortedEntries[i - 1];
-    return !!prev && !prev.isFreeSlot && prev.id !== "lunch";
-  });
+  // A free slot only makes sense after a lesson has already happened —
+  // drop one that would otherwise open the list. A chain of several split
+  // free slots (see `splitLessonGap`) is fine; only a leading one is dropped.
+  return sortedEntries.filter((entry, i) => !entry.isFreeSlot || i > 0);
 }
 
 export default function FriendProfileSheetContent({

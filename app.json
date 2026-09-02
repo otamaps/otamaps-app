@@ -55,6 +55,7 @@
       "expo-router",
       "./plugins/withNotifeeAndroid",
       "./plugins/withIosGoogleModularHeaders",
+      "./plugins/withIosForceQuitNotification",
       [
         "expo-splash-screen",
         {

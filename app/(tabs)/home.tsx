@@ -4,11 +4,12 @@ import {
   addMinutesClock,
   clockMinutes,
   clockValue,
-  findFreeSlots,
   freeSlotHeight,
+  lessonHeight,
   LunchMatch,
   lunchSplit,
   matchLunchShift,
+  splitLessonGap,
 } from "@/lib/lunchShiftCore";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import { isTransientNetworkError } from "@/lib/networkErrors";
@@ -55,6 +56,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+/** Never switch the "Tänään" card to the next school day earlier than this. */
+const NEXT_DAY_SWITCH_EARLIEST = "12:00";
+
 function todayISO(): string {
   return new Date().toISOString().split("T")[0];
 }
@@ -69,6 +73,15 @@ function todayFinnish(): string {
     day: "numeric",
     month: "long",
   });
+}
+
+/** A time-of-day greeting, in place of a flat "Hei" at every hour. */
+function timeOfDayGreeting(hour = new Date().getHours()): string {
+  if (hour < 5) return "Mene nukkumaan";
+  if (hour < 11) return "Huomenta";
+  if (hour < 18) return "Hyvää päivää";
+  if (hour < 24) return "Iltaa";
+  return "Hei";
 }
 
 function formatTime(t: string) {
@@ -98,7 +111,8 @@ function nestedLunchFor(
 
 type TodaySlot =
   | { kind: "lesson"; lesson: ScheduleLesson; start: string; end: string }
-  | { kind: "freeslot"; afterLessonId: number; start: string; end: string };
+  | { kind: "freeslot"; key: string; start: string; end: string }
+  | { kind: "lunch"; key: string; start: string; end: string };
 
 function todayRows(
   lessons: ScheduleLesson[],
@@ -107,26 +121,28 @@ function todayRows(
   const sortedLessons = [...lessons].sort((a, b) =>
     a.start.localeCompare(b.start),
   );
-  const freeSlots = findFreeSlots(sortedLessons);
 
-  // Lessons and their qualifying gaps, in one chronological list — short
-  // passing-period breaks are filtered out by findFreeSlots already.
+  // Lessons and the gap(s) after each — a real gap is either genuine free
+  // time or, between two three-hour blocks, the day's lunch break; see
+  // `splitLessonGap`. Short passing-period breaks produce nothing.
   const slots: TodaySlot[] = [];
-  sortedLessons.forEach((lesson) => {
+  sortedLessons.forEach((lesson, i) => {
     slots.push({
       kind: "lesson",
       lesson,
       start: clockValue(lesson.start),
       end: clockValue(lesson.end),
     });
-    const gap = freeSlots.find((slot) => slot.start === clockValue(lesson.end));
-    if (gap) {
-      slots.push({
-        kind: "freeslot",
-        afterLessonId: lesson.reservationId,
-        ...gap,
-      });
-    }
+    const nextLesson = sortedLessons[i + 1];
+    if (!nextLesson) return;
+    splitLessonGap(lesson, nextLesson).forEach((piece, pieceIndex) => {
+      const key = `gap:${lesson.reservationId}:${piece.start}:${pieceIndex}`;
+      slots.push(
+        piece.kind === "lunch"
+          ? { kind: "lunch", key, start: piece.start, end: piece.end }
+          : { kind: "freeslot", key, start: piece.start, end: piece.end },
+      );
+    });
   });
 
   // A lunch spanning the short boundary between two adjacent slots (a lesson
@@ -153,13 +169,15 @@ function todayRows(
           end: slot.end,
           lunch: dedupedLunch[i],
         }
-      : {
-          kind: "freeslot",
-          key: `gap:${slot.afterLessonId}`,
-          start: slot.start,
-          end: slot.end,
-          lunch: dedupedLunch[i],
-        },
+      : slot.kind === "freeslot"
+        ? {
+            kind: "freeslot",
+            key: slot.key,
+            start: slot.start,
+            end: slot.end,
+            lunch: dedupedLunch[i],
+          }
+        : { kind: "lunch", key: slot.key, start: slot.start, end: slot.end },
   );
 
   // A lunch that falls outside every lesson and every free slot still
@@ -175,12 +193,10 @@ function todayRows(
 
   const sortedRows = rows.sort((a, b) => a.start.localeCompare(b.start));
 
-  // A free slot only makes sense right after a lesson that just ended —
-  // drop one that would otherwise open the list.
-  return sortedRows.filter((row, i) => {
-    if (row.kind !== "freeslot") return true;
-    return i > 0 && sortedRows[i - 1].kind === "lesson";
-  });
+  // A free slot only makes sense after a lesson has already happened —
+  // drop one that would otherwise open the list. A chain of several split
+  // free slots (see `splitLessonGap`) is fine; only a leading one is dropped.
+  return sortedRows.filter((row, i) => row.kind !== "freeslot" || i > 0);
 }
 
 // Dates from the API arrive either as ISO "YYYY-MM-DD" (dateArray) or
@@ -450,6 +466,8 @@ type DashboardData = {
   lunch: LunchMatch | null;
   /** Set once the day's lessons are done and the "Tänään" card shows the next school day instead. */
   scheduleDayLabel: string | null;
+  /** The calendar date (`YYYY-MM-DD`) the "Tänään" card is actually showing — today's, or the next school day once its lessons are done. */
+  scheduleDayISO: string;
 };
 
 function Dashboard({
@@ -497,9 +515,12 @@ function Dashboard({
           .filter((l) => l.day === weekday && l.dateArray.includes(today))
           .sort((a, b) => a.start.localeCompare(b.start));
 
-        // Once the school day is over (30 min past the last lesson's end),
-        // the "Tänään" card switches to showing the next school day instead
-        // of sitting empty for the rest of the evening.
+        // Once the school day is over (30 min past the last lesson's end) —
+        // or there were no lessons today at all — the "Tänään" card switches
+        // to showing the next school day instead of sitting empty for the
+        // rest of the day. Never before 10:00 though — a short day ending
+        // early (e.g. one morning lesson) would otherwise flip to "tomorrow"
+        // while it's still morning.
         const lastLessonEnd = todaysLessons.reduce(
           (latest, l) =>
             clockValue(l.end) > latest ? clockValue(l.end) : latest,
@@ -507,18 +528,21 @@ function Dashboard({
         );
         const nowClockValue = formatTime(new Date().toTimeString());
         const showNextDay =
-          !!lastLessonEnd &&
-          nowClockValue >= addMinutesClock(lastLessonEnd, 30);
+          nowClockValue >= NEXT_DAY_SWITCH_EARLIEST &&
+          (!lastLessonEnd ||
+            nowClockValue >= addMinutesClock(lastLessonEnd, 30));
 
         let scheduleLessons = todaysLessons;
         let scheduleWeekday = weekday;
         let scheduleDayLabel: string | null = null;
+        let scheduleDayISO = formatLocalISO(new Date());
 
         if (showNextDay) {
           const nextDay = getNextSchoolDay(new Date());
           const nextDayISO = formatLocalISO(nextDay);
           scheduleWeekday = isoWeekdayOf(nextDay);
           scheduleDayLabel = weekdayLabel(nextDay);
+          scheduleDayISO = nextDayISO;
 
           let nextDayLessons = scheduleData.schedule
             .filter(
@@ -610,6 +634,7 @@ function Dashboard({
           attendance: sortedAtt,
           lunch,
           scheduleDayLabel,
+          scheduleDayISO,
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Lataus epäonnistui";
@@ -726,23 +751,29 @@ function Dashboard({
         <View style={styles.dashHeader}>
           <View>
             <Text style={[styles.dashGreeting, isDark && { color: "#fff" }]}>
-              Hei, {data?.profile.firstName || "opiskelija"}! 👋
+              {timeOfDayGreeting()}, {data?.profile.firstName || "opiskelija"}!
+              👋
             </Text>
             <Text style={[styles.dashDate, isDark && { color: "#aaa" }]}>
               {todayFinnish()}
             </Text>
-            {!!data?.profile.studentClass && (
+            {/* {!!data?.profile.studentClass && (
               <Text style={[styles.dashClass, isDark && { color: "#888" }]}>
                 Ryhmä {data.profile.studentClass}
               </Text>
-            )}
+            )} */}
           </View>
         </View>
 
         {/* Today's lessons (or, once the day is done, the next school day's) */}
         <SectionCard
           title={data?.scheduleDayLabel ?? "Tänään"}
-          onMore={() => router.push("/wilma/schedule")}
+          onMore={() =>
+            router.push({
+              pathname: "/wilma/schedule",
+              params: data?.scheduleDayISO ? { day: data.scheduleDayISO } : {},
+            })
+          }
           isDark={isDark}
         >
           {!data?.lessons.length && !data?.lunch ? (
@@ -793,8 +824,18 @@ function Dashboard({
                     : "#4A89EE80";
 
                 if (row.kind === "lunch") {
+                  const lunchOnlyTimeColor = isCurrent
+                    ? timeColor
+                    : isDark
+                      ? "#FBBF24"
+                      : "#B45309";
+                  const lunchOnlyTimeSubColor = isCurrent
+                    ? timeSubColor
+                    : isDark
+                      ? "#FBBF2480"
+                      : "#B4530980";
                   return (
-                    <React.Fragment key="lunch">
+                    <React.Fragment key={row.key}>
                       {showDivider && <Divider isDark={isDark} />}
                       <View
                         style={[
@@ -807,18 +848,26 @@ function Dashboard({
                         <View
                           style={[
                             styles.timeTag,
-                            isDark && { backgroundColor: "#51A2FF1F" },
+                            {
+                              backgroundColor: isDark ? "#78350F55" : "#FEF3C7",
+                            },
                             isCurrent && styles.timeTagCurrent,
                             isCurrent && isDark && styles.timeTagCurrentDark,
                           ]}
                         >
                           <Text
-                            style={[styles.timeTagText, { color: timeColor }]}
+                            style={[
+                              styles.timeTagText,
+                              { color: lunchOnlyTimeColor },
+                            ]}
                           >
                             {row.start}
                           </Text>
                           <Text
-                            style={[styles.timeTagSub, { color: timeSubColor }]}
+                            style={[
+                              styles.timeTagSub,
+                              { color: lunchOnlyTimeSubColor },
+                            ]}
                           >
                             {row.end}
                           </Text>
@@ -908,8 +957,14 @@ function Dashboard({
                             numberOfLines={1}
                             titleStyle={
                               isCurrent
-                                ? [styles.lessonSubject, isDark && { color: "#fff" }]
-                                : [styles.freeSlotTitle, isDark && styles.freeSlotTitleDark]
+                                ? [
+                                    styles.lessonSubject,
+                                    isDark && { color: "#fff" },
+                                  ]
+                                : [
+                                    styles.freeSlotTitle,
+                                    isDark && styles.freeSlotTitleDark,
+                                  ]
                             }
                           />
                           {!!row.lunch && (
@@ -950,6 +1005,9 @@ function Dashboard({
                   group?.fullCaption,
                   lesson.class,
                 );
+                const lessonTallHeight = lessonHeight(
+                  clockMinutes(row.end) - clockMinutes(row.start),
+                );
                 return (
                   <React.Fragment key={row.key}>
                     {showDivider && <Divider isDark={isDark} />}
@@ -968,6 +1026,10 @@ function Dashboard({
                         // isCurrent && isDark && styles.rowCurrentDark,
                         isPast && styles.rowPast,
                         pressed && !!room && styles.rowPressed,
+                        !!lessonTallHeight && {
+                          minHeight: lessonTallHeight,
+                          alignItems: "center",
+                        },
                       ]}
                     >
                       <View
@@ -1614,10 +1676,11 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-Bold",
     fontSize: 28,
     color: "#222",
+    letterSpacing: -0.4,
   },
   dashDate: {
     fontFamily: "Figtree-Regular",
-    fontSize: 14,
+    fontSize: 15,
     color: "#888",
     marginTop: 2,
     textTransform: "capitalize",

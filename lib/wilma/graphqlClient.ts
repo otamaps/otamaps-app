@@ -1,10 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { sha256 } from "js-sha256";
-import {
-  createFetchTimeoutError,
-  isFetchCancellation,
-} from "../networkErrors";
+import { createFetchTimeoutError, isFetchCancellation } from "../networkErrors";
 import { reportHandledError } from "../sentry";
 
 const API_BASE_URL = (
@@ -14,7 +11,8 @@ const GRAPHQL_URL = `${API_BASE_URL}/graphql`;
 const SESSION_KEY = "wilma_graphql_session";
 const CREDENTIALS_KEY = "wilma_graphql_credentials";
 const CACHE_PREFIX = "wilma_read_cache_v1:";
-const KEYCHAIN_UNAVAILABLE = /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
+const KEYCHAIN_UNAVAILABLE =
+  /user interaction is not allowed|interaction not allowed|errSecInteractionNotAllowed/i;
 
 export type WilmaFetchOptions = {
   /** Skip cache-first behavior and wait for a fresh network response. */
@@ -49,29 +47,30 @@ const cacheFlights = new Map<string, Promise<unknown>>();
 const cacheRevisions = new Map<string, number>();
 let cacheScopeMemo: string | null | undefined;
 let sessionMemo: string | null | undefined;
-let credentialsMemo:
-  | { username: string; password: string }
-  | null
-  | undefined;
+let credentialsMemo: { username: string; password: string } | null | undefined;
 
 function isTemporarilyUnavailableKeychain(error: unknown): boolean {
-  return (
-    error instanceof Error && KEYCHAIN_UNAVAILABLE.test(error.message)
-  );
+  return error instanceof Error && KEYCHAIN_UNAVAILABLE.test(error.message);
 }
 
 function cacheScopeForUsername(username: string): string {
-  return sha256(`${API_BASE_URL}|${username.trim().toLocaleLowerCase("fi-FI")}`).slice(0, 24);
+  return sha256(
+    `${API_BASE_URL}|${username.trim().toLocaleLowerCase("fi-FI")}`,
+  ).slice(0, 24);
 }
 
 async function getCacheScope(): Promise<string | null> {
   if (cacheScopeMemo !== undefined) return cacheScopeMemo;
   const credentials = await getCredentials();
-  cacheScopeMemo = credentials ? cacheScopeForUsername(credentials.username) : null;
+  cacheScopeMemo = credentials
+    ? cacheScopeForUsername(credentials.username)
+    : null;
   return cacheScopeMemo;
 }
 
-async function readCache<T>(storageKey: string): Promise<CacheEnvelope<T> | null> {
+async function readCache<T>(
+  storageKey: string,
+): Promise<CacheEnvelope<T> | null> {
   const memory = cacheMemory.get(storageKey) as CacheEnvelope<T> | undefined;
   if (memory) return memory;
   try {
@@ -90,7 +89,10 @@ async function readCache<T>(storageKey: string): Promise<CacheEnvelope<T> | null
   }
 }
 
-async function loadAndCache<T>(storageKey: string, loader: () => Promise<T>): Promise<T> {
+async function loadAndCache<T>(
+  storageKey: string,
+  loader: () => Promise<T>,
+): Promise<T> {
   const active = cacheFlights.get(storageKey) as Promise<T> | undefined;
   if (active) return active;
 
@@ -98,9 +100,15 @@ async function loadAndCache<T>(storageKey: string, loader: () => Promise<T>): Pr
   const flight = loader()
     .then(async (data) => {
       if ((cacheRevisions.get(storageKey) ?? 0) !== revision) return data;
-      const envelope: CacheEnvelope<T> = { version: 1, storedAt: Date.now(), data };
+      const envelope: CacheEnvelope<T> = {
+        version: 1,
+        storedAt: Date.now(),
+        data,
+      };
       cacheMemory.set(storageKey, envelope as CacheEnvelope<unknown>);
-      await AsyncStorage.setItem(storageKey, JSON.stringify(envelope)).catch(() => undefined);
+      await AsyncStorage.setItem(storageKey, JSON.stringify(envelope)).catch(
+        () => undefined,
+      );
       if ((cacheRevisions.get(storageKey) ?? 0) !== revision) {
         cacheMemory.delete(storageKey);
         await AsyncStorage.removeItem(storageKey).catch(() => undefined);
@@ -118,7 +126,7 @@ async function cachedRead<T>(
   cacheKey: string,
   maxAgeMs: number,
   loader: () => Promise<T>,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<T> {
   const scope = await getCacheScope();
   if (!scope) return loader();
@@ -147,12 +155,16 @@ async function invalidateWilmaCache(cacheKeyPrefixes: string[]): Promise<void> {
   if (!scope) return;
   const scopedPrefix = `${CACHE_PREFIX}${scope}:`;
   const matches = (key: string) =>
-    cacheKeyPrefixes.some((prefix) => key.startsWith(`${scopedPrefix}${prefix}`));
+    cacheKeyPrefixes.some((prefix) =>
+      key.startsWith(`${scopedPrefix}${prefix}`),
+    );
   const keys = new Set(
-    [...cacheMemory.keys(), ...cacheFlights.keys()].filter(matches)
+    [...cacheMemory.keys(), ...cacheFlights.keys()].filter(matches),
   );
   try {
-    (await AsyncStorage.getAllKeys()).filter(matches).forEach((key) => keys.add(key));
+    (await AsyncStorage.getAllKeys())
+      .filter(matches)
+      .forEach((key) => keys.add(key));
   } catch {
     // Memory and in-flight keys are still invalidated below.
   }
@@ -160,7 +172,8 @@ async function invalidateWilmaCache(cacheKeyPrefixes: string[]): Promise<void> {
     cacheMemory.delete(key);
     cacheRevisions.set(key, (cacheRevisions.get(key) ?? 0) + 1);
   }
-  if (keys.size) await AsyncStorage.multiRemove([...keys]).catch(() => undefined);
+  if (keys.size)
+    await AsyncStorage.multiRemove([...keys]).catch(() => undefined);
 }
 
 async function clearWilmaCache(scope: string | null): Promise<void> {
@@ -168,10 +181,12 @@ async function clearWilmaCache(scope: string | null): Promise<void> {
   const prefix = `${CACHE_PREFIX}${scope}:`;
   const matches = (key: string) => key.startsWith(prefix);
   const keys = new Set(
-    [...cacheMemory.keys(), ...cacheFlights.keys()].filter(matches)
+    [...cacheMemory.keys(), ...cacheFlights.keys()].filter(matches),
   );
   try {
-    (await AsyncStorage.getAllKeys()).filter(matches).forEach((key) => keys.add(key));
+    (await AsyncStorage.getAllKeys())
+      .filter(matches)
+      .forEach((key) => keys.add(key));
   } catch {
     // Memory and in-flight keys are still invalidated below.
   }
@@ -179,7 +194,8 @@ async function clearWilmaCache(scope: string | null): Promise<void> {
     cacheMemory.delete(key);
     cacheRevisions.set(key, (cacheRevisions.get(key) ?? 0) + 1);
   }
-  if (keys.size) await AsyncStorage.multiRemove([...keys]).catch(() => undefined);
+  if (keys.size)
+    await AsyncStorage.multiRemove([...keys]).catch(() => undefined);
 }
 
 // ── Timeout-aware fetch ───────────────────────────────────────────────────────
@@ -187,7 +203,7 @@ async function clearWilmaCache(scope: string | null): Promise<void> {
 async function fetchWithTimeout(
   url: string,
   options: RequestInit,
-  ms = 10_000
+  ms = 10_000,
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -198,7 +214,7 @@ async function fetchWithTimeout(
     if (isFetchCancellation(err, controller.signal)) {
       throw createFetchTimeoutError(
         "Yhteyden muodostaminen aikakatkaistiin – tarkista verkkoyhteys ja yritä uudelleen.",
-        err
+        err,
       );
     }
     throw err;
@@ -241,11 +257,12 @@ export async function saveCredentials(username: string, password: string) {
   await SecureStore.setItemAsync(
     CREDENTIALS_KEY,
     JSON.stringify({ username, password }),
-    { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }
+    { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY },
   );
   credentialsMemo = { username, password };
   const nextScope = cacheScopeForUsername(username);
-  if (cacheScopeMemo !== undefined && cacheScopeMemo !== nextScope) cacheMemory.clear();
+  if (cacheScopeMemo !== undefined && cacheScopeMemo !== nextScope)
+    cacheMemory.clear();
   cacheScopeMemo = nextScope;
 }
 
@@ -280,7 +297,11 @@ export async function clearCredentials() {
 /** Clear both session token and saved credentials (full sign-out). */
 export async function clearAll() {
   const scope = await getCacheScope();
-  await Promise.all([clearSession(), clearCredentials(), clearWilmaCache(scope)]);
+  await Promise.all([
+    clearSession(),
+    clearCredentials(),
+    clearWilmaCache(scope),
+  ]);
 }
 
 // ── Re-authentication (single-flight) ─────────────────────────────────────────
@@ -307,7 +328,7 @@ async function _doReauth(): Promise<boolean> {
           variables: { u: creds.username, p: creds.password },
         }),
       },
-      12_000 // slightly longer than normal requests – login does 5 HTTP hops
+      12_000, // slightly longer than normal requests – login does 5 HTTP hops
     );
     const json = await res.json();
     const token: string | undefined = json.data?.login?.sessionToken;
@@ -346,7 +367,7 @@ function reportGraphqlFailure(
     retry: boolean;
     status?: number;
     code?: string;
-  }
+  },
 ): void {
   reportHandledError(error, {
     area: "wilma.graphql",
@@ -365,7 +386,7 @@ async function gqlFetch<T>(
   query: string,
   variables?: Record<string, unknown>,
   _isRetry = false,
-  _reauthenticateOnFailure = true
+  _reauthenticateOnFailure = true,
 ): Promise<T> {
   const retryAfterReauth = async (
     error: unknown,
@@ -373,7 +394,7 @@ async function gqlFetch<T>(
       kind: string;
       status?: number;
       code?: string;
-    }
+    },
   ): Promise<T> => {
     if (!_isRetry && _reauthenticateOnFailure) {
       const ok = await reauthenticate();
@@ -420,7 +441,7 @@ async function gqlFetch<T>(
   } catch (cause) {
     const error = new Error(
       `Palvelin palautti virheellisen vastauksen (HTTP ${res.status})`,
-      { cause }
+      { cause },
     );
     return retryAfterReauth(error, {
       kind: "invalid_response",
@@ -432,11 +453,9 @@ async function gqlFetch<T>(
     const err = json.errors?.[0];
     const code: string | undefined = err?.extensions?.code;
     const isAuthError =
-      code === "UNAUTHENTICATED" ||
-      res.status === 401 ||
-      res.status === 403;
+      code === "UNAUTHENTICATED" || res.status === 401 || res.status === 403;
     const requestError = new Error(
-      err?.message ?? `GraphQL-pyyntö epäonnistui (HTTP ${res.status})`
+      err?.message ?? `GraphQL-pyyntö epäonnistui (HTTP ${res.status})`,
     );
     if (!_isRetry && _reauthenticateOnFailure) {
       const ok = await reauthenticate();
@@ -449,7 +468,9 @@ async function gqlFetch<T>(
       // Re-auth failed – wipe session so login screen appears. Cached data must
       // not hide an authentication failure and keep the user in a stale session.
       await clearSession();
-      const authError = new Error(err?.message ?? "Wilma-istunto on vanhentunut");
+      const authError = new Error(
+        err?.message ?? "Wilma-istunto on vanhentunut",
+      );
       authError.name = "WilmaAuthenticationError";
       throw authError;
     }
@@ -479,13 +500,13 @@ function cachedGqlFetch<T>(
   maxAgeMs: number,
   query: string,
   variables?: Record<string, unknown>,
-  options?: WilmaFetchOptions
+  options?: WilmaFetchOptions,
 ): Promise<T> {
   return cachedRead(
     cacheKey,
     maxAgeMs,
     () => gqlFetch<T>(query, variables),
-    options
+    options,
   );
 }
 
@@ -500,7 +521,7 @@ export type LoginResult = {
 
 export async function loginMutation(
   username: string,
-  password: string
+  password: string,
 ): Promise<LoginResult> {
   // Login goes through gqlFetch so it benefits from timeout + error parsing,
   // but it must never trigger a saved-credential re-authentication loop.
@@ -512,7 +533,7 @@ export async function loginMutation(
     }`,
     { username, password },
     false,
-    false
+    false,
   );
   await saveSession(data.login.sessionToken);
   await saveCredentials(username, password);
@@ -537,7 +558,9 @@ export type WilmaStudentProfile = {
   studentClass: string;
 };
 
-export async function fetchMe(options: WilmaFetchOptions = {}): Promise<WilmaStudentProfile> {
+export async function fetchMe(
+  options: WilmaFetchOptions = {},
+): Promise<WilmaStudentProfile> {
   const data = await cachedGqlFetch<{ me: WilmaStudentProfile }>(
     "profile",
     CACHE_TTL.profile,
@@ -545,7 +568,7 @@ export async function fetchMe(options: WilmaFetchOptions = {}): Promise<WilmaStu
       studentId role baseUrl firstName lastName displayName studentClass
     } }`,
     undefined,
-    options
+    options,
   );
   return data.me;
 }
@@ -618,7 +641,7 @@ export type WilmaCourse = {
 
 export async function fetchSchedule(
   date?: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<ScheduleData> {
   const data = await cachedGqlFetch<{ schedule: ScheduleData }>(
     `schedule:${date ?? "current"}`,
@@ -640,14 +663,14 @@ export async function fetchSchedule(
       }
     }`,
     date ? { date } : {},
-    options
+    options,
   );
   return data.schedule;
 }
 
 export async function fetchCoursework(
   date?: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaCourse[]> {
   const data = await cachedGqlFetch<{ schedule: { courses: WilmaCourse[] } }>(
     `coursework:${date ?? "current"}`,
@@ -665,7 +688,7 @@ export async function fetchCoursework(
       }
     }`,
     date ? { date } : {},
-    options
+    options,
   );
   return data.schedule.courses;
 }
@@ -691,7 +714,7 @@ export type WilmaMessageFolder = "INBOX" | "OUTBOX" | "APPOINTMENTS";
 
 export async function fetchMessages(
   folder: WilmaMessageFolder = "INBOX",
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaMessage[]> {
   const data = await cachedGqlFetch<{ messages: { messages: WilmaMessage[] } }>(
     `messages:${folder}`,
@@ -706,7 +729,7 @@ export async function fetchMessages(
       } }
     }`,
     { folder },
-    options
+    options,
   );
   return data.messages.messages;
 }
@@ -728,7 +751,7 @@ export type MessageDetail = {
 
 export async function fetchMessage(
   id: number,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<MessageDetail> {
   let supportsThreads = false;
   try {
@@ -748,7 +771,7 @@ export async function fetchMessage(
         message(id: $id) { id subject htmlBody }
       }`,
       { id },
-      options
+      options,
     );
     return {
       ...legacy.message,
@@ -769,7 +792,7 @@ export async function fetchMessage(
       }
     }`,
     { id },
-    options
+    options,
   );
   return data.message;
 }
@@ -784,16 +807,18 @@ export type WilmaMessageRecipient = {
 };
 
 export async function fetchMessageRecipients(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaMessageRecipient[]> {
-  const data = await cachedGqlFetch<{ messageRecipients: WilmaMessageRecipient[] }>(
+  const data = await cachedGqlFetch<{
+    messageRecipients: WilmaMessageRecipient[];
+  }>(
     "messageRecipients",
     CACHE_TTL.recipients,
     `{ messageRecipients {
       id schoolId name code category isOwnTeacher
     } }`,
     undefined,
-    options
+    options,
   );
   return data.messageRecipients;
 }
@@ -818,7 +843,7 @@ export async function sendWilmaMessage(input: {
         body: $body
       )
     }`,
-    input
+    input,
   );
   await invalidateWilmaCache(["messages:", "message:"]);
   return data.sendMessage;
@@ -826,13 +851,13 @@ export async function sendWilmaMessage(input: {
 
 export async function replyToWilmaMessage(
   messageId: number,
-  body: string
+  body: string,
 ): Promise<boolean> {
   const data = await gqlFetch<{ replyMessage: boolean }>(
     `mutation ReplyMessage($messageId: Int!, $body: String!) {
       replyMessage(messageId: $messageId, body: $body)
     }`,
-    { messageId, body }
+    { messageId, body },
   );
   await invalidateWilmaCache(["messages:", `message:${messageId}`]);
   return data.replyMessage;
@@ -852,9 +877,11 @@ export type AttendanceEntry = {
 
 export async function fetchAttendance(
   range?: number,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<AttendanceEntry[]> {
-  const data = await cachedGqlFetch<{ attendance: { entries: AttendanceEntry[] } }>(
+  const data = await cachedGqlFetch<{
+    attendance: { entries: AttendanceEntry[] };
+  }>(
     `attendance:${range ?? "default"}`,
     CACHE_TTL.attendance,
     `query Attendance($range: Int) {
@@ -863,7 +890,7 @@ export async function fetchAttendance(
       }
     }`,
     range !== undefined ? { range } : {},
-    options
+    options,
   );
   return data.attendance.entries;
 }
@@ -880,7 +907,9 @@ export type WilmaNewsItem = {
   isPermanent: boolean;
 };
 
-export async function fetchNews(options: WilmaFetchOptions = {}): Promise<WilmaNewsItem[]> {
+export async function fetchNews(
+  options: WilmaFetchOptions = {},
+): Promise<WilmaNewsItem[]> {
   const data = await cachedGqlFetch<{ news: WilmaNewsItem[] }>(
     "news",
     CACHE_TTL.news,
@@ -888,7 +917,7 @@ export async function fetchNews(options: WilmaFetchOptions = {}): Promise<WilmaN
       id title date excerpt teacherCode teacherName isPermanent
     } }`,
     undefined,
-    options
+    options,
   );
   return data.news;
 }
@@ -901,7 +930,7 @@ export type WilmaNewsDetail = {
 
 export async function fetchNewsItem(
   id: number,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaNewsDetail> {
   const data = await cachedGqlFetch<{ newsItem: WilmaNewsDetail }>(
     `newsItem:${id}`,
@@ -910,7 +939,7 @@ export async function fetchNewsItem(
       newsItem(id: $id) { id title htmlBody }
     }`,
     { id },
-    options
+    options,
   );
   return data.newsItem;
 }
@@ -928,7 +957,7 @@ export type WilmaPastExam = {
 };
 
 export async function fetchPastExams(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaPastExam[]> {
   const data = await cachedGqlFetch<{ pastExams: WilmaPastExam[] }>(
     "pastExams",
@@ -937,7 +966,7 @@ export async function fetchPastExams(
       date teacherCode teacherName examTitle details grade writtenAssessment
     } }`,
     undefined,
-    options
+    options,
   );
   return data.pastExams;
 }
@@ -973,7 +1002,7 @@ export type WilmaMatriculationResult = {
 };
 
 export async function fetchGradebook(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaGradebook> {
   const data = await cachedGqlFetch<{ gradebook: WilmaGradebook }>(
     "gradebook",
@@ -986,22 +1015,24 @@ export async function fetchGradebook(
       }
     } }`,
     undefined,
-    options
+    options,
   );
   return data.gradebook;
 }
 
 export async function fetchMatriculationResults(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaMatriculationResult[]> {
-  const data = await cachedGqlFetch<{ matriculationResults: WilmaMatriculationResult[] }>(
+  const data = await cachedGqlFetch<{
+    matriculationResults: WilmaMatriculationResult[];
+  }>(
     "matriculationResults",
     CACHE_TTL.grades,
     `{ matriculationResults {
       subject completedOn compulsory grade rejectedReason points
     } }`,
     undefined,
-    options
+    options,
   );
   return data.matriculationResults;
 }
@@ -1022,14 +1053,14 @@ export type WilmaRoomSchedule = {
 };
 
 export async function fetchWilmaRooms(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaRoomProfile[]> {
   const data = await cachedGqlFetch<{ rooms: WilmaRoomProfile[] }>(
     "rooms",
     CACHE_TTL.rooms,
     `{ rooms { id code name } }`,
     undefined,
-    options
+    options,
   );
   return data.rooms;
 }
@@ -1037,7 +1068,7 @@ export async function fetchWilmaRooms(
 export async function fetchWilmaRoomSchedule(
   roomId: number,
   date?: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaRoomSchedule> {
   const data = await cachedGqlFetch<{ roomSchedule: WilmaRoomSchedule }>(
     `roomSchedule:${roomId}:${date ?? "current"}`,
@@ -1052,7 +1083,7 @@ export async function fetchWilmaRoomSchedule(
       }
     }`,
     date ? { roomId, date } : { roomId },
-    options
+    options,
   );
   return data.roomSchedule;
 }
@@ -1074,7 +1105,7 @@ export type WilmaTeacherSchedule = {
 export async function fetchWilmaTeacherSchedule(
   teacherId: number,
   date?: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaTeacherSchedule> {
   const data = await cachedGqlFetch<{ teacherSchedule: WilmaTeacherSchedule }>(
     `teacherSchedule:${teacherId}:${date ?? "current"}`,
@@ -1089,20 +1120,20 @@ export async function fetchWilmaTeacherSchedule(
       }
     }`,
     date ? { teacherId, date } : { teacherId },
-    options
+    options,
   );
   return data.teacherSchedule;
 }
 
 export async function fetchWilmaQueryCapabilities(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<Set<string>> {
   return fetchWilmaTypeCapabilities("Query", options);
 }
 
 async function fetchWilmaTypeCapabilities(
   typeName: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<Set<string>> {
   const data = await cachedGqlFetch<{
     __type: { fields: { name: string }[] } | null;
@@ -1113,7 +1144,7 @@ async function fetchWilmaTypeCapabilities(
       __type(name: $name) { fields { name } }
     }`,
     { name: typeName },
-    options
+    options,
   );
   return new Set(data.__type?.fields.map((field) => field.name) ?? []);
 }
@@ -1154,34 +1185,34 @@ export type WilmaCourseTrayDetail = {
 };
 
 export async function fetchSelectedCourses(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaSelectedCourse[]> {
   const data = await cachedGqlFetch<{ selectedCourses: WilmaSelectedCourse[] }>(
     "selectedCourses",
     CACHE_TTL.courseSelections,
     `{ selectedCourses { groupCode period bar tray } }`,
     undefined,
-    options
+    options,
   );
   return data.selectedCourses;
 }
 
 export async function fetchCourseTrays(
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaCourseTray[]> {
   const data = await cachedGqlFetch<{ courseTrays: WilmaCourseTray[] }>(
     "courseTrays",
     CACHE_TTL.courseSelections,
     `{ courseTrays { id category name status closed } }`,
     undefined,
-    options
+    options,
   );
   return data.courseTrays;
 }
 
 export async function fetchCourseTray(
   id: string,
-  options: WilmaFetchOptions = {}
+  options: WilmaFetchOptions = {},
 ): Promise<WilmaCourseTrayDetail> {
   const data = await cachedGqlFetch<{ courseTray: WilmaCourseTrayDetail }>(
     `courseTray:${id}`,
@@ -1198,7 +1229,7 @@ export async function fetchCourseTray(
       }
     }`,
     { id },
-    options
+    options,
   );
   return data.courseTray;
 }
