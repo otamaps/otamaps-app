@@ -33,6 +33,7 @@ import {
 } from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -44,7 +45,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
@@ -459,6 +460,7 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
 export default function ScheduleScreen() {
   const router = useRouter();
   const isDark = useColorScheme() === "dark";
+  const insets = useSafeAreaInsets();
   const today = formatLocalISO(new Date());
   // Opened from the Wilma tab's "Tänään" card: that card may already be
   // showing the next school day (once today's lessons are done), so land on
@@ -764,45 +766,6 @@ export default function ScheduleScreen() {
           <View style={{ flex: 1 }} />
         </View>
 
-        {/* ── Week navigation ── */}
-        <View
-          style={[
-            styles.weekNav,
-            isDark && { backgroundColor: "#232427", borderBottomColor: "#333" },
-          ]}
-        >
-          <Pressable
-            onPress={() => goToWeek(-1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
-            />
-          </Pressable>
-          <View style={{ alignItems: "center" }}>
-            <Text style={[styles.weekLabel, isDark && { color: "#fff" }]}>
-              Viikko {weekNum}
-            </Text>
-            <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
-              {weekMonthLabel(monday, friday)}
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => goToWeek(1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-right"
-              size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
-            />
-          </Pressable>
-        </View>
-
         {/* ── Body ── */}
         {loading ? (
           <View style={styles.centered}>
@@ -823,6 +786,7 @@ export default function ScheduleScreen() {
             </Text>
           </View>
         ) : (
+          <View style={styles.bodyWrap}>
           <ScrollView
             ref={scrollRef}
             style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
@@ -986,7 +950,58 @@ export default function ScheduleScreen() {
               );
             })}
           </ScrollView>
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              isDark
+                ? ["#23242700", "#2324271A", "#2324274D", "#23242799", "#232427"]
+                : ["#fafafa00", "#fafafa1A", "#fafafa4D", "#fafafa99", "#fafafa"]
+            }
+            locations={[0, 0.25, 0.5, 0.75, 1]}
+            style={styles.bottomFade}
+          />
+          </View>
         )}
+
+        {/* ── Week navigation ── */}
+        <View
+          style={[
+            styles.weekNav,
+            { paddingBottom: 10 + insets.bottom },
+            isDark && { backgroundColor: "#232427" },
+          ]}
+        >
+          <Pressable
+            onPress={() => goToWeek(-1)}
+            style={styles.navBtn}
+            hitSlop={12}
+          >
+            <MaterialIcons
+              name="chevron-left"
+              size={28}
+              color={isDark ? "#51a2ff" : "#4A89EE"}
+            />
+          </Pressable>
+          <View style={{ alignItems: "center" }}>
+            <Text style={[styles.weekLabel, isDark && { color: "#fff" }]}>
+              Viikko {weekNum}
+            </Text>
+            <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
+              {weekMonthLabel(monday, friday)}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => goToWeek(1)}
+            style={styles.navBtn}
+            hitSlop={12}
+          >
+            <MaterialIcons
+              name="chevron-right"
+              size={28}
+              color={isDark ? "#51a2ff" : "#4A89EE"}
+            />
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -1029,10 +1044,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 4,
-    paddingVertical: 10,
+    paddingVertical: 6,
     backgroundColor: "#fafafa",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   navBtn: { padding: 4 },
   weekLabel: {
@@ -1049,8 +1062,18 @@ const styles = StyleSheet.create({
   },
 
   // Body
+  bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
+  // Fades the scrolling content out just above the week navigation bar, so
+  // it reads as sliding underneath it rather than stopping abruptly.
+  bottomFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 44,
+  },
 
   // Day sections
   daySection: { marginBottom: 22 },
