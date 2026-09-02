@@ -233,12 +233,19 @@ export default function MessagesScreen() {
   }, [load]);
 
   return (
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
     <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
+      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
       edges={["top"]}
     >
       <Stack.Screen options={{ headerShown: false }} />
 
+      <View
+        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
+      >
       {/* Header */}
       <View
         style={[
@@ -379,6 +386,7 @@ export default function MessagesScreen() {
           style={[styles.list, isDark && { backgroundColor: "#18191B" }]}
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -386,6 +394,8 @@ export default function MessagesScreen() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   centered: {
     flex: 1,
