@@ -24,6 +24,7 @@ import {
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
 import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
+import { reportHandledMessage } from "@/lib/sentry";
 import {
   formatElapsedSince,
   formatReportingWindow,
@@ -47,6 +48,7 @@ import {
   Images,
   MapView,
   RasterLayer,
+  setAccessToken,
   ShapeSource,
   SymbolLayer,
 } from "@rnmapbox/maps";
@@ -215,6 +217,24 @@ function getRoomNumberMaxTextSize(
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const mapTilerKey = process.env.EXPO_PUBLIC_MAPTILER_KEY?.trim();
+  const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN?.trim();
+
+  // Mapbox throws MapboxConfigurationException the moment a MapView is created
+  // without a token, so this has to run before the map renders. There is no
+  // mapbox_access_token string resource, so this is the only place the token is
+  // supplied — removing it crashes the whole map tab.
+  useEffect(() => {
+    if (mapboxToken) {
+      setAccessToken(mapboxToken);
+      return;
+    }
+    // Without this the only symptom is an opaque native crash, so say plainly
+    // which variable is missing.
+    reportHandledMessage(
+      "EXPO_PUBLIC_MAPBOX_TOKEN is not set; the map cannot be created",
+      { area: "map", operation: "set_access_token", level: "error" }
+    );
+  }, [mapboxToken]);
 
   // MapTiler's hosted styles ship POI labels (shops, schools, etc.) turned on.
   // Fetch the style JSON and switch those layers off client-side instead of
