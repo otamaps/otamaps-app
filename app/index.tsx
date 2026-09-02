@@ -5,7 +5,6 @@ import { Buffer } from "buffer";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, useColorScheme, View } from "react-native";
-import SplashScreen from "./welcome/splash";
 
 const runtimeGlobal = globalThis as typeof globalThis & {
   Buffer?: typeof Buffer;
@@ -17,7 +16,6 @@ if (typeof runtimeGlobal.Buffer === "undefined") {
 
 export default function Index() {
   const router = useRouter();
-  const [showSplash, setShowSplash] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const isDark = useColorScheme() === "dark";
@@ -52,18 +50,9 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    // Show splash screen for 1 second
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    // Only handle navigation after splash screen is hidden and auth check is complete
+    // Only handle navigation after the auth check is complete
     let cancelled = false;
-    if (!isLoading && !showSplash) {
+    if (!isLoading) {
       if (session) {
         void isOnboardingComplete()
           .then((complete) => {
@@ -85,12 +74,7 @@ export default function Index() {
     return () => {
       cancelled = true;
     };
-  }, [session, isLoading, showSplash, router]);
-
-  // Show splash screen first
-  if (showSplash) {
-    return <SplashScreen />;
-  }
+  }, [session, isLoading, router]);
 
   // Show loading indicator while checking auth state
   return (

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { completePendingLegacyLink } from "@/lib/wilma/authBroker";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -49,6 +50,11 @@ export default function EmailLogin() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Always light-themed (no dark styling on this screen), so the
+          status bar stays dark-content even in system dark mode — otherwise
+          the global reactive one would put white icons over this screen's
+          white background. */}
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

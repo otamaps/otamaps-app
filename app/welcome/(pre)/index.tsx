@@ -15,6 +15,7 @@ import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -147,6 +148,11 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      {/* This screen is always light-themed (hero image + white gradient),
+          so the status bar stays dark-content even in system dark mode —
+          otherwise the global reactive one would put white icons over this
+          screen's white background. */}
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

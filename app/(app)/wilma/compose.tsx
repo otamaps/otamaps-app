@@ -58,8 +58,13 @@ export default function ComposeMessageScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#4A89EE"} />
@@ -84,12 +89,15 @@ export default function ComposeMessageScreen() {
           {!valid && <Text style={styles.error}>Vastaanottajan tiedot puuttuvat. Palaa vastaanottajalistaasi.</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },

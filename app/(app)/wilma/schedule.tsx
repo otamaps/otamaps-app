@@ -1,5 +1,8 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import DayPickerSheet, {
+  DayPickerSheetRef,
+} from "@/components/sheets/dayPickerSheet";
 import {
   addMinutesClock,
   buildDaySlots,
@@ -32,8 +35,9 @@ import {
   weekMonthLabel,
 } from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -45,7 +49,10 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
@@ -505,6 +512,7 @@ export default function ScheduleScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const dayOffsets = useRef<Record<string, number>>({});
   const pendingScrollDay = useRef<string | null>(null);
+  const dayPickerRef = useRef<DayPickerSheetRef>(null);
   // Jumping the week forward is a one-time convenience on open. Once it has
   // settled — or the user has picked a week themselves — it must never move
   // the week out from under them again.
@@ -684,6 +692,18 @@ export default function ScheduleScreen() {
     [scrollToDay],
   );
 
+  // Jumps straight to a day picked from the calendar sheet — possibly in a
+  // different week entirely. `scrollToDay` already defers to `handleDayLayout`
+  // when that day hasn't been measured yet (e.g. its week just switched in).
+  const goToDay = useCallback(
+    (iso: string) => {
+      autoAdvance.current.settled = true;
+      setWeekOffset(weekOffsetForDay(iso));
+      scrollToDay(iso);
+    },
+    [scrollToDay],
+  );
+
   // Open on the day the caller asked for (e.g. whichever day the Wilma tab's
   // "Tänään" card was actually showing), or otherwise the first day from
   // today onwards that has something. When the rest of the week is empty,
@@ -733,10 +753,11 @@ export default function ScheduleScreen() {
   ]);
 
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
+    <BottomSheetModalProvider>
+    {/* The safe-area inset above the header is otherwise painted with the
+        screen's body background, so the status bar sits on a visibly
+        different color than the nav bar right below it. Painting the inset
+        with the header's own background keeps the two matched. */}
     <SafeAreaView
       style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
       edges={["top"]}
@@ -787,179 +808,193 @@ export default function ScheduleScreen() {
           </View>
         ) : (
           <View style={styles.bodyWrap}>
-          <ScrollView
-            ref={scrollRef}
-            style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
-            contentContainerStyle={styles.bodyContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={isDark ? "#51a2ff" : "#4A89EE"}
-              />
-            }
-          >
-            {weekDays.map((day) => {
-              const daySlots = daySlotsByDay[day] ?? [];
-              const exams = examsByDay[day] ?? [];
-              const heading = dayHeading(day);
-              const isToday = day === today;
-              // Once the highlight has moved on to the next school day
-              // (today's last lesson is long over), today itself is done
-              // too and should dim along with the actually-past days.
-              const isPastDay = day < highlightedDay;
-              const isHighlighted = day === highlightedDay;
+            <ScrollView
+              ref={scrollRef}
+              style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
+              contentContainerStyle={styles.bodyContent}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+                />
+              }
+            >
+              {weekDays.map((day) => {
+                const daySlots = daySlotsByDay[day] ?? [];
+                const exams = examsByDay[day] ?? [];
+                const heading = dayHeading(day);
+                const isToday = day === today;
+                // Once the highlight has moved on to the next school day
+                // (today's last lesson is long over), today itself is done
+                // too and should dim along with the actually-past days.
+                const isPastDay = day < highlightedDay;
+                const isHighlighted = day === highlightedDay;
 
-              return (
-                <View
-                  key={day}
-                  style={[styles.daySection, isPastDay && styles.pastOpacity]}
-                  onLayout={(event) =>
-                    handleDayLayout(day, event.nativeEvent.layout.y)
-                  }
-                >
-                  <View style={styles.dayHeader}>
-                    <Text
-                      style={[
-                        styles.dayName,
-                        isDark && { color: "#fff" },
-                        isHighlighted && {
-                          color: isDark ? "#51a2ff" : "#3d7de3",
-                        },
-                      ]}
-                    >
-                      {heading.name}
-                    </Text>
-                    <Text style={[styles.dayDate, isDark && { color: "#888" }]}>
-                      {heading.date}
-                    </Text>
-                    <View style={{ flex: 1 }} />
-                    {isHighlighted && (
-                      <View
+                return (
+                  <View
+                    key={day}
+                    style={[styles.daySection, isPastDay && styles.pastOpacity]}
+                    onLayout={(event) =>
+                      handleDayLayout(day, event.nativeEvent.layout.y)
+                    }
+                  >
+                    <View style={styles.dayHeader}>
+                      <Text
                         style={[
-                          styles.todayPill,
-                          isDark && {
-                            backgroundColor: "#51A2FF1F",
-                            borderColor: "#51a2ff49",
+                          styles.dayName,
+                          isDark && { color: "#fff" },
+                          isHighlighted && {
+                            color: isDark ? "#51a2ff" : "#3d7de3",
                           },
                         ]}
                       >
-                        <Text
+                        {heading.name}
+                      </Text>
+                      <Text
+                        style={[styles.dayDate, isDark && { color: "#888" }]}
+                      >
+                        {heading.date}
+                      </Text>
+                      <View style={{ flex: 1 }} />
+                      {isHighlighted && (
+                        <View
                           style={[
-                            styles.todayPillText,
-                            isDark && { color: "#51a2ff" },
+                            styles.todayPill,
+                            isDark && {
+                              backgroundColor: "#51A2FF1F",
+                              borderColor: "#51a2ff49",
+                            },
                           ]}
                         >
-                          {isToday ? "Tänään" : "Huomenna"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                          <Text
+                            style={[
+                              styles.todayPillText,
+                              isDark && { color: "#51a2ff" },
+                            ]}
+                          >
+                            {isToday ? "Tänään" : "Huomenna"}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
-                  {exams.map((exam) => (
-                    <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
-                  ))}
+                    {exams.map((exam) => (
+                      <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
+                    ))}
 
-                  {daySlots.length > 0 ? (
-                    <View>
-                      {daySlots.map((slot, i) => {
-                        // Free slots and the odd standalone lunch sit in the
-                        // same continuous, rounded card group as the day's
-                        // lessons rather than breaking out into their own box.
-                        const isFirst = i === 0;
-                        const isLast = i === daySlots.length - 1;
-                        // A free slot already reads as a break via its own
-                        // dashed border, so a divider right next to it would
-                        // just double up on that same visual cue.
-                        const next = daySlots[i + 1];
-                        const showDivider =
-                          !isLast &&
-                          slot.kind !== "freeslot" &&
-                          next?.kind !== "freeslot";
-                        // When today itself has already dimmed as a whole
-                        // (the highlight moved on to tomorrow), skip the
-                        // per-row dim too — stacking both would make today's
-                        // lessons darker than an actually past day's.
-                        const isPast =
-                          !isPastDay && isToday && slot.end <= nowClock;
-                        const isCurrent =
-                          isToday &&
-                          slot.start <= nowClock &&
-                          nowClock < slot.end;
+                    {daySlots.length > 0 ? (
+                      <View>
+                        {daySlots.map((slot, i) => {
+                          // Free slots and the odd standalone lunch sit in the
+                          // same continuous, rounded card group as the day's
+                          // lessons rather than breaking out into their own box.
+                          const isFirst = i === 0;
+                          const isLast = i === daySlots.length - 1;
+                          // A free slot already reads as a break via its own
+                          // dashed border, so a divider right next to it would
+                          // just double up on that same visual cue.
+                          const next = daySlots[i + 1];
+                          const showDivider =
+                            !isLast &&
+                            slot.kind !== "freeslot" &&
+                            next?.kind !== "freeslot";
+                          // When today itself has already dimmed as a whole
+                          // (the highlight moved on to tomorrow), skip the
+                          // per-row dim too — stacking both would make today's
+                          // lessons darker than an actually past day's.
+                          const isPast =
+                            !isPastDay && isToday && slot.end <= nowClock;
+                          const isCurrent =
+                            isToday &&
+                            slot.start <= nowClock &&
+                            nowClock < slot.end;
 
-                        if (slot.kind === "lesson") {
+                          if (slot.kind === "lesson") {
+                            return (
+                              <LessonCard
+                                key={`lesson-${slot.lesson.reservationId}`}
+                                lesson={slot.lesson}
+                                isDark={isDark}
+                                isFirst={isFirst}
+                                isLast={isLast}
+                                showDivider={showDivider}
+                                lunch={slot.lunch}
+                                isPast={isPast}
+                                isCurrent={isCurrent}
+                              />
+                            );
+                          }
+                          if (slot.kind === "freeslot") {
+                            return (
+                              <FreeSlotCard
+                                key={slot.key}
+                                start={slot.start}
+                                end={slot.end}
+                                lunch={slot.lunch}
+                                isDark={isDark}
+                                isFirst={isFirst}
+                                isLast={isLast}
+                                showDivider={showDivider}
+                                isPast={isPast}
+                                isCurrent={isCurrent}
+                              />
+                            );
+                          }
                           return (
-                            <LessonCard
-                              key={`lesson-${slot.lesson.reservationId}`}
-                              lesson={slot.lesson}
-                              isDark={isDark}
-                              isFirst={isFirst}
-                              isLast={isLast}
-                              showDivider={showDivider}
-                              lunch={slot.lunch}
-                              isPast={isPast}
-                              isCurrent={isCurrent}
-                            />
-                          );
-                        }
-                        if (slot.kind === "freeslot") {
-                          return (
-                            <FreeSlotCard
-                              key={slot.key}
+                            <LunchOnlyCard
+                              key={`lunch-${slot.start}`}
                               start={slot.start}
                               end={slot.end}
-                              lunch={slot.lunch}
                               isDark={isDark}
                               isFirst={isFirst}
                               isLast={isLast}
                               showDivider={showDivider}
                               isPast={isPast}
-                              isCurrent={isCurrent}
                             />
                           );
-                        }
-                        return (
-                          <LunchOnlyCard
-                            key={`lunch-${slot.start}`}
-                            start={slot.start}
-                            end={slot.end}
-                            isDark={isDark}
-                            isFirst={isFirst}
-                            isLast={isLast}
-                            showDivider={showDivider}
-                            isPast={isPast}
-                          />
-                        );
-                      })}
-                    </View>
-                  ) : exams.length === 0 ? (
-                    <View
-                      style={[styles.emptyDay, isDark && styles.emptyDayDark]}
-                    >
-                      <Text
-                        style={[
-                          styles.emptyDayText,
-                          isDark && { color: "#666" },
-                        ]}
+                        })}
+                      </View>
+                    ) : exams.length === 0 ? (
+                      <View
+                        style={[styles.emptyDay, isDark && styles.emptyDayDark]}
                       >
-                        Ei tunteja
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-          </ScrollView>
-          <LinearGradient
-            pointerEvents="none"
-            colors={
-              isDark
-                ? ["#23242700", "#2324271A", "#2324274D", "#23242799", "#232427"]
-                : ["#fafafa00", "#fafafa1A", "#fafafa4D", "#fafafa99", "#fafafa"]
-            }
-            locations={[0, 0.25, 0.5, 0.75, 1]}
-            style={styles.bottomFade}
-          />
+                        <Text
+                          style={[
+                            styles.emptyDayText,
+                            isDark && { color: "#666" },
+                          ]}
+                        >
+                          Ei tunteja
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <LinearGradient
+              pointerEvents="none"
+              colors={
+                isDark
+                  ? [
+                      "#18191B00",
+                      "#18191B1A",
+                      "#18191B4D",
+                      "#18191B99",
+                      "#18191B",
+                    ]
+                  : [
+                      "#fafafa00",
+                      "#fafafa1A",
+                      "#fafafa4D",
+                      "#fafafa99",
+                      "#fafafa",
+                    ]
+              }
+              locations={[0, 0.25, 0.5, 0.75, 1]}
+              style={styles.bottomFade}
+            />
           </View>
         )}
 
@@ -968,7 +1003,7 @@ export default function ScheduleScreen() {
           style={[
             styles.weekNav,
             { paddingBottom: 10 + insets.bottom },
-            isDark && { backgroundColor: "#232427" },
+            isDark && { backgroundColor: "#18191B" },
           ]}
         >
           <Pressable
@@ -982,14 +1017,18 @@ export default function ScheduleScreen() {
               color={isDark ? "#51a2ff" : "#4A89EE"}
             />
           </Pressable>
-          <View style={{ alignItems: "center" }}>
+          <Pressable
+            style={{ alignItems: "center" }}
+            onPress={() => dayPickerRef.current?.present(formatLocalISO(monday))}
+            hitSlop={8}
+          >
             <Text style={[styles.weekLabel, isDark && { color: "#fff" }]}>
               Viikko {weekNum}
             </Text>
             <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
               {weekMonthLabel(monday, friday)}
             </Text>
-          </View>
+          </Pressable>
           <Pressable
             onPress={() => goToWeek(1)}
             style={styles.navBtn}
@@ -1004,6 +1043,8 @@ export default function ScheduleScreen() {
         </View>
       </View>
     </SafeAreaView>
+    <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
+    </BottomSheetModalProvider>
   );
 }
 
@@ -1011,7 +1052,7 @@ export default function ScheduleScreen() {
 
 const styles = StyleSheet.create({
   statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
+  statusBarAreaDark: { backgroundColor: "#18191B", color: "#fff" },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   pastOpacity: { opacity: 0.5 },
   centered: {

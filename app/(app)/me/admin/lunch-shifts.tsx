@@ -136,7 +136,12 @@ export default function LunchShiftAdminScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: background }]}>
-        <Stack.Screen options={{ title: "Ruokailuvuorojen hallinta" }} />
+        <Stack.Screen
+        options={{
+          title: "Ruokailuvuorojen hallinta",
+          headerStyle: { backgroundColor: background },
+        }}
+      />
         <ActivityIndicator size="large" color="#4A89EE" />
       </SafeAreaView>
     );
@@ -145,7 +150,12 @@ export default function LunchShiftAdminScreen() {
   if (!authorized) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: background }]}>
-        <Stack.Screen options={{ title: "Ruokailuvuorojen hallinta" }} />
+        <Stack.Screen
+        options={{
+          title: "Ruokailuvuorojen hallinta",
+          headerStyle: { backgroundColor: background },
+        }}
+      />
         <Text style={[styles.title, { color: text }]}>Ei käyttöoikeutta</Text>
         <Text style={[styles.centeredText, { color: muted }]}>
           Tämä näkymä on vain tietokannassa määritetyille ylläpitäjille.
@@ -156,7 +166,12 @@ export default function LunchShiftAdminScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
-      <Stack.Screen options={{ title: "Ruokailuvuorojen hallinta" }} />
+      <Stack.Screen
+        options={{
+          title: "Ruokailuvuorojen hallinta",
+          headerStyle: { backgroundColor: background },
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={

@@ -5,7 +5,7 @@ import {
 } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -38,7 +38,10 @@ function formatTimestamp(ts: string): string {
   const msgStr = d.toISOString().split("T")[0];
 
   if (msgStr === todayStr) {
-    return d.toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("fi-FI", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   const yesterday = new Date(now);
@@ -46,7 +49,7 @@ function formatTimestamp(ts: string): string {
   if (msgStr === yesterday.toISOString().split("T")[0]) return "Eilen";
 
   const daysDiff = Math.floor(
-    (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
+    (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
   );
   if (daysDiff < 7) return WEEKDAY_SHORT[d.getDay()];
 
@@ -71,9 +74,9 @@ function fullTimestamp(ts: string): string {
 
 // Applying status → chip label + colour
 const APPLYING_LABELS: Record<string, { label: string; color: string }> = {
-  present:  { label: "Osallistuu", color: "#4caf50" },
-  absent:   { label: "Poissa",     color: "#f44336" },
-  unknown:  { label: "Ei vastattu", color: "#ff9800" },
+  present: { label: "Osallistuu", color: "#4caf50" },
+  absent: { label: "Poissa", color: "#f44336" },
+  unknown: { label: "Ei vastattu", color: "#ff9800" },
 };
 
 function applyingDisplay(status: string): { label: string; color: string } {
@@ -91,16 +94,22 @@ function MessageRow({
   isDark: boolean;
   onPress: () => void;
 }) {
-  const senderLine = msg.folder === "outbox"
-    ? msg.recipients.map((recipient) => recipient.name).join(", ") || msg.recipient || "Vastaanottaja piilotettu"
-    : msg.senders.map((sender) => sender.name).join(", ") || msg.sender;
+  const senderLine =
+    msg.folder === "outbox"
+      ? msg.recipients.map((recipient) => recipient.name).join(", ") ||
+        msg.recipient ||
+        "Vastaanottaja piilotettu"
+      : msg.senders.map((sender) => sender.name).join(", ") || msg.sender;
   const ts = formatTimestamp(msg.timestamp);
   const full = fullTimestamp(msg.timestamp);
   const applying = msg.applying ? applyingDisplay(msg.applying.status) : null;
 
   return (
     <Pressable
-      style={[styles.row, isDark && { backgroundColor: "#232427", borderBottomColor: "#333" }]}
+      style={[
+        styles.row,
+        isDark && { backgroundColor: "#232427", borderBottomColor: "#333" },
+      ]}
       onPress={onPress}
       android_ripple={{ color: "#00000010" }}
     >
@@ -209,19 +218,22 @@ export default function MessagesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [folder, setFolder] = useState<WilmaMessageFolder>("INBOX");
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    setError(null);
-    try {
-      const msgs = await fetchMessages(folder, { forceRefresh: isRefresh });
-      setMessages(msgs);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Lataus epäonnistui");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [folder]);
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!isRefresh) setLoading(true);
+      setError(null);
+      try {
+        const msgs = await fetchMessages(folder, { forceRefresh: isRefresh });
+        setMessages(msgs);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Lataus epäonnistui");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [folder],
+  );
 
   useEffect(() => {
     load();
@@ -260,11 +272,14 @@ export default function MessagesScreen() {
             color={isDark ? "#51a2ff" : "#4A89EE"}
           />
         </Pressable>
-        <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}> 
+        <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
           Viestit
         </Text>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => router.push("/wilma/teachers" as never)} hitSlop={8}>
+        <Pressable
+          onPress={() => router.push("/wilma/teachers" as never)}
+          hitSlop={8}
+        >
           <MaterialIcons
             name="edit-square"
             size={22}
@@ -278,12 +293,19 @@ export default function MessagesScreen() {
         )}
       </View>
 
-      <View style={[styles.folderTabs, isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" }]}>
-        {([
-          ["INBOX", "Saapuneet"],
-          ["OUTBOX", "Lähetetyt"],
-          ["APPOINTMENTS", "Kutsut"],
-        ] as const).map(([value, label]) => {
+      <View
+        style={[
+          styles.folderTabs,
+          isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
+        ]}
+      >
+        {(
+          [
+            ["INBOX", "Saapuneet"],
+            ["OUTBOX", "Lähetetyt"],
+            ["APPOINTMENTS", "Kutsut"],
+          ] as const
+        ).map(([value, label]) => {
           const active = folder === value;
           return (
             <Pressable
@@ -309,7 +331,10 @@ export default function MessagesScreen() {
 
       {loading && (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <ActivityIndicator
+            size="large"
+            color={isDark ? "#51a2ff" : "#4A89EE"}
+          />
         </View>
       )}
 
