@@ -46,8 +46,8 @@ const FindRoomView = ({ room = {}, onBook }: FindRoomViewProps) => {
     ]}>
       <View style={styles.leftContainer}>
         <View style={{ flexDirection: 'row', }}>
-          <Text style={{ color: 'black', fontSize: 20, fontWeight: 'bold' }}>{room.room_number || '2025'} </Text>
-          <Text style={{ color: 'black', fontSize: 20, fontWeight: 'bold' }}>{room.title || 'Room Name'}</Text>
+          <Text style={{ color: 'black', fontSize: 20, fontFamily: 'Figtree-Bold' }}>{room.room_number || '2025'} </Text>
+          <Text style={{ color: 'black', fontSize: 20, fontFamily: 'Figtree-Bold' }}>{room.title || 'Room Name'}</Text>
         </View>
         <Text style={{ padding: 6, paddingLeft: 0, fontSize: 16, }}>{room.seats || '15'} seats</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   bookText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Figtree-Bold',
   }
 });
 

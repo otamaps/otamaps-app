@@ -67,7 +67,7 @@ export default function WilmaRoomsScreen() {
             <MaterialIcons
               name="arrow-back"
               size={24}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <Text style={[styles.headerTitle, isDark && styles.textLight]}>
@@ -95,7 +95,7 @@ export default function WilmaRoomsScreen() {
           <View style={styles.centered}>
             <ActivityIndicator
               size="large"
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </View>
         ) : error ? (
@@ -123,7 +123,7 @@ export default function WilmaRoomsScreen() {
                   setRefreshing(true);
                   void load(true);
                 }}
-                tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+                tintColor={isDark ? "#51a2ff" : "#3478F5"}
               />
             }
             ListEmptyComponent={
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: "#eef4ff",
   },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   row: {
     flexDirection: "row",
     alignItems: "center",

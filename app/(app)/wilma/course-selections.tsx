@@ -106,10 +106,15 @@ export default function WilmaCourseSelectionsScreen() {
   }, [expandedTrayId, loadTrayDetail, trayDetails, trayDetailLoading]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, isDark && styles.borderDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}><MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} /></Pressable>
+        <Pressable onPress={() => router.back()} hitSlop={8}><MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} /></Pressable>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>Kurssivalinnat</Text>
       </View>
       <View style={[styles.tabs, isDark && styles.borderDark]}>
@@ -119,10 +124,10 @@ export default function WilmaCourseSelectionsScreen() {
           </Pressable>
         ))}
       </View>
-      {loading ? <View style={styles.centered}><ActivityIndicator size="large" color="#4A89EE" /></View>
+      {loading ? <View style={styles.centered}><ActivityIndicator size="large" color="#3478F5" /></View>
       : error ? <View style={styles.centered}><Text style={styles.empty}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Yritä uudelleen</Text></Pressable></View>
-      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#4A89EE" />}>
-          <View style={[styles.notice, isDark && styles.noticeDark]}><MaterialIcons name="lock-outline" size={18} color="#4A89EE" /><Text style={[styles.noticeText, isDark && styles.textMuted]}>Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.</Text></View>
+      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#3478F5" />}>
+          <View style={[styles.notice, isDark && styles.noticeDark]}><MaterialIcons name="lock-outline" size={18} color="#3478F5" /><Text style={[styles.noticeText, isDark && styles.textMuted]}>Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.</Text></View>
           {tab === "SELECTED" ? (selectedGroups.length ? selectedGroups.map((group) => {
             const expanded = expandedPeriods[group.key] ?? false;
             return (
@@ -189,14 +194,14 @@ export default function WilmaCourseSelectionsScreen() {
                   style={styles.trayHeader}
                   onPress={() => void toggleTray(tray)}
                 >
-                  <MaterialIcons name={tray.closed ? "event-busy" : "view-week"} size={22} color={tray.closed ? "#8a94a6" : "#4A89EE"} />
+                  <MaterialIcons name={tray.closed ? "event-busy" : "view-week"} size={22} color={tray.closed ? "#8a94a6" : "#3478F5"} />
                   <View style={{ flex: 1 }}><Text style={[styles.cardTitle, isDark && styles.textLight]}>{tray.name}</Text><Text style={styles.meta}>{tray.category} · {tray.status}</Text></View>
                   <MaterialIcons name={expanded ? "expand-less" : "expand-more"} size={22} color={isDark ? "#aaa" : "#667085"} />
                 </Pressable>
                 {expanded && (
                   <View style={[styles.trayContents, isDark && styles.trayContentsDark]}>
                     {trayDetailLoading === tray.id ? (
-                      <ActivityIndicator color="#4A89EE" style={styles.detailLoader} />
+                      <ActivityIndicator color="#3478F5" style={styles.detailLoader} />
                     ) : trayDetailError[tray.id] ? (
                       <View style={styles.detailError}>
                         <Text style={styles.empty}>{trayDetailError[tray.id]}</Text>
@@ -237,36 +242,39 @@ export default function WilmaCourseSelectionsScreen() {
             );
           }) : <Text style={styles.empty}>Kurssitarjottimia ei löytynyt.</Text>)}
         </ScrollView>}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" }, containerDark: { backgroundColor: "#18191B" }, header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" }, borderDark: { borderBottomColor: "#333" }, tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" }, tabActive: { borderBottomColor: "#4A89EE" }, tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#667085" }, tabTextActive: { color: "#4A89EE" },
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" }, containerDark: { backgroundColor: "#18191B" }, header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
+  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" }, borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" }, tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
+  tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" }, tabActive: { borderBottomColor: "#3478F5" }, tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" }, tabTextActive: { color: "#3478F5" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 }, content: { padding: 16, gap: 10 }, notice: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#eaf1ff", borderRadius: 12, padding: 12, marginBottom: 4 }, noticeDark: { backgroundColor: "#233047" }, noticeText: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#4b6282" },
-  cardDark: { backgroundColor: "#232427" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#4A89EE" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#202939" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
+  cardDark: { backgroundColor: "#232427" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#3478F5" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#222" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
   trayCard: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
   trayHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   periodHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  periodBadge: { alignItems: "center", backgroundColor: "#4A89EE", borderRadius: 9, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 8 },
+  periodBadge: { alignItems: "center", backgroundColor: "#3478F5", borderRadius: 9, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 8 },
   periodBadgeText: { color: "#fff", fontFamily: "Figtree-Bold", fontSize: 14 },
   periodContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", gap: 8, padding: 10 },
   selectedCourseRow: { alignItems: "flex-start", backgroundColor: "#f7f9fc", borderRadius: 10, flexDirection: "row", gap: 10, padding: 10 },
   trayContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", padding: 12, gap: 14 },
   trayContentsDark: { borderTopColor: "#444" },
   trayBar: { gap: 7 },
-  barTitle: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#344054" },
+  barTitle: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#222" },
   courseRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#f7f9fc", borderRadius: 10, padding: 10 },
   courseRowDark: { backgroundColor: "#333" },
-  courseName: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#202939" },
-  selectedCodeChip: { backgroundColor: "#4A89EE" },
+  courseName: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#222" },
+  selectedCodeChip: { backgroundColor: "#3478F5" },
   selectedCodeText: { color: "#fff" },
   courseBadges: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 5 },
-  selectedBadge: { fontFamily: "Figtree-SemiBold", fontSize: 10, color: "#2870d9", backgroundColor: "#eaf1ff", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  mutedBadge: { fontFamily: "Figtree-Medium", fontSize: 10, color: "#667085", backgroundColor: "#e9edf3", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  selectedBadge: { fontFamily: "Figtree-SemiBold", fontSize: 10, color: "#3478F5", backgroundColor: "#eaf1ff", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  mutedBadge: { fontFamily: "Figtree-Medium", fontSize: 10, color: "#666", backgroundColor: "#e9edf3", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   detailLoader: { marginVertical: 18 },
   detailError: { alignItems: "center", gap: 10, paddingVertical: 8 },
-  empty: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" }, retry: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" }, textLight: { color: "#fff" }, textMuted: { color: "#aaa" },
+  empty: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" }, retry: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" }, textLight: { color: "#fff" }, textMuted: { color: "#aaa" },
 });

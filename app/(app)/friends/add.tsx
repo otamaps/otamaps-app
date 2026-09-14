@@ -232,7 +232,7 @@ const AddFriendScreen = () => {
           <Text
             style={[
               styles.tabText,
-              isDark && { color: "#a1a1a1" },
+              isDark && { color: "#AAA" },
               activeTab === "add" && styles.activeTabText,
             ]}
           >
@@ -247,7 +247,7 @@ const AddFriendScreen = () => {
             <Text
               style={[
                 styles.tabText,
-                isDark && { color: "#a1a1a1" },
+                isDark && { color: "#AAA" },
                 activeTab === "requests" && styles.activeTabText,
               ]}
             >
@@ -267,7 +267,7 @@ const AddFriendScreen = () => {
           <Text style={[styles.title, isDark && { color: "#fff" }]}>
             Anna kaverisi koodi
           </Text>
-          <Text style={[styles.subtitle, isDark && { color: "#a1a1a1" }]}>
+          <Text style={[styles.subtitle, isDark && { color: "#AAA" }]}>
             Kysy ystävältäsi heidän 6-numeroinen koodi
           </Text>
 
@@ -292,11 +292,11 @@ const AddFriendScreen = () => {
                 }
               }}
               placeholder="123456"
-              placeholderTextColor="#999"
+              placeholderTextColor="#aaa"
               keyboardType="number-pad"
               maxLength={6}
               autoFocus
-              selectionColor="#4A89EE"
+              selectionColor="#3478F5"
             />
           </View>
 
@@ -310,7 +310,7 @@ const AddFriendScreen = () => {
                 style={[
                   styles.hintText,
                   { marginTop: 6 },
-                  isDark && { color: "#a1a1a1" },
+                  isDark && { color: "#AAA" },
                 ]}
               >
                 Tarkista koodi ja kokeile uudelleen
@@ -326,14 +326,14 @@ const AddFriendScreen = () => {
                 <MaterialIcons
                   name="person"
                   size={48}
-                  color={isDark ? "#fff" : "#4A89EE"}
+                  color={isDark ? "#fff" : "#3478F5"}
                 />
                 <Text style={[styles.resultText, isDark && { color: "#fff" }]}>
                   {friend.name}
                 </Text>
                 {friend.class && (
                   <Text
-                    style={[styles.hintText, isDark && { color: "#a1a1a1" }]}
+                    style={[styles.hintText, isDark && { color: "#AAA" }]}
                   >
                     {friend.class}
                   </Text>
@@ -398,7 +398,7 @@ const AddFriendScreen = () => {
         >
           {isLoadingRequests ? (
             <View style={styles.noRequestsContainer}>
-              <ActivityIndicator size="large" color="#4A89EE" />
+              <ActivityIndicator size="large" color="#3478F5" />
             </View>
           ) : requesters.length === 0 ? (
             <View style={styles.noRequestsContainer}>
@@ -408,7 +408,7 @@ const AddFriendScreen = () => {
                 Ei kaveripyyntöjä
               </Text>
               <Text
-                style={[styles.noRequestsHint, isDark && { color: "#a1a1a1" }]}
+                style={[styles.noRequestsHint, isDark && { color: "#AAA" }]}
               >
                 Jaa koodisi ystävillesi
               </Text>
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#4A89EE",
+    borderBottomColor: "#3478F5",
   },
   tabText: {
     fontSize: 16,
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   activeTabText: {
-    color: "#4A89EE",
+    color: "#3478F5",
     fontFamily: "Figtree-SemiBold",
   },
   badge: {
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: "Figtree-SemiBold",
-    color: "#1a1a1a",
+    color: "#222",
     marginBottom: 8,
     textAlign: "center",
   },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   addFriendButton: {
-    backgroundColor: "#4A89EE",
+    backgroundColor: "#3478F5",
     padding: 12,
     borderRadius: 12,
     marginTop: 24,
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   acceptButton: {
-    backgroundColor: "#4a89ee",
+    backgroundColor: "#3478F5",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",

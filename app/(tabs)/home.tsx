@@ -40,7 +40,7 @@ import {
   weekdayLabel,
 } from "@/lib/wilma/scheduleDates";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -349,7 +349,7 @@ function LoginView({
             ios="graduationcap.fill"
             android="school"
             size={52}
-            tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+            tintColor={isDark ? "#51a2ff" : "#3478F5"}
           />
           <Text style={[styles.loginTitle, isDark && { color: "#fff" }]}>
             Wilma
@@ -654,8 +654,18 @@ function Dashboard({
     [onLogout],
   );
 
+  // Loaded once, then only on pull to refresh. Reloading on every focus put
+  // the whole screen behind a spinner each time the tab came back, for data
+  // that barely moves within a session.
+  const loadedDay = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
+      // The one thing that does force a reload: the card is built around
+      // "today", so an app left open past midnight would otherwise keep
+      // showing yesterday's lessons.
+      const today = todayISO();
+      if (loadedDay.current === today) return;
+      loadedDay.current = today;
       void load();
     }, [load]),
   );
@@ -675,7 +685,7 @@ function Dashboard({
         <View style={styles.centered}>
           <ActivityIndicator
             size="large"
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            color={isDark ? "#51a2ff" : "#3478F5"}
           />
           <Text style={[styles.loadingLabel, isDark && { color: "#888" }]}>
             Ladataan tietoja...
@@ -716,7 +726,7 @@ function Dashboard({
               ios="arrow.clockwise"
               android="refresh"
               size={18}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <Text style={[styles.retryBtnText, isDark && { color: "#51a2ff" }]}>
               Yritä uudelleen
@@ -743,7 +753,7 @@ function Dashboard({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+            tintColor={isDark ? "#51a2ff" : "#3478F5"}
           />
         }
       >
@@ -821,7 +831,7 @@ function Dashboard({
                       : "#8A929D"
                     : isDark
                       ? "#51a2ff"
-                      : "#4A89EE";
+                      : "#3478F5";
                 const timeSubColor = isCurrent
                   ? isDark
                     ? "#4ADE8080"
@@ -832,7 +842,7 @@ function Dashboard({
                       : "#8A929D80"
                     : isDark
                       ? "#51a2ff70"
-                      : "#4A89EE80";
+                      : "#3478F580";
 
                 if (row.kind === "lunch") {
                   const lunchOnlyTimeColor = isCurrent
@@ -1054,12 +1064,18 @@ function Dashboard({
                         ]}
                       >
                         <Text
-                          style={[styles.timeTagText, { color: timeColor }]}
+                          style={[
+                            styles.timeTagText,
+                            { color: timeColor },
+                          ]}
                         >
                           {row.start}
                         </Text>
                         <Text
-                          style={[styles.timeTagSub, { color: timeSubColor }]}
+                          style={[
+                            styles.timeTagSub,
+                            { color: timeSubColor },
+                          ]}
                         >
                           {row.end}
                         </Text>
@@ -1292,7 +1308,7 @@ function Dashboard({
               ios="doc.text"
               android="assignment"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1322,7 +1338,7 @@ function Dashboard({
               ios="rectangle.grid.1x2"
               android="view_week"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1352,7 +1368,7 @@ function Dashboard({
               ios="door.left.hand.open"
               android="meeting_room"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1382,7 +1398,7 @@ function Dashboard({
               ios="person.2"
               android="group"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1412,7 +1428,7 @@ function Dashboard({
               ios="megaphone"
               android="campaign"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1442,7 +1458,7 @@ function Dashboard({
               ios="checkmark.seal"
               android="fact_check"
               size={22}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
             <View style={styles.moreWilmaText}>
               <Text
@@ -1509,7 +1525,7 @@ export default function HomeScreen() {
         <View style={styles.centered}>
           <ActivityIndicator
             size="large"
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            color={isDark ? "#51a2ff" : "#3478F5"}
           />
           <Text style={[styles.loadingLabel, isDark && { color: "#888" }]}>
             Tarkistetaan kirjautumista...
@@ -1576,7 +1592,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 15,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   moreWilmaRow: {
     minHeight: 58,
@@ -1649,7 +1665,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   loginBtn: {
-    backgroundColor: "#4A89EE",
+    backgroundColor: "#3478F5",
     borderRadius: 10,
     padding: 15,
     alignItems: "center",
@@ -1729,7 +1745,7 @@ const styles = StyleSheet.create({
     color: "#222",
   },
   badge: {
-    backgroundColor: "#4A89EE",
+    backgroundColor: "#3478F5",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1741,7 +1757,7 @@ const styles = StyleSheet.create({
   moreLink: {
     fontFamily: "Figtree-Medium",
     fontSize: 13,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   divider: {
     height: 1,
@@ -1785,9 +1801,9 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-SemiBold",
     fontStyle: "italic",
     fontSize: 15,
-    color: "#8A929D",
+    color: "#888",
   },
-  freeSlotTitleDark: { color: "#9CA3AF" },
+  freeSlotTitleDark: { color: "#AAA" },
   timeTag: {
     backgroundColor: "#EEF4FF",
     borderRadius: 8,
@@ -1803,12 +1819,12 @@ const styles = StyleSheet.create({
   timeTagText: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 13,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   timeTagSub: {
     fontFamily: "Figtree-Regular",
     fontSize: 11,
-    color: "#4A89EE80",
+    color: "#3478F580",
     marginTop: 1,
   },
   lessonInfo: { flex: 1 },
@@ -1869,12 +1885,12 @@ const styles = StyleSheet.create({
   examDate: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 14,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   examTime: {
     fontFamily: "Figtree-Regular",
     fontSize: 12,
-    color: "#4A89EE80",
+    color: "#3478F580",
     marginTop: 2,
   },
 
@@ -1913,7 +1929,7 @@ const styles = StyleSheet.create({
   eventChipText: {
     fontFamily: "Figtree-Medium",
     fontSize: 10,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
 
   // Attendance

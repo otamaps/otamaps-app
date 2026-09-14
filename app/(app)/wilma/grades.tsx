@@ -53,16 +53,21 @@ export default function WilmaGradesScreen() {
   }, [load]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, isDark && styles.borderDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>Arvosanat</Text>
         <View style={{ flex: 1 }} />
         <Pressable onPress={() => router.push("/wilma/past-exams" as never)} hitSlop={8}>
-          <MaterialIcons name="fact-check" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="fact-check" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
       </View>
       <View style={[styles.tabs, isDark && styles.borderDark]}>
@@ -85,7 +90,7 @@ export default function WilmaGradesScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.centered}><ActivityIndicator size="large" color="#4A89EE" /></View>
+        <View style={styles.centered}><ActivityIndicator size="large" color="#3478F5" /></View>
       ) : error ? (
         <View style={styles.centered}>
           <MaterialIcons name="error-outline" size={44} color="#aaa" />
@@ -95,7 +100,7 @@ export default function WilmaGradesScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#4A89EE" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#3478F5" />}
         >
           {tab === "COURSES" ? (
             <>
@@ -150,44 +155,47 @@ export default function WilmaGradesScreen() {
           )}
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" },
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
-  header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#eee", paddingVertical: 12, backgroundColor: "#fff" },
+  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabActive: { borderBottomColor: "#4A89EE" },
-  tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#667085" },
-  tabTextActive: { color: "#4A89EE" },
-  borderDark: { borderBottomColor: "#333" },
+  tabActive: { borderBottomColor: "#3478F5" },
+  tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" },
+  tabTextActive: { color: "#3478F5" },
+  borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 },
   content: { padding: 16, gap: 12 },
   summaryCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 9 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", gap: 16 },
-  summaryLabel: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085" },
-  summaryValue: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#202939" },
+  summaryLabel: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 13, color: "#666" },
+  summaryValue: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#222" },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 10 },
   cardDark: { backgroundColor: "#232427" },
   subjectHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  subjectName: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#202939" },
-  grade: { minWidth: 40, textAlign: "center", fontFamily: "Figtree-Bold", fontSize: 22, color: "#4A89EE" },
+  subjectName: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
+  grade: { minWidth: 40, textAlign: "center", fontFamily: "Figtree-Bold", fontSize: 22, color: "#3478F5" },
   courseRow: { flexDirection: "row", alignItems: "center", gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e4e7ec", paddingTop: 10 },
   courseRowDark: { borderTopColor: "#3a3a3a" },
   codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 7, paddingVertical: 4 },
-  codeText: { fontFamily: "Figtree-SemiBold", fontSize: 11, color: "#4A89EE" },
-  courseName: { fontFamily: "Figtree-Medium", fontSize: 14, color: "#344054" },
-  courseGrade: { fontFamily: "Figtree-Bold", fontSize: 17, color: "#4A89EE" },
+  codeText: { fontFamily: "Figtree-SemiBold", fontSize: 11, color: "#3478F5" },
+  courseName: { fontFamily: "Figtree-Medium", fontSize: 14, color: "#222" },
+  courseGrade: { fontFamily: "Figtree-Bold", fontSize: 17, color: "#3478F5" },
   meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 2 },
-  points: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085" },
+  points: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#666" },
   rejected: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#c62828" },
-  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" },
+  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" },
   retryButton: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   textLight: { color: "#fff" },
   textMuted: { color: "#aaa" },
 });

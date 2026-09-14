@@ -71,7 +71,7 @@ const RoomItem: React.FC<RoomItemProps> = ({ room, onPress }) => {
         <MaterialIcons 
           name="chevron-right" 
           size={24} 
-          color="#B5B5B5" 
+          color="#AAA" 
         />
       </View>
     </Pressable>

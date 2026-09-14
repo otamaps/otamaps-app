@@ -122,7 +122,7 @@ const About = () => {
           fontSize: 14,
           marginBottom: 8,
           marginTop: 8,
-          fontWeight: "medium",
+          fontFamily: "Figtree-Medium",
           ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
         }}
       >
@@ -149,7 +149,7 @@ const About = () => {
           fontSize: 14,
           marginBottom: 8,
           marginTop: 8,
-          fontWeight: "medium",
+          fontFamily: "Figtree-Medium",
           ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
         }}
       >
@@ -168,7 +168,7 @@ const About = () => {
         style={{
           fontSize: 16,
           marginBottom: 8,
-          fontWeight: "bold",
+          fontFamily: "Figtree-Bold",
           ...(isDark ? { color: "#ffffff70" } : { color: "black" }),
         }}
       >

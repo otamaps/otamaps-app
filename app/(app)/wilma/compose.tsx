@@ -67,19 +67,19 @@ export default function ComposeMessageScreen() {
       <View style={[styles.container, isDark && styles.containerDark]}>
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>Uusi viesti</Text>
         <View style={{ flex: 1 }} />
         <Pressable onPress={send} disabled={!canSend} hitSlop={8}>
-          {sending ? <ActivityIndicator size="small" color="#4A89EE" /> : <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#4A89EE") : "#aaa"} />}
+          {sending ? <ActivityIndicator size="small" color="#3478F5" /> : <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#3478F5") : "#aaa"} />}
         </Pressable>
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.label, isDark && styles.mutedDark]}>Vastaanottaja</Text>
           <View style={[styles.recipientCard, isDark && styles.fieldDark]}>
-            <MaterialIcons name="person-outline" size={20} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <MaterialIcons name="person-outline" size={20} color={isDark ? "#51a2ff" : "#3478F5"} />
             <Text style={[styles.recipient, isDark && styles.textLight]}>{params.name ?? "Tuntematon vastaanottaja"}{params.code ? ` (${params.code})` : ""}</Text>
           </View>
           <Text style={[styles.label, isDark && styles.mutedDark]}>Aihe</Text>

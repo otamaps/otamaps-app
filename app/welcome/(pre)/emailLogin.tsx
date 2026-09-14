@@ -64,7 +64,7 @@ export default function EmailLogin() {
           keyboardShouldPersistTaps="handled"
         >
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={23} color="#344054" />
+            <Ionicons name="chevron-back" size={23} color="#222" />
             <Text style={styles.backText}>Takaisin</Text>
           </Pressable>
 
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   backText: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-Medium",
     fontSize: 14,
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 14,
     lineHeight: 20,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   label: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-Medium",
     fontSize: 14,
     marginBottom: 7,

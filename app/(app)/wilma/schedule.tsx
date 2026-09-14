@@ -793,7 +793,7 @@ export default function ScheduleScreen() {
             <MaterialIcons
               name="arrow-back"
               size={24}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
@@ -807,7 +807,7 @@ export default function ScheduleScreen() {
           <View style={styles.centered}>
             <ActivityIndicator
               size="large"
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </View>
         ) : error ? (
@@ -831,7 +831,7 @@ export default function ScheduleScreen() {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+                  tintColor={isDark ? "#51a2ff" : "#3478F5"}
                 />
               }
             >
@@ -860,7 +860,7 @@ export default function ScheduleScreen() {
                           styles.dayName,
                           isDark && { color: "#fff" },
                           isHighlighted && {
-                            color: isDark ? "#51a2ff" : "#3d7de3",
+                            color: isDark ? "#51a2ff" : "#3478F5",
                           },
                         ]}
                       >
@@ -1035,7 +1035,7 @@ export default function ScheduleScreen() {
             <MaterialIcons
               name="chevron-left"
               size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <Pressable
@@ -1058,7 +1058,7 @@ export default function ScheduleScreen() {
             <MaterialIcons
               name="chevron-right"
               size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
         </View>
@@ -1167,7 +1167,7 @@ const styles = StyleSheet.create({
   todayPillText: {
     fontFamily: "Figtree-Medium",
     fontSize: 11,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   emptyDay: {
     borderRadius: 12,
@@ -1231,15 +1231,15 @@ const styles = StyleSheet.create({
   freeSlotCardDark: { backgroundColor: "#232427", borderColor: "#4A5058" },
   freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
   freeSlotTimeTagDark: { backgroundColor: "#2E3034" },
-  freeSlotTimeText: { color: "#8A929D" },
-  freeSlotTimeTextDark: { color: "#9CA3AF" },
+  freeSlotTimeText: { color: "#888" },
+  freeSlotTimeTextDark: { color: "#AAA" },
   freeSlotTitle: {
     fontFamily: "Figtree-SemiBold",
     fontStyle: "italic",
     fontSize: 15,
-    color: "#8A929D",
+    color: "#888",
   },
-  freeSlotTitleDark: { color: "#9CA3AF" },
+  freeSlotTitleDark: { color: "#AAA" },
 
   // Standalone lunch (falls outside every lesson and free slot)
   lunchOnlyTimeTag: { backgroundColor: "#FEF3C7" },
@@ -1259,12 +1259,12 @@ const styles = StyleSheet.create({
   timeTagStart: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 13,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   timeTagEnd: {
     fontFamily: "Figtree-Regular",
     fontSize: 11,
-    color: "#4A89EE70",
+    color: "#3478F570",
     marginTop: 1,
   },
   timeTagCurrent: { backgroundColor: "#16A34A1A" },

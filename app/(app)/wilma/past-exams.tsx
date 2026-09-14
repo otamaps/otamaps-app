@@ -39,11 +39,16 @@ export default function WilmaPastExamsScreen() {
   }, [load]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, isDark && styles.borderDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <View>
           <Text style={[styles.headerTitle, isDark && styles.textLight]}>Arvosanat</Text>
@@ -53,7 +58,7 @@ export default function WilmaPastExamsScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
         </View>
       ) : error ? (
         <View style={styles.centered}>
@@ -75,7 +80,7 @@ export default function WilmaPastExamsScreen() {
                 setRefreshing(true);
                 void load(true);
               }}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
           }
           ListEmptyComponent={<Text style={[styles.emptyText, isDark && styles.textMuted]}>Ei arvioituja kokeita viimeisen vuoden ajalta.</Text>}
@@ -104,16 +109,19 @@ export default function WilmaPastExamsScreen() {
           )}
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" },
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
-  header: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
-  borderDark: { borderBottomColor: "#333" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#eee", paddingVertical: 12, backgroundColor: "#fff" },
+  borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
+  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   headerSubtitle: { fontFamily: "Figtree-Regular", fontSize: 11, color: "#888", marginTop: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 12 },
   list: { padding: 16, gap: 12 },
@@ -122,19 +130,19 @@ const styles = StyleSheet.create({
   cardDark: { backgroundColor: "#232427" },
   titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   titleText: { flex: 1 },
-  title: { fontFamily: "Figtree-SemiBold", fontSize: 16, lineHeight: 21, color: "#202939" },
+  title: { fontFamily: "Figtree-SemiBold", fontSize: 16, lineHeight: 21, color: "#222" },
   meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#7c8799", marginTop: 6 },
   grade: { minWidth: 44, minHeight: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#E8F5E9", paddingHorizontal: 8 },
   gradePending: { backgroundColor: "#eef1f5" },
   gradeText: { fontFamily: "Figtree-Bold", fontSize: 17, color: "#2E7D32" },
   gradePendingText: { color: "#7c8799" },
-  details: { fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 19, color: "#4b5565", marginTop: 12 },
+  details: { fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 19, color: "#666", marginTop: 12 },
   assessment: { backgroundColor: "#F1F5FF", borderRadius: 10, padding: 11, marginTop: 12 },
   assessmentDark: { backgroundColor: "#343b48" },
-  assessmentText: { fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 18, color: "#344054" },
-  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" },
+  assessmentText: { fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 18, color: "#222" },
+  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" },
   retryButton: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   textLight: { color: "#fff" },
   textMuted: { color: "#aaa" },
 });

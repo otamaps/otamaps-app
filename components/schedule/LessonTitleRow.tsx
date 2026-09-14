@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     fontFamily: "Figtree-Medium",
     fontSize: 11,
-    color: "#68717D",
+    color: "#666",
     backgroundColor: "#EEF1F5",
     borderRadius: 5,
     paddingHorizontal: 5,

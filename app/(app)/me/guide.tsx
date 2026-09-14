@@ -25,10 +25,10 @@ const GuideItem = ({
     <View
       style={[
         styles.iconContainer,
-        isDark && { backgroundColor: "#51A2FF1F", borderColor: "#4A89EE" },
+        isDark && { backgroundColor: "#51A2FF1F", borderColor: "#3478F5" },
       ]}
     >
-      <MaterialIcons name={icon as any} size={20} color="#4A89EE" />
+      <MaterialIcons name={icon as any} size={20} color="#3478F5" />
     </View>
     <View style={styles.textContainer}>
       <Text style={[styles.title, isDark && { color: "white" }]}>{title}</Text>
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Figtree-SemiBold",
     marginBottom: 24,
-    color: "#1a1a1a",
+    color: "#222",
     textAlign: "center",
   },
   guideItem: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   tipTitle: {
     fontFamily: "Figtree-SemiBold",
-    color: "#1a1a1a",
+    color: "#222",
     fontSize: 15,
     marginBottom: 6,
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   contactTitle: {
     fontSize: 15,
     fontFamily: "Figtree-SemiBold",
-    color: "#1a1a1a",
+    color: "#222",
     marginTop: 8,
     marginBottom: 12,
     textAlign: "center",
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   contactText: {
     fontSize: 15,
     fontFamily: "Figtree-Medium",
-    color: "#4A89EE",
+    color: "#3478F5",
     textAlign: "center",
     marginBottom: 24,
   },

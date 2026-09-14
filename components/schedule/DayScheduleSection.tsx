@@ -87,7 +87,7 @@ export default function DayScheduleSection({
 
       {loading ? (
         <View style={[styles.state, isDark && styles.surfaceDark]}>
-          <ActivityIndicator color="#276CE5" />
+          <ActivityIndicator color="#3478F5" />
           <Text style={[styles.stateText, isDark && styles.textMutedDark]}>
             Ladataan lukujärjestystä…
           </Text>
@@ -264,12 +264,12 @@ export default function DayScheduleSection({
 const styles = StyleSheet.create({
   sectionHeader: { marginTop: 24, marginBottom: 12 },
   sectionTitle: {
-    color: "#202833",
+    color: "#222",
     fontFamily: "Figtree-SemiBold",
     fontSize: 17,
   },
   sectionCaption: {
-    color: "#77818E",
+    color: "#888",
     fontFamily: "Figtree-Regular",
     fontSize: 13,
     marginTop: 2,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   stateText: {
     flexShrink: 1,
-    color: "#68717D",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 14,
     textAlign: "center",
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   dayTitle: {
-    color: "#202833",
+    color: "#222",
     fontFamily: "Figtree-SemiBold",
     fontSize: 15,
     marginBottom: 8,
@@ -335,33 +335,33 @@ const styles = StyleSheet.create({
   freeSlotSpaceAbove: { marginVertical: 8 },
   lessonTime: {
     width: 92,
-    color: "#68717D",
+    color: "#666",
     fontFamily: "Figtree-Medium",
     fontSize: 13,
   },
-  lessonTimeCurrent: { color: "#276CE5", fontFamily: "Figtree-SemiBold" },
+  lessonTimeCurrent: { color: "#3478F5", fontFamily: "Figtree-SemiBold" },
   lessonDetails: { flex: 1 },
   lessonTitle: {
-    color: "#202833",
+    color: "#222",
     fontFamily: "Figtree-SemiBold",
     fontSize: 14,
   },
   freeSlotTitle: {
-    color: "#8A929D",
+    color: "#888",
     fontFamily: "Figtree-SemiBold",
     fontStyle: "italic",
     fontSize: 14,
   },
-  freeSlotTitleDark: { color: "#9CA3AF" },
+  freeSlotTitleDark: { color: "#AAA" },
   pastOpacity: { opacity: 0.5 },
   lessonSubtitle: {
-    color: "#68717D",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 13,
     marginTop: 1,
   },
   lessonDetail: {
-    color: "#8A929D",
+    color: "#888",
     fontFamily: "Figtree-Regular",
     fontSize: 12,
     marginTop: 3,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   textPrimaryDark: { color: "#F5F7FA" },
-  textMutedDark: { color: "#ABB3BE" },
+  textMutedDark: { color: "#AAA" },
   surfaceDark: { backgroundColor: "#232427" },
   borderDark: { borderColor: "#3A3D42" },
 });

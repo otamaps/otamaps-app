@@ -48,7 +48,7 @@ export default function Login() {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.container}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={23} color="#344054" />
+          <Ionicons name="chevron-back" size={23} color="#222" />
           <Text style={styles.backText}>Takaisin</Text>
         </Pressable>
 
@@ -75,10 +75,10 @@ export default function Login() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#344054" />
+                <ActivityIndicator color="#222" />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={19} color="#344054" />
+                  <Ionicons name="logo-google" size={19} color="#222" />
                   <Text style={styles.optionButtonText}>Jatka Googlella</Text>
                 </>
               )}
@@ -93,7 +93,7 @@ export default function Login() {
             onPress={() => router.push("/welcome/emailLogin" as never)}
             disabled={loading}
           >
-            <Ionicons name="mail-outline" size={20} color="#344054" />
+            <Ionicons name="mail-outline" size={20} color="#222" />
             <Text style={styles.optionButtonText}>Sähköposti ja salasana</Text>
           </Pressable>
         </View>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   backText: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-Medium",
     fontSize: 14,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 14,
     lineHeight: 21,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   optionButtonPressed: { backgroundColor: "#F9FAFB" },
   optionButtonText: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-SemiBold",
     fontSize: 15,
   },

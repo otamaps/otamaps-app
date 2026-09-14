@@ -168,7 +168,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
               <Text
                 style={[
                   styles.todayBtnText,
-                  { color: isDark ? "#51a2ff" : "#4A89EE" },
+                  { color: isDark ? "#51a2ff" : "#3478F5" },
                   isViewingCurrentMonth && styles.todayBtnTextDisabled,
                   isViewingCurrentMonth && isDark && { color: "#555" },
                 ]}
@@ -191,7 +191,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
                 <MaterialIcons
                   name="chevron-left"
                   size={26}
-                  color={isDark ? "#51a2ff" : "#4A89EE"}
+                  color={isDark ? "#51a2ff" : "#3478F5"}
                 />
               </Pressable>
               <Pressable
@@ -202,7 +202,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
                 <MaterialIcons
                   name="chevron-right"
                   size={26}
-                  color={isDark ? "#51a2ff" : "#4A89EE"}
+                  color={isDark ? "#51a2ff" : "#3478F5"}
                 />
               </Pressable>
             </View>
@@ -254,7 +254,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
                           isDark && { borderColor: "#51a2ff" },
                         isSelected && [
                           styles.dayCellInnerSelected,
-                          { backgroundColor: isDark ? "#51a2ff" : "#4A89EE" },
+                          { backgroundColor: isDark ? "#51a2ff" : "#3478F5" },
                         ],
                       ]}
                     >
@@ -266,7 +266,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
                           isWeekend && isDark && { color: "#555" },
                           isToday &&
                             !isSelected && {
-                              color: isDark ? "#51a2ff" : "#4A89EE",
+                              color: isDark ? "#51a2ff" : "#3478F5",
                               fontFamily: "Figtree-SemiBold",
                             },
                           isSelected && styles.dayCellTextSelected,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Figtree-SemiBold",
     fontSize: 17,
-    color: "#202833",
+    color: "#222",
   },
   weekdayRow: { flexDirection: "row", marginBottom: 6 },
   weekdayLabel: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Figtree-Medium",
     fontSize: 12,
-    color: "#8A929D",
+    color: "#888",
   },
   weekendLabel: { color: "#c2c8d0" },
   weekRow: { flexDirection: "row" },
@@ -345,10 +345,10 @@ const styles = StyleSheet.create({
   },
   dayCellInnerToday: {
     borderWidth: 1.5,
-    borderColor: "#4A89EE",
+    borderColor: "#3478F5",
   },
   dayCellInnerSelected: {
-    shadowColor: "#4A89EE",
+    shadowColor: "#3478F5",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   dayCellText: {
     fontFamily: "Figtree-Medium",
     fontSize: 15,
-    color: "#202833",
+    color: "#222",
   },
   dayCellTextWeekend: { color: "#c2c8d0" },
   dayCellTextSelected: { color: "#fff", fontFamily: "Figtree-SemiBold" },

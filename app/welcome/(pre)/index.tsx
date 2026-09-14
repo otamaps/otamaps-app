@@ -261,10 +261,10 @@ export default function WelcomeScreen() {
                 onPress={() => void handleGoogleSignIn()}
               >
                 {googleLoading ? (
-                  <ActivityIndicator color="#344054" />
+                  <ActivityIndicator color="#222" />
                 ) : (
                   <>
-                    <Ionicons name="logo-google" size={19} color="#344054" />
+                    <Ionicons name="logo-google" size={19} color="#222" />
                     <Text style={styles.secondaryButtonText}>Jatka Googlella</Text>
                   </>
                 )}
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 14,
     lineHeight: 20,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   label: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-Medium",
     fontSize: 14,
     marginBottom: 7,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonPressed: { backgroundColor: "#F9FAFB" },
   secondaryButtonText: {
-    color: "#344054",
+    color: "#222",
     fontFamily: "Figtree-SemiBold",
     fontSize: 15,
   },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   credentialNotice: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 12,
     lineHeight: 18,

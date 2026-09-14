@@ -350,7 +350,7 @@ export default function FriendProfileSheetContent({
     <>
       <View style={styles.header}>
         <View
-          style={[styles.avatar, { backgroundColor: friend.color || "#276CE5" }]}
+          style={[styles.avatar, { backgroundColor: friend.color || "#3478F5" }]}
         >
           <Text style={styles.avatarText}>{friend.name.charAt(0).toUpperCase()}</Text>
         </View>
@@ -391,7 +391,7 @@ export default function FriendProfileSheetContent({
           ios="location.fill"
           android="location_on"
           size={22}
-          tintColor={locationText === "Ei sijaintia vielä" ? "#8C939E" : "#276CE5"}
+          tintColor={locationText === "Ei sijaintia vielä" ? "#8C939E" : "#3478F5"}
         />
         <View style={styles.locationText}>
           <Text style={[styles.locationTitle, isDark && styles.textPrimaryDark]}>
@@ -530,13 +530,13 @@ const styles = StyleSheet.create({
   avatar: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   avatarText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 22 },
   headerText: { flex: 1 },
-  name: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 22 },
-  className: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 14, marginTop: 2 },
+  name: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 22 },
+  className: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 14, marginTop: 2 },
   closeButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   locationCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#F5F7FA", borderColor: "#E1E6ED", borderWidth: 1, borderRadius: 16, padding: 14 },
   locationText: { flex: 1 },
-  locationTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 16 },
-  locationUpdated: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
+  locationTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 16 },
+  locationUpdated: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: "#DEE3E9", marginVertical: 22 },
   dividerDark: { backgroundColor: "#3A3D42" },
   actions: { gap: 4 },
@@ -544,22 +544,22 @@ const styles = StyleSheet.create({
   actionText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
   pressed: { opacity: 0.65 },
   emptyContainer: { minHeight: 160, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 15 },
+  emptyText: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 15 },
   textPrimaryDark: { color: "#F5F7FA" },
-  textMutedDark: { color: "#ABB3BE" },
+  textMutedDark: { color: "#AAA" },
   surfaceDark: { backgroundColor: "#232427" },
   borderDark: { borderColor: "#3A3D42" },
   reportBackdrop: { flex: 1, backgroundColor: "#00000080", justifyContent: "center", padding: 24 },
   reportDialog: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 20 },
   dialogDark: { backgroundColor: "#202226" },
-  reportTitle: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 20 },
-  reportDescription: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 6 },
-  reportInput: { minHeight: 110, marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: "#D9DEE5", padding: 12, color: "#18202A", fontFamily: "Figtree-Regular", fontSize: 15, textAlignVertical: "top" },
+  reportTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 20 },
+  reportDescription: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 6 },
+  reportInput: { minHeight: 110, marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: "#D9DEE5", padding: 12, color: "#222", fontFamily: "Figtree-Regular", fontSize: 15, textAlignVertical: "top" },
   reportInputDark: { backgroundColor: "#2B2F35", borderColor: "#3A3D42" },
   reportActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 16 },
   dialogButton: { minWidth: 84, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   cancelText: { color: "#3E4854", fontFamily: "Figtree-SemiBold", fontSize: 15 },
-  submitButton: { minWidth: 96, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#276CE5" },
+  submitButton: { minWidth: 96, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#3478F5" },
   submitDisabled: { opacity: 0.45 },
   submitText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 15 },
 });

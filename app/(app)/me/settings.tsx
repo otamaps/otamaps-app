@@ -365,7 +365,7 @@ function SettingSwitch({
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
-        trackColor={{ false: "#D0D5DD", true: "#84ADFF" }}
+        trackColor={{ false: "#D0D5DD", true: "#3478F5" }}
         thumbColor={value ? "#3478F5" : "#F2F4F7"}
       />
     </View>

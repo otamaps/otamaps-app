@@ -12,14 +12,14 @@ export default function TabLayout() {
       <NativeTabs
         backBehavior="initialRoute"
         minimizeBehavior="onScrollDown"
-        tintColor={isDark ? "#51A2FF" : "#276CE5"}
+        tintColor={isDark ? "#51A2FF" : "#3478F5"}
         iconColor={{
           default: isDark ? "#A1A1AA" : "#6B7280",
-          selected: isDark ? "#51A2FF" : "#276CE5",
+          selected: isDark ? "#51A2FF" : "#3478F5",
         }}
         labelStyle={{
           default: { color: isDark ? "#A1A1AA" : "#6B7280" },
-          selected: { color: isDark ? "#51A2FF" : "#276CE5" },
+          selected: { color: isDark ? "#51A2FF" : "#3478F5" },
         }}
         backgroundColor={
           Platform.OS === "android"

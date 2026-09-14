@@ -120,11 +120,16 @@ export default function WilmaCourseworkScreen() {
   ];
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, isDark && styles.borderDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>Kurssit ja tehtävät</Text>
       </View>
@@ -150,7 +155,7 @@ export default function WilmaCourseworkScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
         </View>
       ) : error ? (
         <View style={styles.centered}>
@@ -172,7 +177,7 @@ export default function WilmaCourseworkScreen() {
                 setRefreshing(true);
                 void load(true);
               }}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
           }
           ListEmptyComponent={
@@ -194,21 +199,24 @@ export default function WilmaCourseworkScreen() {
           )}
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" },
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
-  header: { height: 58, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 20, color: "#222" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#eee", paddingVertical: 12, backgroundColor: "#fff" },
+  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabActive: { borderBottomColor: "#4A89EE" },
-  tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#667085" },
-  tabTextActive: { color: "#4A89EE" },
-  borderDark: { borderBottomColor: "#333" },
+  tabActive: { borderBottomColor: "#3478F5" },
+  tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" },
+  tabTextActive: { color: "#3478F5" },
+  borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 12 },
   list: { padding: 16, gap: 12 },
   emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 28 },
@@ -216,15 +224,15 @@ const styles = StyleSheet.create({
   cardDark: { backgroundColor: "#232427" },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   courseChip: { borderRadius: 7, backgroundColor: "#eaf1ff", paddingHorizontal: 8, paddingVertical: 4 },
-  courseChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#4A89EE" },
-  date: { fontFamily: "Figtree-Medium", fontSize: 12, color: "#667085" },
-  title: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#202939" },
-  courseName: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#667085", marginTop: 2 },
-  body: { fontFamily: "Figtree-Regular", fontSize: 15, lineHeight: 21, color: "#344054", marginTop: 12 },
+  courseChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#3478F5" },
+  date: { fontFamily: "Figtree-Medium", fontSize: 12, color: "#666" },
+  title: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
+  courseName: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#666", marginTop: 2 },
+  body: { fontFamily: "Figtree-Regular", fontSize: 15, lineHeight: 21, color: "#222", marginTop: 12 },
   teacher: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 12 },
-  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" },
+  emptyText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" },
   retryButton: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   textLight: { color: "#fff" },
   textMuted: { color: "#aaa" },
 });

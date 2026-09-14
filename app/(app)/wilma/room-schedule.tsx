@@ -224,7 +224,7 @@ export default function WilmaRoomScheduleScreen() {
             <MaterialIcons
               name="arrow-back"
               size={24}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -244,7 +244,7 @@ export default function WilmaRoomScheduleScreen() {
           <View style={styles.centered}>
             <ActivityIndicator
               size="large"
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </View>
         ) : error ? (
@@ -274,7 +274,7 @@ export default function WilmaRoomScheduleScreen() {
                     setRefreshing(true);
                     void load(true);
                   }}
-                  tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+                  tintColor={isDark ? "#51a2ff" : "#3478F5"}
                 />
               }
             >
@@ -306,7 +306,7 @@ export default function WilmaRoomScheduleScreen() {
                           styles.dayName,
                           isDark && styles.textLight,
                           isHighlighted && {
-                            color: isDark ? "#51a2ff" : "#3d7de3",
+                            color: isDark ? "#51a2ff" : "#3478F5",
                           },
                         ]}
                       >
@@ -530,7 +530,7 @@ export default function WilmaRoomScheduleScreen() {
             <MaterialIcons
               name="chevron-left"
               size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <View style={styles.weekText}>
@@ -550,7 +550,7 @@ export default function WilmaRoomScheduleScreen() {
             <MaterialIcons
               name="chevron-right"
               size={28}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
         </View>
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: "#eef4ff",
   },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyDark: { backgroundColor: "#18191B" },
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   todayPillText: {
     fontFamily: "Figtree-Medium",
     fontSize: 11,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   todayPillTextDark: { color: "#51a2ff" },
   lessonCard: {
@@ -679,24 +679,24 @@ const styles = StyleSheet.create({
   timeTagStart: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 13,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   timeTagStartDark: { color: "#51a2ff" },
   timeTagStartCurrent: { color: "#16A34A" },
   timeTagStartCurrentDark: { color: "#4ADE80" },
-  timeTagStartPast: { color: "#8A929D" },
-  timeTagStartPastDark: { color: "#9CA3AF" },
+  timeTagStartPast: { color: "#888" },
+  timeTagStartPastDark: { color: "#AAA" },
   timeTagEnd: {
     fontFamily: "Figtree-Regular",
     fontSize: 11,
-    color: "#4A89EE70",
+    color: "#3478F570",
     marginTop: 1,
   },
   timeTagEndDark: { color: "#51a2ff70" },
   timeTagEndCurrent: { color: "#16A34A80" },
   timeTagEndCurrentDark: { color: "#4ADE8080" },
-  timeTagEndPast: { color: "#8A929D80" },
-  timeTagEndPastDark: { color: "#9CA3AF80" },
+  timeTagEndPast: { color: "#88888880" },
+  timeTagEndPastDark: { color: "#AAAAAA80" },
   emptyDay: {
     borderRadius: 12,
     borderWidth: 1,

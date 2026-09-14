@@ -13,7 +13,8 @@
     "test:ble": "tsc lib/bleTrackingCore.ts lib/bleTrackingTypes.ts lib/blePositionEstimator.ts lib/bleBeaconCatalog.ts --ignoreConfig --outDir .expo/ble-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/bleTrackingCore.test.cjs tests/bleConfig.test.mjs",
     "test:queue": "tsc lib/queueFormattingCore.ts --ignoreConfig --outDir .expo/queue-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/queueFormatting.test.cjs",
     "test:lunch-shifts": "tsc lib/lunchShiftCore.ts --ignoreConfig --outDir .expo/lunch-shift-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/lunchShift.test.cjs",
-    "test:shared-schedule": "tsc lib/sharedScheduleCore.ts --ignoreConfig --outDir .expo/shared-schedule-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/sharedSchedule.test.cjs"
+    "test:shared-schedule": "tsc lib/sharedScheduleCore.ts --ignoreConfig --outDir .expo/shared-schedule-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/sharedSchedule.test.cjs",
+    "test:lesson-labels": "tsc lib/wilma/lessonLabels.ts --ignoreConfig --outDir .expo/lesson-labels-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/lessonLabels.test.cjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.29.7",

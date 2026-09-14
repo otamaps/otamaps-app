@@ -87,7 +87,7 @@ export default function Index() {
       }}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <ActivityIndicator size="large" color={isDark ? "#fff" : "#4A89EE"} />
+      <ActivityIndicator size="large" color={isDark ? "#fff" : "#3478F5"} />
     </View>
   );
 }

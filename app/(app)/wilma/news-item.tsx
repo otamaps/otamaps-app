@@ -37,11 +37,16 @@ export default function WilmaNewsItemScreen() {
   }, [id]);
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={["top"]}>
+    // The safe-area inset above the header is otherwise painted with the
+    // screen's body background, so the status bar sits on a visibly
+    // different color than the nav bar right below it. Painting the inset
+    // with the header's own background keeps the two matched.
+    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
+      <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={2}>
           {detail?.title ?? title ?? "Tiedote"}
@@ -49,7 +54,7 @@ export default function WilmaNewsItemScreen() {
       </View>
       {!detail && !error ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
         </View>
       ) : error ? (
         <View style={styles.centered}>
@@ -72,17 +77,20 @@ export default function WilmaNewsItemScreen() {
           }}
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  statusBarArea: { flex: 1, backgroundColor: "#fff" },
+  statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#fff" },
   containerDark: { backgroundColor: "#18191B" },
-  header: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
   headerDark: { borderBottomColor: "#333" },
   headerTitle: { flex: 1, fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 },
-  errorText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#777", textAlign: "center" },
+  errorText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" },
   textLight: { color: "#fff" },
 });

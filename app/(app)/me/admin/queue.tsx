@@ -122,7 +122,7 @@ export default function QueueAdminScreen() {
           headerStyle: { backgroundColor: background },
         }}
       />
-        <ActivityIndicator size="large" color="#4A89EE" />
+        <ActivityIndicator size="large" color="#3478F5" />
       </SafeAreaView>
     );
   }
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   levelDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
   levelNumber: { width: 22, fontSize: 14 },
   levelText: { fontSize: 16, fontFamily: "Figtree-Medium" },
-  submitButton: { height: 50, marginTop: 14, borderRadius: 10, backgroundColor: "#276CE5", alignItems: "center", justifyContent: "center" },
+  submitButton: { height: 50, marginTop: 14, borderRadius: 10, backgroundColor: "#3478F5", alignItems: "center", justifyContent: "center" },
   submitText: { color: "#FFFFFF", fontSize: 16, fontFamily: "Figtree-SemiBold" },
   disabled: { opacity: 0.4 },
   historyRow: { borderTopWidth: 1, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

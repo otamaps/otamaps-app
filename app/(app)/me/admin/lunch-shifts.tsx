@@ -142,7 +142,7 @@ export default function LunchShiftAdminScreen() {
           headerStyle: { backgroundColor: background },
         }}
       />
-        <ActivityIndicator size="large" color="#4A89EE" />
+        <ActivityIndicator size="large" color="#3478F5" />
       </SafeAreaView>
     );
   }
@@ -217,7 +217,7 @@ export default function LunchShiftAdminScreen() {
               pressed && { opacity: 0.78 },
             ]}
           >
-            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#276CE5" }]}>
+            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#3478F5" }]}>
               Kopioi kehote
             </Text>
           </Pressable>
@@ -253,7 +253,7 @@ export default function LunchShiftAdminScreen() {
               pressed && { opacity: 0.78 },
             ]}
           >
-            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#276CE5" }]}>
+            <Text style={[styles.submitText, { color: isDark ? "#51A2FF" : "#3478F5" }]}>
               Tarkista
             </Text>
           </Pressable>
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     height: 50,
     marginTop: 14,
     borderRadius: 10,
-    backgroundColor: "#276CE5",
+    backgroundColor: "#3478F5",
     alignItems: "center",
     justifyContent: "center",
   },

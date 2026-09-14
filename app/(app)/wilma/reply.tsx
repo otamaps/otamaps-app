@@ -58,15 +58,15 @@ export default function ReplyMessageScreen() {
       <View style={[styles.container, isDark && styles.containerDark]}>
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#4A89EE"} />
+          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#3478F5"} />
         </Pressable>
         <View style={styles.headerText}>
           <Text style={[styles.headerTitle, isDark && styles.textLight]}>Vastaa</Text>
           <Text style={[styles.subtitle, isDark && styles.mutedDark]} numberOfLines={1}>{subject ?? "Wilma-viesti"}</Text>
         </View>
-        {sending ? <ActivityIndicator size="small" color="#4A89EE" /> : (
+        {sending ? <ActivityIndicator size="small" color="#3478F5" /> : (
           <Pressable onPress={send} disabled={!canSend} hitSlop={8}>
-            <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#4A89EE") : "#aaa"} />
+            <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#3478F5") : "#aaa"} />
           </Pressable>
         )}
       </View>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   statusBarAreaDark: { backgroundColor: "#18191B" },
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
   headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
   headerText: { flex: 1 },
   headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },

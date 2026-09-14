@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: "Figtree-Bold",
     color: "#333",
     paddingLeft: 8,
   },

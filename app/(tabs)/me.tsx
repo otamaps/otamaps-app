@@ -81,7 +81,7 @@ const Me = () => {
             user.email?.split("@")[0] ||
             "Käyttäjä",
           class: user.user_metadata?.class || "",
-          color: user.user_metadata?.color || "#4A89EE",
+          color: user.user_metadata?.color || "#3478F5",
           email: user.email,
         };
 
@@ -170,7 +170,7 @@ const Me = () => {
               user.email?.split("@")[0] ||
               "Käyttäjä",
             class: user.user_metadata?.class || "",
-            color: user.user_metadata?.color || "#4A89EE",
+            color: user.user_metadata?.color || "#3478F5",
             email: user.email,
           };
 
@@ -213,7 +213,7 @@ const Me = () => {
           backgroundColor: isDark ? "#18191B" : "transparent",
         }}
       >
-        <ActivityIndicator size="large" color={isDark ? "#fff" : "#4A89EE"} />
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#3478F5"} />
       </View>
     );
   }
@@ -250,7 +250,7 @@ const Me = () => {
               <View
                 style={[
                   styles.avatarContainer,
-                  { backgroundColor: profile?.color || "#4A89EE" },
+                  { backgroundColor: profile?.color || "#3478F5" },
                 ]}
               >
                 <Text style={styles.avatarText}>
@@ -399,7 +399,7 @@ const Me = () => {
                     ios="checkmark.shield"
                     android="admin_panel_settings"
                     size={20}
-                    tintColor={isDark ? "#51A2FF" : "#276CE5"}
+                    tintColor={isDark ? "#51A2FF" : "#3478F5"}
                   />
                 </Pressable>
                 <View
@@ -435,7 +435,7 @@ const Me = () => {
                     ios="fork.knife"
                     android="restaurant"
                     size={20}
-                    tintColor={isDark ? "#51A2FF" : "#276CE5"}
+                    tintColor={isDark ? "#51A2FF" : "#3478F5"}
                   />
                 </Pressable>
                 <View

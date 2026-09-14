@@ -271,7 +271,7 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
     const card = isDark ? "#202226" : "#FFFFFF";
     const primaryText = isDark ? "#F5F7FA" : "#14171C";
     const secondaryText = isDark ? "#AEB4BE" : "#657080";
-    const accent = "#397BE8";
+    const accent = "#3478F5";
     const hasImage = Boolean(room?.image_url) && !imageFailed;
 
     return (
@@ -454,16 +454,16 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
 const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 56 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
-  eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 2 },
-  sheetTitle: { fontSize: 25, fontWeight: "800", letterSpacing: -0.5 },
+  eyebrow: { fontSize: 11, fontFamily: "Figtree-Bold", letterSpacing: 1.2, marginBottom: 2 },
+  sheetTitle: { fontSize: 25, fontFamily: "Figtree-Bold", letterSpacing: -0.5 },
   closeButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   stateContainer: { minHeight: 260, alignItems: "center", justifyContent: "center", gap: 14 },
   stateCard: { minHeight: 260, borderRadius: 24, padding: 28, alignItems: "center", justifyContent: "center" },
   errorIcon: { marginBottom: 12 },
-  stateTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
+  stateTitle: { fontSize: 18, fontFamily: "Figtree-Bold", textAlign: "center" },
   stateBody: { fontSize: 14, lineHeight: 20, textAlign: "center", marginTop: 6 },
   retryButton: { borderRadius: 14, paddingHorizontal: 22, paddingVertical: 12, marginTop: 18 },
-  retryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  retryText: { color: "#FFFFFF", fontSize: 15, fontFamily: "Figtree-Bold" },
   hero: { height: 220, borderRadius: 26, overflow: "hidden", position: "relative" },
   fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   heroFallback: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center" },
@@ -471,25 +471,25 @@ const styles = StyleSheet.create({
   roomImage: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
   hiddenImage: { opacity: 0 },
   photoStatus: { position: "absolute", right: 12, bottom: 12, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 6 },
-  photoStatusText: { fontSize: 12, fontWeight: "600" },
+  photoStatusText: { fontSize: 12, fontFamily: "Figtree-SemiBold" },
   identityRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginTop: 20, gap: 12 },
   identityText: { flex: 1 },
-  roomNumber: { fontSize: 29, lineHeight: 34, fontWeight: "800", letterSpacing: -0.7 },
+  roomNumber: { fontSize: 29, lineHeight: 34, fontFamily: "Figtree-Bold", letterSpacing: -0.7 },
   roomName: { fontSize: 15, lineHeight: 21, marginTop: 3 },
   typeBadge: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, maxWidth: "42%" },
-  typeText: { fontSize: 12, fontWeight: "700", textTransform: "capitalize" },
+  typeText: { fontSize: 12, fontFamily: "Figtree-Bold", textTransform: "capitalize" },
   infoGrid: { flexDirection: "row", gap: 10, marginTop: 20 },
   infoCard: { flex: 1, minHeight: 124, borderRadius: 20, padding: 13 },
   infoIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 11 },
-  infoLabel: { fontSize: 11, fontWeight: "600", marginBottom: 3 },
-  infoValue: { fontSize: 20, fontWeight: "800" },
+  infoLabel: { fontSize: 11, fontFamily: "Figtree-SemiBold", marginBottom: 3 },
+  infoValue: { fontSize: 20, fontFamily: "Figtree-Bold" },
   compactValue: { fontSize: 13, lineHeight: 17 },
   section: { marginTop: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontFamily: "Figtree-Bold", marginBottom: 12 },
   description: { fontSize: 15, lineHeight: 23 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   chip: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, paddingVertical: 10, borderRadius: 16 },
-  chipText: { fontSize: 13, fontWeight: "600" },
+  chipText: { fontSize: 13, fontFamily: "Figtree-SemiBold" },
   emptyEquipment: { flexDirection: "row", alignItems: "center", gap: 10, padding: 15, borderRadius: 17 },
   emptyEquipmentText: { flex: 1, fontSize: 14, lineHeight: 20 },
 });

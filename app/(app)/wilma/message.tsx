@@ -68,7 +68,7 @@ export default function MessageScreen() {
 
         <View style={[styles.header, isDark && styles.headerDark]}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-            <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
           </Pressable>
           <View style={styles.headerText}>
             <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={1}>
@@ -97,14 +97,14 @@ export default function MessageScreen() {
                 })
               }
             >
-              <MaterialIcons name="reply" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+              <MaterialIcons name="reply" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
             </Pressable>
           )}
         </View>
 
         {loading && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#4A89EE"} />
+            <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
           </View>
         )}
 
@@ -120,7 +120,7 @@ export default function MessageScreen() {
             source={{ html: buildMessageThreadHtml(detail, isDark, sender ?? "") }}
             javaScriptEnabled={false}
             domStorageEnabled={false}
-            style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#f5f7fb" }}
+            style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#f5f5f5" }}
             scrollEnabled
             showsVerticalScrollIndicator={false}
             originWhitelist={["*"]}
@@ -141,7 +141,7 @@ export default function MessageScreen() {
 const styles = StyleSheet.create({
   statusBarArea: { flex: 1, backgroundColor: "#fff" },
   statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f7fb" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   containerDark: { backgroundColor: "#18191B" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff", gap: 12 },

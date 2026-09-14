@@ -753,12 +753,12 @@ export default function HomeScreen() {
 
   // Helper function to ensure valid hex color
   const getValidColor = (color?: string): string => {
-    if (!color) return "#4A89EE";
+    if (!color) return "#3478F5";
     // Check if it's a valid hex color
     if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
       return color;
     }
-    return "#4A89EE"; // Default color if invalid
+    return "#3478F5"; // Default color if invalid
   };
 
   // Create GeoJSON features from rooms with geometry
@@ -1320,7 +1320,7 @@ export default function HomeScreen() {
                     textAllowOverlap: true,
                     textIgnorePlacement: true,
                     textOpacity: 0.9,
-                    textColor: "#8A919C",
+                    textColor: "#888",
                     textHaloColor: "white",
                     textHaloWidth: 1,
                     textTranslate: [0, -10],
@@ -1490,9 +1490,9 @@ export default function HomeScreen() {
                       21,
                       ["*", ["get", "radius"], 27.027], // Meters to pixels at zoom 21
                     ],
-                    circleColor: "#4A89EE",
+                    circleColor: "#3478F5",
                     circleOpacity: 0.15, // Increased for testing
-                    circleStrokeColor: "#4A89EE",
+                    circleStrokeColor: "#3478F5",
                     circleStrokeWidth: 2,
                     circleStrokeOpacity: 0.4,
                   }}
@@ -1511,7 +1511,7 @@ export default function HomeScreen() {
                       10,
                     ],
                     // circleRadius: 10,
-                    circleColor: "#4A89EE",
+                    circleColor: "#3478F5",
                     circleStrokeColor: isDark ? "#171717" : "#fff",
                     circleStrokeWidth: 4,
                     circleOpacity: 1,
@@ -1531,9 +1531,9 @@ export default function HomeScreen() {
                       28,
                     ],
                     // circleRadius: 12,
-                    circleColor: "#4A89EE",
+                    circleColor: "#3478F5",
                     circleOpacity: 0.3,
-                    circleStrokeColor: "#4A89EE",
+                    circleStrokeColor: "#3478F5",
                     circleStrokeWidth: 1,
                     circleStrokeOpacity: 0.6,
                   }}
@@ -1563,7 +1563,7 @@ export default function HomeScreen() {
                   localUserLocation?.coordinates
                     ? isDark
                       ? "#FFFFFF"
-                      : "#276CE5"
+                      : "#3478F5"
                     : "#969DA7"
                 }
               />
@@ -1645,7 +1645,7 @@ export default function HomeScreen() {
                           localUserLocation
                             ? styles.bleActive
                             : styles.bleInactive,
-                          isDark && { backgroundColor: "#4A89EE" },
+                          isDark && { backgroundColor: "#3478F5" },
                         ]}
                       />
                       <Text
@@ -1673,7 +1673,7 @@ export default function HomeScreen() {
                       <Text
                         style={[
                           styles.bleCoordinates,
-                          isDark && { color: "#B5B5B5" },
+                          isDark && { color: "#AAA" },
                         ]}
                       >
                         📍 {localUserLocation.coordinates[1].toFixed(6)},{" "}
@@ -1879,7 +1879,7 @@ export default function HomeScreen() {
                           ios="person.badge.plus"
                           android="person_add"
                           size={20}
-                          tintColor={isDark ? "#51A2FF" : "#4A89EE"}
+                          tintColor={isDark ? "#51A2FF" : "#3478F5"}
                         />
                         <Text
                           style={[
@@ -1945,7 +1945,7 @@ export default function HomeScreen() {
                         alignItems: "center",
                       }}
                     >
-                      <ActivityIndicator size="large" color="#4A89EE" />
+                      <ActivityIndicator size="large" color="#3478F5" />
                     </View>
                   ) : error ? (
                     <View
@@ -1963,7 +1963,7 @@ export default function HomeScreen() {
                         style={{
                           marginTop: 10,
                           padding: 10,
-                          backgroundColor: "#4A89EE",
+                          backgroundColor: "#3478F5",
                           borderRadius: 5,
                         }}
                       >
@@ -2034,10 +2034,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   addFriendText: {
-    color: "#4A89EE",
+    color: "#3478F5",
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: "500",
+    fontFamily: "Figtree-Medium",
   },
   container: {
     flex: 1,
@@ -2083,7 +2083,7 @@ const styles = StyleSheet.create({
   },
   queuePillSubtitle: {
     marginTop: 2,
-    color: "#68717D",
+    color: "#666",
     fontSize: 12,
     fontFamily: "Figtree-Medium",
   },
@@ -2147,7 +2147,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 100,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#3478F5",
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -2171,7 +2171,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: "Figtree-Bold",
     marginBottom: 20,
   },
   bottomSheetContainer: {
@@ -2185,11 +2185,11 @@ const styles = StyleSheet.create({
   },
   bottomSheetTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: "Figtree-Bold",
     marginBottom: 24,
   },
   bottomSheetButton: {
-    backgroundColor: "#4A89EE",
+    backgroundColor: "#3478F5",
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -2197,7 +2197,7 @@ const styles = StyleSheet.create({
   bottomSheetButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: "Figtree-Bold",
   },
   bleStatusRow: {
     flexDirection: "row",
@@ -2217,14 +2217,14 @@ const styles = StyleSheet.create({
   },
   bleStatusText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: "Figtree-Medium",
     color: "#333",
     flex: 1,
   },
   bleBeaconCount: {
     fontSize: 12,
     color: "#666",
-    fontWeight: "400",
+    fontFamily: "Figtree-Regular",
   },
   bleCoordinates: {
     fontSize: 11,

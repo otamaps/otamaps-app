@@ -331,8 +331,23 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   }
 
   return (
-    <TouchableWithoutFeedback onPress={dismissKeyboard}>
-      <View style={[styles.container, { top: top }]}>
+    <>
+      {/* Tapping away from the field dismisses the keyboard. This only exists
+          while the field has focus — as a permanent wrapper around the
+          controls it swallowed every map gesture inside the row's bounding
+          box, which is as tall as the whole floor column. */}
+      {isFocused && (
+        <TouchableWithoutFeedback onPress={dismissKeyboard} accessible={false}>
+          <View style={styles.keyboardDismissArea} />
+        </TouchableWithoutFeedback>
+      )}
+      {/* box-none: the row is a full-width transparent band, so it must never
+          be a touch target itself — only the field and the floor buttons
+          inside it are. Everything else here is map. */}
+      <View
+        style={[styles.container, { top: top }]}
+        pointerEvents="box-none"
+      >
         <Animated.View
           style={[
             styles.searchContainer,
@@ -354,7 +369,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               isDark && { color: "#fff" },
             ]}
             placeholder="Hae huoneita..."
-            placeholderTextColor="#B5B5B5"
+            placeholderTextColor="#AAA"
             value={searchQuery}
             onChangeText={handleSearchChange}
             onFocus={handleFocus}
@@ -536,7 +551,7 @@ const GlobalSearch = forwardRef(function GlobalSearch(
           </Animated.View>
         )}
       </View>
-    </TouchableWithoutFeedback>
+    </>
   );
 });
 
@@ -575,6 +590,13 @@ const styles = StyleSheet.create({
   noResultsText: {
     color: "#666",
     fontFamily: "Figtree-Regular",
+  },
+  keyboardDismissArea: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   container: {
     position: "absolute",

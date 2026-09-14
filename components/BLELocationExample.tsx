@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Figtree-Bold',
     marginBottom: 8,
   },
   currentRoom: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Figtree-Bold',
     marginBottom: 12,
   },
   list: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   beaconId: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Figtree-SemiBold',
     color: '#333',
   },
   beaconRssi: {
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   historyRoom: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Figtree-SemiBold',
     color: '#333',
   },
   historyBeacon: {

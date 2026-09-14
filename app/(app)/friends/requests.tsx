@@ -126,7 +126,7 @@ const RequestsScreen = () => {
               <MaterialIcons
                 name="arrow-back"
                 size={24}
-                color={isDark ? "#4A89EE" : "#4A89EE"}
+                color={isDark ? "#3478F5" : "#3478F5"}
               />
             </Pressable>
           ),
@@ -142,7 +142,7 @@ const RequestsScreen = () => {
               Ei kaveripyyntöjä
             </Text>
             <Text
-              style={[styles.noRequestsHint, isDark && { color: "#a1a1a1" }]}
+              style={[styles.noRequestsHint, isDark && { color: "#AAA" }]}
             >
               Jaa koodisi ystävillesi
             </Text>
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   acceptButton: {
-    backgroundColor: "#4a89ee",
+    backgroundColor: "#3478F5",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",

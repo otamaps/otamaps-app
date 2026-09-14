@@ -107,7 +107,7 @@ export default function TeachersScreen() {
             <MaterialIcons
               name="arrow-back"
               size={24}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </Pressable>
           <Text style={[styles.headerTitle, isDark && styles.textLight]}>
@@ -135,7 +135,7 @@ export default function TeachersScreen() {
           <View style={styles.centered}>
             <ActivityIndicator
               size="large"
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
           </View>
         ) : error ? (
@@ -163,7 +163,7 @@ export default function TeachersScreen() {
                   setRefreshing(true);
                   load(true);
                 }}
-                tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+                tintColor={isDark ? "#51a2ff" : "#3478F5"}
               />
             }
             ListEmptyComponent={
@@ -177,10 +177,25 @@ export default function TeachersScreen() {
               const isTeacher = item.category
                 .toLocaleLowerCase("fi-FI")
                 .includes("opettajat");
+              const hasSchedule = isTeacher && scheduleSupported;
               return (
-                <View style={[styles.row, isDark && styles.rowDark]}>
+                <Pressable
+                  disabled={!hasSchedule}
+                  onPress={() => openSchedule(item)}
+                  accessibilityRole={hasSchedule ? "button" : undefined}
+                  accessibilityLabel={
+                    hasSchedule
+                      ? `Näytä opettajan ${item.name} lukujärjestys`
+                      : undefined
+                  }
+                  style={({ pressed }) => [
+                    styles.row,
+                    isDark && styles.rowDark,
+                    pressed && hasSchedule && styles.rowPressed,
+                  ]}
+                >
                   {/* <View style={[styles.avatar, isDark && styles.avatarDark]}>
-                <MaterialIcons name="person-outline" size={22} color={isDark ? "#51a2ff" : "#4A89EE"} />
+                <MaterialIcons name="person-outline" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
               </View> */}
                   <View style={styles.rowText}>
                     <View style={styles.nameLine}>
@@ -205,7 +220,7 @@ export default function TeachersScreen() {
                     </Text>
                   </View>
                   <View style={styles.actions}>
-                    {isTeacher && scheduleSupported && (
+                    {hasSchedule && (
                       <Pressable
                         style={[
                           styles.actionButton,
@@ -237,11 +252,11 @@ export default function TeachersScreen() {
                       <MaterialIcons
                         name="mail-outline"
                         size={19}
-                        color={isDark ? "#51a2ff" : "#4A89EE"}
+                        color={isDark ? "#51a2ff" : "#3478F5"}
                       />
                     </Pressable>
                   </View>
-                </View>
+                </Pressable>
               );
             }}
           />
@@ -309,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: "#eef4ff",
   },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#4A89EE" },
+  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,6 +336,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
   },
   rowDark: { backgroundColor: "#232427", borderBottomColor: "#3a3a3a" },
+  rowPressed: { opacity: 0.6 },
   avatar: {
     width: 38,
     height: 38,

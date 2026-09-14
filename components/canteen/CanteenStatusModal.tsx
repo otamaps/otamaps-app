@@ -207,7 +207,7 @@ export default function CanteenStatusModal({
               }}
               style={({ pressed }) => [styles.mapButton, pressed && styles.pressed]}
             >
-              <MaterialIcons name="map" size={19} color="#276CE5" />
+              <MaterialIcons name="map" size={19} color="#3478F5" />
               <Text style={styles.mapButtonText}>Näytä kartalla</Text>
             </Pressable>
           </View>
@@ -251,7 +251,7 @@ export default function CanteenStatusModal({
           </View>
 
           <View style={[styles.contributionCard, isDark && styles.surfaceDark]}>
-            <MaterialIcons name="volunteer-activism" size={24} color="#276CE5" />
+            <MaterialIcons name="volunteer-activism" size={24} color="#3478F5" />
             <View style={styles.contributionText}>
               <Text style={[styles.contributionValue, isDark && styles.textPrimaryDark]}>
                 {status?.current_user_contributions ?? 0} raporttia
@@ -273,7 +273,7 @@ export default function CanteenStatusModal({
 
           {menuLoading ? (
             <View style={[styles.menuState, isDark && styles.surfaceDark]}>
-              <ActivityIndicator color="#276CE5" />
+              <ActivityIndicator color="#3478F5" />
               <Text style={[styles.sectionCaption, isDark && styles.textMutedDark]}>
                 Haetaan tämän päivän ruokia…
               </Text>
@@ -305,7 +305,7 @@ export default function CanteenStatusModal({
             </View>
           ) : (
             <View style={[styles.menuState, isDark && styles.surfaceDark]}>
-              <MaterialIcons name="restaurant-menu" size={24} color="#7D8795" />
+              <MaterialIcons name="restaurant-menu" size={24} color="#888" />
               <Text style={[styles.sectionCaption, isDark && styles.textMutedDark]}>
                 {menuError
                   ? "Ruokalistaa ei saatu ladattua juuri nyt."
@@ -319,7 +319,7 @@ export default function CanteenStatusModal({
             style={({ pressed }) => [styles.sourceButton, pressed && styles.pressed]}
           >
             <Text style={styles.sourceButtonText}>Avaa alkuperäinen ruokalista</Text>
-            <MaterialIcons name="open-in-new" size={18} color="#276CE5" />
+            <MaterialIcons name="open-in-new" size={18} color="#3478F5" />
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -331,45 +331,45 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
   safeAreaDark: { backgroundColor: "#202226" },
   header: { minHeight: 76, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#E4E8ED", paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  eyebrow: { color: "#77818E", fontFamily: "Figtree-SemiBold", fontSize: 11, letterSpacing: 1.2 },
-  title: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 24, marginTop: 2 },
+  eyebrow: { color: "#888", fontFamily: "Figtree-SemiBold", fontSize: 11, letterSpacing: 1.2 },
+  title: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 24, marginTop: 2 },
   closeButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   content: { padding: 20, paddingBottom: 48 },
   heroCard: { backgroundColor: "#F4F7FC", borderRadius: 22, padding: 18 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 13 },
   statusIcon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   statusText: { flex: 1 },
-  statusLabel: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 13 },
-  statusValue: { color: "#18202A", fontFamily: "Figtree-SemiBold", fontSize: 22, marginTop: 2 },
-  supportingText: { color: "#68717D", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 14 },
+  statusLabel: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 13 },
+  statusValue: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 22, marginTop: 2 },
+  supportingText: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 14 },
   mapButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, marginTop: 16, minHeight: 38 },
-  mapButtonText: { color: "#276CE5", fontFamily: "Figtree-SemiBold", fontSize: 14 },
+  mapButtonText: { color: "#3478F5", fontFamily: "Figtree-SemiBold", fontSize: 14 },
   sectionHeader: { marginTop: 26, marginBottom: 12 },
-  sectionTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 18 },
-  sectionCaption: { color: "#77818E", fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 19, marginTop: 3 },
+  sectionTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 18 },
+  sectionCaption: { color: "#888", fontFamily: "Figtree-Regular", fontSize: 13, lineHeight: 19, marginTop: 3 },
   levelGrid: { gap: 9 },
   levelButton: { minHeight: 50, borderRadius: 15, borderWidth: 1.5, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 11, backgroundColor: "#FFFFFF" },
   levelButtonDark: { backgroundColor: "#232427" },
   levelDot: { width: 12, height: 12, borderRadius: 6 },
-  levelText: { flex: 1, color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 15 },
+  levelText: { flex: 1, color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 15 },
   contributionCard: { flexDirection: "row", gap: 12, backgroundColor: "#F4F7FC", borderRadius: 18, padding: 16, marginTop: 16 },
   contributionText: { flex: 1 },
-  contributionValue: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 16 },
+  contributionValue: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 16 },
   menuState: { minHeight: 90, backgroundColor: "#F4F7FC", borderRadius: 18, padding: 16, alignItems: "center", justifyContent: "center", gap: 8 },
   menuSections: { gap: 12 },
   menuCard: { backgroundColor: "#F4F7FC", borderRadius: 18, padding: 16 },
-  menuTitle: { color: "#202833", fontFamily: "Figtree-SemiBold", fontSize: 16, marginBottom: 8 },
+  menuTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 16, marginBottom: 8 },
   mealRow: { flexDirection: "row", paddingVertical: 6, gap: 10 },
-  mealBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#276CE5", marginTop: 7 },
+  mealBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#3478F5", marginTop: 7 },
   mealText: { flex: 1 },
-  mealName: { color: "#202833", fontFamily: "Figtree-Medium", fontSize: 14, lineHeight: 19 },
-  diets: { color: "#77818E", fontFamily: "Figtree-Regular", fontSize: 12, marginTop: 2 },
+  mealName: { color: "#222", fontFamily: "Figtree-Medium", fontSize: 14, lineHeight: 19 },
+  diets: { color: "#888", fontFamily: "Figtree-Regular", fontSize: 12, marginTop: 2 },
   sourceButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 14 },
-  sourceButtonText: { color: "#276CE5", fontFamily: "Figtree-SemiBold", fontSize: 14 },
+  sourceButtonText: { color: "#3478F5", fontFamily: "Figtree-SemiBold", fontSize: 14 },
   surfaceDark: { backgroundColor: "#232427" },
   borderDark: { borderColor: "#3A3D42" },
   textPrimaryDark: { color: "#F5F7FA" },
-  textMutedDark: { color: "#ABB3BE" },
+  textMutedDark: { color: "#AAA" },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.72 },
 });

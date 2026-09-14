@@ -204,14 +204,14 @@ const styles = StyleSheet.create({
   },
   textLight: { color: "#FFFFFF" },
   description: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
     textAlign: "center",
   },
-  textMutedDark: { color: "#B3B3B3" },
+  textMutedDark: { color: "#AAA" },
   featureList: {
     alignSelf: "stretch",
     gap: 11,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   progressDescription: {
-    color: "#667085",
+    color: "#666",
     fontFamily: "Figtree-Regular",
     fontSize: 13,
     lineHeight: 18,

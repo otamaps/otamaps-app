@@ -154,7 +154,7 @@ function MessageRow({
           <View style={styles.chipRow}>
             {msg.isEvent && (
               <View style={[styles.chip, { backgroundColor: "#51A2FF1F" }]}>
-                <Text style={[styles.chipText, { color: "#4A89EE" }]}>
+                <Text style={[styles.chipText, { color: "#3478F5" }]}>
                   Tapahtuma
                 </Text>
               </View>
@@ -269,7 +269,7 @@ export default function MessagesScreen() {
           <MaterialIcons
             name="arrow-back"
             size={24}
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            color={isDark ? "#51a2ff" : "#3478F5"}
           />
         </Pressable>
         <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
@@ -283,7 +283,7 @@ export default function MessagesScreen() {
           <MaterialIcons
             name="edit-square"
             size={22}
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            color={isDark ? "#51a2ff" : "#3478F5"}
           />
         </Pressable>
         {messages.length > 0 && (
@@ -319,7 +319,7 @@ export default function MessagesScreen() {
                 style={[
                   styles.folderTabText,
                   isDark && { color: "#999" },
-                  active && { color: isDark ? "#51a2ff" : "#4A89EE" },
+                  active && { color: isDark ? "#51a2ff" : "#3478F5" },
                 ]}
               >
                 {label}
@@ -333,7 +333,7 @@ export default function MessagesScreen() {
         <View style={styles.centered}>
           <ActivityIndicator
             size="large"
-            color={isDark ? "#51a2ff" : "#4A89EE"}
+            color={isDark ? "#51a2ff" : "#3478F5"}
           />
         </View>
       )}
@@ -355,7 +355,7 @@ export default function MessagesScreen() {
             <MaterialIcons
               name="refresh"
               size={16}
-              color={isDark ? "#51a2ff" : "#4A89EE"}
+              color={isDark ? "#51a2ff" : "#3478F5"}
             />
             <Text style={[styles.retryText, isDark && { color: "#51a2ff" }]}>
               Yritä uudelleen
@@ -385,7 +385,7 @@ export default function MessagesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={isDark ? "#51a2ff" : "#4A89EE"}
+              tintColor={isDark ? "#51a2ff" : "#3478F5"}
             />
           }
           renderItem={({ item }) => (
@@ -464,11 +464,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  folderTabActive: { borderBottomColor: "#4A89EE" },
+  folderTabActive: { borderBottomColor: "#3478F5" },
   folderTabText: {
     fontFamily: "Figtree-Medium",
     fontSize: 13,
-    color: "#667085",
+    color: "#666",
   },
 
   list: { flex: 1, backgroundColor: "#fff" },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   fullTs: {
     fontFamily: "Figtree-Regular",
     fontSize: 11,
-    color: "#bbb",
+    color: "#AAA",
     marginTop: 2,
   },
   relativeTs: {
@@ -557,12 +557,12 @@ const styles = StyleSheet.create({
   retryText: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 14,
-    color: "#4A89EE",
+    color: "#3478F5",
   },
   emptyText: {
     fontFamily: "Figtree-Regular",
     fontSize: 15,
-    color: "#bbb",
+    color: "#AAA",
     textAlign: "center",
   },
 });

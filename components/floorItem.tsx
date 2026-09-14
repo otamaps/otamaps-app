@@ -51,11 +51,11 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: "normal",
+    fontFamily: "Figtree-Regular",
   },
   address: {
     fontSize: 14,
-    color: "#808080",
+    color: "#888",
     marginTop: 4,
   },
 });

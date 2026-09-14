@@ -227,7 +227,7 @@ const Edit = () => {
             onChangeText={setName}
             editable={!isWilmaProfile}
             placeholder="Kirjoita nimesi"
-            placeholderTextColor="#999"
+            placeholderTextColor="#aaa"
           />
           {isWilmaProfile && (
             <Text style={styles.lockedText}>Wilman vahvistama tieto</Text>
@@ -254,7 +254,7 @@ const Edit = () => {
             onChangeText={validateClass}
             editable={!isWilmaProfile}
             placeholder="Esimerkiksi 24Q"
-            placeholderTextColor="#999"
+            placeholderTextColor="#aaa"
             maxLength={3}
             autoCapitalize="characters"
           />
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#eee",
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#3478F5",
     borderRadius: 10,
     padding: 16,
     alignItems: "center",
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     fontFamily: "Figtree-SemiBold",
   },
   buttonDisabled: {
-    backgroundColor: "#007AFF80",
+    backgroundColor: "#3478F580",
   },
   inputError: {
     borderColor: "#FF6B6B",

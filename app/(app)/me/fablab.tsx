@@ -30,10 +30,10 @@ const InfoItem = ({
 		<View
 			style={[
 				styles.iconContainer,
-				isDark && { backgroundColor: "#51A2FF1F", borderColor: "#4A89EE" },
+				isDark && { backgroundColor: "#51A2FF1F", borderColor: "#3478F5" },
 			]}
 		>
-			<MaterialIcons name={icon as any} size={20} color="#4A89EE" />
+			<MaterialIcons name={icon as any} size={20} color="#3478F5" />
 		</View>
 		<View style={styles.textContainer}>
 			<Text style={[styles.title, isDark && { color: "white" }]}>{title}</Text>
@@ -118,7 +118,7 @@ const Fablab = () => {
 							Ota Fablab käyttöön
 						</Text>
 						<Text
-							style={[styles.toggleSubtitle, isDark && { color: "#b5b5b5" }]}
+							style={[styles.toggleSubtitle, isDark && { color: "#AAA" }]}
 						>
 							Näytä tai piilota Fablab-välilehti alapalkissa.
 						</Text>
@@ -127,7 +127,7 @@ const Fablab = () => {
 						value={isEnabled}
 						onValueChange={onToggle}
 						disabled={isSaving}
-						trackColor={{ false: "#aaa", true: "#4A89EE" }}
+						trackColor={{ false: "#aaa", true: "#3478F5" }}
 						thumbColor={isEnabled ? "#ffffff" : "#f4f3f4"}
 					/>
 				</View>
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
 	},
 	tipTitle: {
 		fontFamily: "Figtree-SemiBold",
-		color: "#1a1a1a",
+		color: "#222",
 		fontSize: 15,
 		marginBottom: 6,
 	},
