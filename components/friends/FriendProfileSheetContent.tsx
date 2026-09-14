@@ -15,6 +15,7 @@ import {
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import {
   fetchFriendSharedSchedule,
+  fetchFriendStaleDaySchedule,
   type SharedScheduleLesson,
 } from "@/lib/sharedSchedule";
 import {
@@ -167,6 +168,7 @@ export default function FriendProfileSheetContent({
     formatLocalISO(getActiveSchoolDay())
   );
   const [scheduleIsToday, setScheduleIsToday] = useState(true);
+  const [scheduleIsStale, setScheduleIsStale] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState(false);
   const [actionPending, setActionPending] = useState(false);
@@ -201,6 +203,7 @@ export default function FriendProfileSheetContent({
       let targetDay = activeDay;
       let targetDayISO = activeDayISO;
       let dayLessons = todaysLessons;
+      let weekMissing = !schedule;
 
       if (showNextDay) {
         targetDay = getNextSchoolDay(activeDay);
@@ -219,14 +222,30 @@ export default function FriendProfileSheetContent({
             friend.id,
             targetDay
           );
+          weekMissing = !nextWeekSchedule;
           dayLessons = (nextWeekSchedule?.lessons ?? []).filter(
             (lesson) => lesson.date === targetDayISO
           );
         }
       }
 
+      // A snapshot only lands once the friend opens their own schedule, so a
+      // week they have not looked at yet would read as "no lessons at all".
+      // Stand in with the same weekday from their most recent shared week and
+      // let the section say it may be outdated. A week they *have* shared with
+      // nothing on this day is a real free day, so it keeps the empty state.
+      let isStale = false;
+      if (weekMissing) {
+        const stale = await fetchFriendStaleDaySchedule(friend.id, targetDay);
+        if (stale) {
+          dayLessons = stale.lessons;
+          isStale = true;
+        }
+      }
+
       setScheduleDay(targetDayISO);
       setScheduleIsToday(!showNextDay);
+      setScheduleIsStale(isStale);
       setLessons(dayLessons);
 
       // Their lunch window comes from the same course-code lookup the own
@@ -250,6 +269,7 @@ export default function FriendProfileSheetContent({
       console.warn("Friend schedule could not be loaded", error);
       setLessons([]);
       setLunch(null);
+      setScheduleIsStale(false);
       setScheduleError(true);
     } finally {
       setScheduleLoading(false);
@@ -259,6 +279,7 @@ export default function FriendProfileSheetContent({
   useEffect(() => {
     setLessons([]);
     setLunch(null);
+    setScheduleIsStale(false);
     setReportReason("");
     setReportVisible(false);
     void loadSchedule();
@@ -391,6 +412,11 @@ export default function FriendProfileSheetContent({
         entries={scheduleEntryList}
         loading={scheduleLoading}
         isToday={scheduleIsToday}
+        noticeText={
+          scheduleIsStale
+            ? "Tämän viikon järjestys ei ole saatavilla. Alla oleva lukujärjestys voi olla vanhentunut."
+            : null
+        }
         errorText={
           scheduleError
             ? "Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen."

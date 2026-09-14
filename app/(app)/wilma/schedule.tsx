@@ -155,6 +155,7 @@ function LessonCard({
   showDivider,
   lunch,
   isPast,
+  isOver,
   isCurrent,
 }: {
   lesson: ScheduleLesson;
@@ -164,6 +165,8 @@ function LessonCard({
   showDivider: boolean;
   lunch: { start: string; end: string } | null;
   isPast: boolean;
+  /** The lesson has already happened — earlier today, or on an earlier day. */
+  isOver: boolean;
   isCurrent: boolean;
 }) {
   const group = lesson.groups[0];
@@ -178,20 +181,30 @@ function LessonCard({
   const tallHeight = lessonHeight(
     clockMinutes(lesson.end) - clockMinutes(lesson.start),
   );
+  // A lesson that is over drops its blue accent for a neutral gray, so the
+  // colored badges left on the day are only the ones still ahead.
   const timeColor = isCurrent
     ? isDark
       ? "#4ADE80"
       : "#16A34A"
-    : isDark
-      ? "#51a2ff"
-      : undefined;
+    : isOver
+      ? isDark
+        ? "#9CA3AF"
+        : "#8A929D"
+      : isDark
+        ? "#51a2ff"
+        : undefined;
   const timeSubColor = isCurrent
     ? isDark
       ? "#4ADE8080"
       : "#16A34A80"
-    : isDark
-      ? "#51a2ff70"
-      : undefined;
+    : isOver
+      ? isDark
+        ? "#9CA3AF80"
+        : "#8A929D80"
+      : isDark
+        ? "#51a2ff70"
+        : undefined;
 
   return (
     <>
@@ -210,6 +223,8 @@ function LessonCard({
           style={[
             styles.timeTag,
             isDark && { backgroundColor: "#51A2FF1F" },
+            isOver && styles.timeTagPast,
+            isOver && isDark && styles.timeTagPastDark,
             isCurrent && styles.timeTagCurrent,
             isCurrent && isDark && styles.timeTagCurrentDark,
           ]}
@@ -905,6 +920,11 @@ export default function ScheduleScreen() {
                           // lessons darker than an actually past day's.
                           const isPast =
                             !isPastDay && isToday && slot.end <= nowClock;
+                          // Unlike the dim, the gray badge also applies on a
+                          // day that has wholly passed — stacking a color with
+                          // the day's opacity reads fine, a second dim does not.
+                          const isOver =
+                            isPastDay || (isToday && slot.end <= nowClock);
                           const isCurrent =
                             isToday &&
                             slot.start <= nowClock &&
@@ -921,6 +941,7 @@ export default function ScheduleScreen() {
                                 showDivider={showDivider}
                                 lunch={slot.lunch}
                                 isPast={isPast}
+                                isOver={isOver}
                                 isCurrent={isCurrent}
                               />
                             );
@@ -1248,6 +1269,8 @@ const styles = StyleSheet.create({
   },
   timeTagCurrent: { backgroundColor: "#16A34A1A" },
   timeTagCurrentDark: { backgroundColor: "#4ADE8022" },
+  timeTagPast: { backgroundColor: "#F3F4F6" },
+  timeTagPastDark: { backgroundColor: "#2E3034" },
   lessonInfo: { flex: 1 },
   lessonSubject: {
     fontFamily: "Figtree-SemiBold",

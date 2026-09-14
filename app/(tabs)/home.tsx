@@ -808,20 +808,31 @@ function Dashboard({
                 const isPast = isShowingToday && row.end <= nowClock;
                 const isCurrent =
                   isShowingToday && row.start <= nowClock && nowClock < row.end;
+                // A lesson that is over drops its blue accent for a neutral
+                // gray, so the colored badges left on the card are only the
+                // ones still ahead.
                 const timeColor = isCurrent
                   ? isDark
                     ? "#4ADE80"
                     : "#16A34A"
-                  : isDark
-                    ? "#51a2ff"
-                    : "#4A89EE";
+                  : isPast
+                    ? isDark
+                      ? "#9CA3AF"
+                      : "#8A929D"
+                    : isDark
+                      ? "#51a2ff"
+                      : "#4A89EE";
                 const timeSubColor = isCurrent
                   ? isDark
                     ? "#4ADE8080"
                     : "#16A34A80"
-                  : isDark
-                    ? "#51a2ff70"
-                    : "#4A89EE80";
+                  : isPast
+                    ? isDark
+                      ? "#9CA3AF80"
+                      : "#8A929D80"
+                    : isDark
+                      ? "#51a2ff70"
+                      : "#4A89EE80";
 
                 if (row.kind === "lunch") {
                   const lunchOnlyTimeColor = isCurrent
@@ -1036,6 +1047,8 @@ function Dashboard({
                         style={[
                           styles.timeTag,
                           isDark && { backgroundColor: "#51A2FF1F" },
+                          isPast && styles.timeTagPast,
+                          isPast && isDark && styles.timeTagPastDark,
                           isCurrent && styles.timeTagCurrent,
                           isCurrent && isDark && styles.timeTagCurrentDark,
                         ]}
@@ -1785,6 +1798,8 @@ const styles = StyleSheet.create({
   },
   timeTagCurrent: { backgroundColor: "#16A34A1A" },
   timeTagCurrentDark: { backgroundColor: "#4ADE8022" },
+  timeTagPast: { backgroundColor: "#F3F4F6" },
+  timeTagPastDark: { backgroundColor: "#2E3034" },
   timeTagText: {
     fontFamily: "Figtree-SemiBold",
     fontSize: 13,

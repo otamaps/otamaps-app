@@ -61,8 +61,11 @@ class AppDelegate: ExpoAppDelegate {
       content.title = "Keep OtaMaps running in the background"
       content.body = "Force quitting doesn't save battery or speed up your phone — it just stops beacon tracking and location features until you reopen the app."
       content.sound = .default
+      // A fixed identifier would get silently swallowed by the system once the
+      // previous notification is delivered and still sitting undismissed in
+      // Notification Center, so each delivery needs its own unique identifier.
       let request = UNNotificationRequest(
-        identifier: "otamaps.force_quit_warning",
+        identifier: "otamaps.force_quit_warning.\(UUID().uuidString)",
         content: content,
         trigger: nil
       )

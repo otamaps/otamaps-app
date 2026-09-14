@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   buildSharedWeek,
+  pickStaleDayLessons,
 } = require("../.expo/shared-schedule-test-build/sharedScheduleCore.js");
 
 function lesson(overrides = {}) {
@@ -77,4 +78,73 @@ test("duplicate reservation dates are collapsed and sorted by time", () => {
     result.lessons.map((item) => item.id),
     ["early:2026-08-11", "late:2026-08-11"]
   );
+});
+
+function sharedLesson(date, start, overrides = {}) {
+  return {
+    id: `${date}:${start}`,
+    date,
+    start,
+    end: "09:45",
+    subject: "Matematiikka",
+    code: "MAA09.01",
+    room: "U261",
+    ...overrides,
+  };
+}
+
+test("a stale day comes from the newest past week that covers the weekday", () => {
+  // Tuesdays: 2026-08-11 and 2026-08-18. Target is Tuesday 2026-09-01.
+  const result = pickStaleDayLessons(
+    [
+      { week_start: "2026-08-10", lessons: [sharedLesson("2026-08-11", "08:00")] },
+      { week_start: "2026-08-17", lessons: [sharedLesson("2026-08-18", "10:00")] },
+    ],
+    new Date(2026, 8, 1)
+  );
+
+  assert.equal(result.weekStart, "2026-08-17");
+  assert.deepEqual(result.lessons.map((item) => item.date), ["2026-08-18"]);
+});
+
+test("a week without the wanted weekday falls through to an older one", () => {
+  // The newest week shared only a Wednesday; the target day is a Tuesday.
+  const result = pickStaleDayLessons(
+    [
+      { week_start: "2026-08-17", lessons: [sharedLesson("2026-08-19", "10:00")] },
+      { week_start: "2026-08-10", lessons: [sharedLesson("2026-08-11", "08:00")] },
+    ],
+    new Date(2026, 8, 1)
+  );
+
+  assert.equal(result.weekStart, "2026-08-10");
+});
+
+test("stale lessons for the weekday are sorted by start time", () => {
+  const result = pickStaleDayLessons(
+    [
+      {
+        week_start: "2026-08-10",
+        lessons: [
+          sharedLesson("2026-08-11", "12:00"),
+          sharedLesson("2026-08-13", "07:00"),
+          sharedLesson("2026-08-11", "08:00"),
+        ],
+      },
+    ],
+    new Date(2026, 8, 1)
+  );
+
+  assert.deepEqual(result.lessons.map((item) => item.start), ["08:00", "12:00"]);
+});
+
+test("no past week covering the weekday yields no stale day", () => {
+  assert.equal(
+    pickStaleDayLessons(
+      [{ week_start: "2026-08-10", lessons: [sharedLesson("2026-08-14", "08:00")] }],
+      new Date(2026, 8, 1)
+    ),
+    null
+  );
+  assert.equal(pickStaleDayLessons([], new Date(2026, 8, 1)), null);
 });

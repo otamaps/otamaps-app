@@ -45,6 +45,8 @@ type Props = {
   isDark: boolean;
   /** Set to false when `entries` belong to a future day, so nothing is marked past/current. */
   isToday?: boolean;
+  /** Banner above the entries, for example when they come from an older week. */
+  noticeText?: string | null;
 };
 
 /**
@@ -62,6 +64,7 @@ export default function DayScheduleSection({
   onRetry,
   isDark,
   isToday = true,
+  noticeText,
 }: Props) {
   const [now, setNow] = useState(currentClock);
   useEffect(() => {
@@ -112,6 +115,21 @@ export default function DayScheduleSection({
           <Text style={[styles.dayTitle, isDark && styles.textPrimaryDark]}>
             {dayLabel}
           </Text>
+          {!!noticeText && (
+            <View style={[styles.notice, isDark && styles.noticeDark]}>
+              <PlatformSymbol
+                ios="clock.arrow.circlepath"
+                android="history"
+                size={14}
+                tintColor={isDark ? "#FBBF24" : "#B45309"}
+              />
+              <Text
+                style={[styles.noticeText, isDark && styles.noticeTextDark]}
+              >
+                {noticeText}
+              </Text>
+            </View>
+          )}
           {entries.length ? (
             entries.map((entry, i) => {
               const isPast = isToday && entry.end <= now;
@@ -284,6 +302,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 8,
   },
+  notice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  noticeDark: { backgroundColor: "#78350F55" },
+  noticeText: {
+    flex: 1,
+    color: "#B45309",
+    fontFamily: "Figtree-Medium",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  noticeTextDark: { color: "#FBBF24" },
   lessonRow: { flexDirection: "row", paddingVertical: 7 },
   lessonRowWithLunch: { paddingVertical: 9 },
   freeSlotRow: {

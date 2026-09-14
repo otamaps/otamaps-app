@@ -2,12 +2,12 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.4.4",
+    "version": "0.4.5",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": "0.4.4",
+    "runtimeVersion": "0.4.5",
     "updates": {
       "url": "https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e"
     },
@@ -76,9 +76,7 @@
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": [
-            "central"
-          ],
+          "modes": ["central"],
           "bluetoothAlwaysPermission": "OtaMaps uses nearby school beacons only for the location features you choose. Identified or anonymous data is sent only after you opt in."
         }
       ],

@@ -9,10 +9,14 @@ import { isMissingScheduleSharingSchema } from "./scheduleSharingSchema";
 import {
   buildSharedWeek,
   cleanSharedText,
+  pickStaleDayLessons,
   type SharedScheduleLesson,
 } from "./sharedScheduleCore";
 
 export { buildSharedWeek, type SharedScheduleLesson } from "./sharedScheduleCore";
+
+/** How many past weekly snapshots to scan for a stale stand-in day. */
+const STALE_WEEK_LOOKBACK = 8;
 
 export type SharedWeeklySchedule = {
   user_id: string;
@@ -87,6 +91,36 @@ function parseSharedLessons(value: unknown): SharedScheduleLesson[] {
       room: cleanSharedText(candidate.room, 80),
     }];
   });
+}
+
+/**
+ * The friend's most recent shared lessons for the same weekday as `targetDay`,
+ * taken from a week before the one `targetDay` falls in. Only for days their
+ * current week does not cover at all — a shared week that simply has no
+ * lessons on a day is a real free day, not missing data.
+ */
+export async function fetchFriendStaleDaySchedule(
+  friendId: string,
+  targetDay: Date
+): Promise<{ weekStart: string; lessons: SharedScheduleLesson[] } | null> {
+  const weekStart = formatLocalISO(getMondayOfWeek(0, targetDay));
+  const { data, error } = await supabase
+    .from("shared_weekly_schedules")
+    .select("week_start,lessons")
+    .eq("user_id", friendId)
+    .lt("week_start", weekStart)
+    .order("week_start", { ascending: false })
+    .limit(STALE_WEEK_LOOKBACK);
+  if (error && isMissingScheduleSharingSchema(error)) return null;
+  if (error) throw error;
+
+  return pickStaleDayLessons(
+    (data ?? []).map((row) => ({
+      week_start: String(row.week_start),
+      lessons: parseSharedLessons(row.lessons),
+    })),
+    targetDay
+  );
 }
 
 export async function fetchFriendSharedSchedule(

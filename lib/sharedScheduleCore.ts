@@ -3,6 +3,8 @@ import {
   formatLocalISO,
   getMondayOfWeek,
   getSchoolWeekDays,
+  isoWeekdayOf,
+  parseLocalISO,
 } from "./wilma/scheduleDates";
 
 export type SharedScheduleLesson = {
@@ -72,4 +74,37 @@ export function buildSharedWeek(
       : a.date.localeCompare(b.date)
   );
   return { weekStart, lessons: shared };
+}
+
+export type WeeklyScheduleSnapshot = {
+  week_start: string;
+  lessons: SharedScheduleLesson[];
+};
+
+/**
+ * The newest snapshot among `rows` that covers the same weekday as
+ * `targetDay`, with only that weekday's lessons. Used when a friend has not
+ * shared the current week yet: their previous weeks still say roughly what a
+ * Tuesday looks like, so the sheet shows those instead of an empty day and
+ * marks them as possibly outdated.
+ */
+export function pickStaleDayLessons(
+  rows: WeeklyScheduleSnapshot[],
+  targetDay: Date
+): { weekStart: string; lessons: SharedScheduleLesson[] } | null {
+  const weekday = isoWeekdayOf(targetDay);
+  const newestFirst = [...rows].sort((a, b) =>
+    b.week_start.localeCompare(a.week_start)
+  );
+
+  for (const row of newestFirst) {
+    const lessons = row.lessons
+      .filter((lesson) => {
+        const date = parseLocalISO(lesson.date);
+        return !!date && isoWeekdayOf(date) === weekday;
+      })
+      .sort((a, b) => a.start.localeCompare(b.start));
+    if (lessons.length) return { weekStart: row.week_start, lessons };
+  }
+  return null;
 }
