@@ -5,6 +5,7 @@ import useBLEScanner, {
 } from "@/components/functions/bleScanner";
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
+import { sheetPalette } from "@/components/sheets/sheetTheme";
 import MapBottomSheet, {
   BottomSheetMethods,
 } from "@/components/mapBottomSheet";
@@ -214,6 +215,7 @@ function getRoomNumberMaxTextSize(
 
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
+  const sheetColors = sheetPalette(isDark);
   const mapTilerKey = process.env.EXPO_PUBLIC_MAPTILER_KEY?.trim();
 
   // MapTiler's hosted styles ship POI labels (shops, schools, etc.) turned on.
@@ -1618,12 +1620,16 @@ export default function HomeScreen() {
             onReported={fetchQueueStatus}
           />
 
-          <MapBottomSheet ref={mapBottomSheetRef} initialSnap="mid">
+          <MapBottomSheet
+            ref={mapBottomSheetRef}
+            initialSnap="mid"
+            hidden={canteenVisible}
+          >
             {({ currentSnapIndex }) => (
               <BottomSheetView
                 style={{
                   flex: 1,
-                  backgroundColor: isDark ? "#18191B" : "white",
+                  backgroundColor: sheetColors.surface,
                   height: "100%",
                 }}
               >
@@ -1633,8 +1639,8 @@ export default function HomeScreen() {
                     style={[
                       styles.bleStatusContainer,
                       isDark && {
-                        backgroundColor: "#18191B",
-                        borderBottomColor: "#18191B",
+                        backgroundColor: sheetColors.surface,
+                        borderBottomColor: sheetColors.surface,
                       },
                     ]}
                   >
@@ -1698,7 +1704,7 @@ export default function HomeScreen() {
                           style={({ pressed }) => [
                             styles.queueListCard,
                             {
-                              backgroundColor: isDark ? "#232427" : "#F5F7FA",
+                              backgroundColor: sheetColors.card,
                               borderColor: isDark ? "#3A3D42" : "#E1E6ED",
                             },
                             !queueStatus && styles.queueListCardDisabled,
@@ -1765,7 +1771,7 @@ export default function HomeScreen() {
                               style={[
                                 styles.friendSearchInput,
                                 {
-                                  backgroundColor: isDark ? "#404040" : "#f5f5f5",
+                                  backgroundColor: sheetColors.card,
                                   color: isDark ? "white" : "black",
                                 },
                                 !!searchQuery && styles.friendSearchInputWithClear,
@@ -1793,7 +1799,7 @@ export default function HomeScreen() {
                             style={[
                               styles.addFriendIconButton,
                               {
-                                backgroundColor: isDark ? "#404040" : "#f5f5f5",
+                                backgroundColor: sheetColors.card,
                               },
                             ]}
                           >

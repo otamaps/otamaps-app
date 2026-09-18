@@ -1,11 +1,12 @@
 import { generateCode } from "@/components/functions/codeGen";
 import { useUser } from "@/context/UserContext";
+import { formatClassLabel } from "@/lib/classLabel";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -15,7 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   useColorScheme,
-  View
+  View,
 } from "react-native";
 
 const COLORS = [
@@ -84,13 +85,13 @@ const Edit = () => {
         if (profileResult.error) throw profileResult.error;
         setIsWilmaProfile(preferences.profile_source === "wilma");
         setName(
-          profileResult.data?.name || user.user_metadata?.full_name || ""
+          profileResult.data?.name || user.user_metadata?.full_name || "",
         );
         setUserClass(
-          profileResult.data?.class || user.user_metadata?.class || ""
+          profileResult.data?.class || user.user_metadata?.class || "",
         );
         setSelectedColor(
-          profileResult.data?.color || user.user_metadata?.color || COLORS[0]
+          profileResult.data?.color || user.user_metadata?.color || COLORS[0],
         );
       }
     };
@@ -150,7 +151,7 @@ const Edit = () => {
                 class: userClass.trim(),
                 color: selectedColor,
                 updated_at: new Date().toISOString(),
-              }
+              },
         )
         .eq("id", user.id);
 
@@ -197,7 +198,7 @@ const Edit = () => {
               <MaterialIcons
                 name="arrow-back"
                 size={24}
-                style={{ marginRight: 8 }}
+                style={{ marginRight: 0 }}
                 color={isDark ? "#fff" : "#000"}
               />
             </Pressable>
@@ -250,7 +251,11 @@ const Edit = () => {
                 borderColor: "#404040",
               },
             ]}
-            value={userClass}
+            // Shown capitalised, but `userClass` itself keeps the casing it
+            // was loaded with: every save submits `class`, and for a
+            // Wilma-verified profile the database rejects an update that
+            // changes it at all — including "24k" to "24K".
+            value={isWilmaProfile ? formatClassLabel(userClass) : userClass}
             onChangeText={validateClass}
             editable={!isWilmaProfile}
             placeholder="Esimerkiksi 24Q"

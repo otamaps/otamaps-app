@@ -14,6 +14,11 @@ import {
   getMondayOfWeek,
   schoolDayLabel,
 } from "@/lib/wilma/scheduleDates";
+import {
+  sheetChrome,
+  sheetPalette,
+  sheetShadow,
+} from "@/components/sheets/sheetTheme";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
@@ -267,11 +272,12 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
     useImperativeHandle(ref, () => ({ open, close }), [close, open]);
 
     const equipment = useMemo(() => formatEquipment(room?.equipment ?? null), [room?.equipment]);
-    const background = isDark ? "#16181C" : "#F7F8FA";
-    const card = isDark ? "#202226" : "#FFFFFF";
-    const primaryText = isDark ? "#F5F7FA" : "#14171C";
-    const secondaryText = isDark ? "#AEB4BE" : "#657080";
-    const accent = "#3478F5";
+    const {
+      card,
+      text: primaryText,
+      textSecondary: secondaryText,
+      accent,
+    } = sheetPalette(isDark);
     const hasImage = Boolean(room?.image_url) && !imageFailed;
 
     return (
@@ -285,9 +291,8 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
           setLoading(false);
           onDismiss?.();
         }}
-        backgroundStyle={{ backgroundColor: background }}
-        handleStyle={{ backgroundColor: background }}
-        handleIndicatorStyle={{ backgroundColor: isDark ? "#626874" : "#C6CBD3" }}
+        style={sheetShadow}
+        {...sheetChrome(isDark)}
       >
         <BottomSheetScrollView
           showsVerticalScrollIndicator={false}

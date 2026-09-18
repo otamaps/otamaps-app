@@ -2,6 +2,7 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { FABLAB_VISIBLE } from "@/constants/features";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
+import { formatClassLabel } from "@/lib/classLabel";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -279,7 +280,7 @@ const Me = () => {
                       isDark && { color: "#ffffff70" },
                     ]}
                   >
-                    {profile.class.toUpperCase()}
+                    {formatClassLabel(profile.class)}
                   </Text>
                 )}
               </View>

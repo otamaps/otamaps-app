@@ -1,7 +1,7 @@
 internal import Expo
 import React
-import ReactAppDependencyProvider
 import UserNotifications
+import ReactAppDependencyProvider
 
 @main
 class AppDelegate: ExpoAppDelegate {
@@ -51,10 +51,6 @@ class AppDelegate: ExpoAppDelegate {
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
   }
 
-  // Force-quitting kills Core Bluetooth scanning and opts the app out of
-  // background relaunch for beacon events, so warn the user while background
-  // BLE tracking is active. The flag is written from JS via react-native's
-  // Settings API (NSUserDefaults) in lib/bleTrackingRuntime.ts.
   public override func applicationWillTerminate(_ application: UIApplication) {
     if UserDefaults.standard.bool(forKey: "otamaps_background_tracking_active") {
       let content = UNMutableNotificationContent()
@@ -74,7 +70,6 @@ class AppDelegate: ExpoAppDelegate {
     super.applicationWillTerminate(application)
   }
 }
-
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
   // Extension point for config-plugins
 

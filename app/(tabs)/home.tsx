@@ -11,6 +11,7 @@ import {
   matchLunchShift,
   splitLessonGap,
 } from "@/lib/lunchShiftCore";
+import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import { isTransientNetworkError } from "@/lib/networkErrors";
 import { reportHandledError } from "@/lib/sentry";
@@ -59,8 +60,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 /** Never switch the "Tänään" card to the next school day earlier than this. */
 const NEXT_DAY_SWITCH_EARLIEST = "12:00";
 
+/**
+ * Today's *local* calendar date. `toISOString()` would answer in UTC, which
+ * after 21:00/22:00 Finnish time is still yesterday — the card then asked for
+ * yesterday's date on today's weekday and matched nothing.
+ */
 function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
+  return formatLocalISO(new Date());
 }
 
 function isoWeekday(): number {
@@ -636,6 +642,35 @@ function Dashboard({
           scheduleDayLabel,
           scheduleDayISO,
         });
+
+        // iOS cannot schedule a future Live Activity update, so the card is
+        // refreshed from whatever the app has just loaded. Deliberately not
+        // awaited: a Lock Screen card must never hold up the dashboard.
+        void syncLessonLiveActivity({
+          lessons: scheduleLessons.map((l) => {
+            const group = l.groups[0];
+            const { code, title } = lessonLabel(
+              group?.shortCaption,
+              group?.fullCaption,
+              l.class,
+            );
+            return {
+              start: l.start,
+              end: l.end,
+              title,
+              code,
+              room: group?.rooms[0]?.longCaption ?? "",
+            };
+          }),
+          lunch,
+          dayISO: scheduleDayISO,
+        }).catch((error) =>
+          reportHandledError(error, {
+            area: "live_activity",
+            operation: "sync_today",
+            level: "warning",
+          }),
+        );
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Lataus epäonnistui";
 
@@ -1727,11 +1762,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 18,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cardHeader: {
     flexDirection: "row",

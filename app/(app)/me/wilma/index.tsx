@@ -1,4 +1,5 @@
 import { connectWilmaAccount } from "@/lib/wilma/authBroker";
+import { formatClassLabel } from "@/lib/classLabel";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -41,7 +42,7 @@ export default function WilmaSettings() {
     if (error) throw error;
     setConnected(preferences.profile_source === "wilma");
     setName(data?.name || "");
-    setUserClass(data?.class || "");
+    setUserClass(formatClassLabel(data?.class));
   };
 
   useEffect(() => {

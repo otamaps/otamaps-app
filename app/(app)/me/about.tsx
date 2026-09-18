@@ -18,7 +18,9 @@ const About = () => {
   const router = useRouter();
 
   const [logoTapCount, setLogoTapCount] = React.useState(0);
-  const logoTapTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logoTapTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const handleLogoTap = () => {
     setLogoTapCount((prev) => {
@@ -56,7 +58,7 @@ const About = () => {
               <MaterialIcons
                 name="arrow-back"
                 size={24}
-                style={{ marginRight: 8 }}
+                style={{ marginRight: 0 }}
                 color={isDark ? "#fff" : "#000"}
               />
             </Pressable>

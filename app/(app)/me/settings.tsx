@@ -4,7 +4,12 @@ import {
   stopBLEBackgroundService,
 } from "@/lib/bleBackgroundManager";
 import { requestBleTrackingPermissions } from "@/lib/blePermissions";
+import {
+  isLessonLiveActivityEnabled,
+  setLessonLiveActivityEnabled,
+} from "@/lib/lessonLiveActivity";
 import { openExternalUrl } from "@/lib/openExternalUrl";
+import { isLiveActivityAvailable } from "@/modules/lesson-live-activity";
 import { startForegroundTracking, stopAllTracking } from "@/lib/bleTrackingRuntime";
 import { supabase } from "@/lib/supabase";
 import {
@@ -40,6 +45,10 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const [liveActivity, setLiveActivity] = useState(false);
+  // iOS 16.2+ only, and the user can revoke Live Activities for the app in
+  // iOS Settings at any time — so the row is hidden rather than shown broken.
+  const [liveActivitySupported] = useState(() => isLiveActivityAvailable());
   const [friendLocation, setFriendLocation] = useState(false);
   const [shareSchedule, setShareSchedule] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
@@ -51,13 +60,19 @@ export default function Settings() {
     let cancelled = false;
     const load = async () => {
       try {
-        const [preferences, backgroundEnabled, notification, debugMode] =
-          await Promise.all([
-            getUserPreferences({ forceRefresh: true }),
-            isBLEBackgroundEnabled(),
-            Notifications.getPermissionsAsync(),
-            AsyncStorage.getItem("isDebugMode"),
-          ]);
+        const [
+          preferences,
+          backgroundEnabled,
+          notification,
+          debugMode,
+          liveActivityEnabled,
+        ] = await Promise.all([
+          getUserPreferences({ forceRefresh: true }),
+          isBLEBackgroundEnabled(),
+          Notifications.getPermissionsAsync(),
+          AsyncStorage.getItem("isDebugMode"),
+          isLessonLiveActivityEnabled(),
+        ]);
         if (cancelled) return;
         setFriendLocation(preferences.friend_location_enabled);
         setShareSchedule(preferences.schedule_sharing_enabled);
@@ -67,6 +82,7 @@ export default function Settings() {
         );
         setNotificationPermission(notification.status === "granted");
         setIsDebugMode(debugMode === "true");
+        setLiveActivity(liveActivityEnabled);
       } catch (error) {
         Alert.alert(
           "Asetuksia ei voitu ladata",
@@ -206,6 +222,14 @@ export default function Settings() {
     setNotificationPermission(result.status === "granted");
   };
 
+  const changeLiveActivity = async (enabled: boolean) => {
+    setLiveActivity(enabled);
+    // Turning it on cannot start the card from here — ActivityKit only starts
+    // an activity from the foreground with the day's lessons in hand, which
+    // the Wilma tab does on its next load.
+    await setLessonLiveActivityEnabled(enabled);
+  };
+
   const changeDebugMode = async (enabled: boolean) => {
     setIsDebugMode(enabled);
     await AsyncStorage.setItem("isDebugMode", enabled.toString());
@@ -294,6 +318,18 @@ export default function Settings() {
             colors={{ titleColor, descriptionColor }}
           />
           <Divider isDark={isDark} />
+          {liveActivitySupported && (
+            <>
+              <SettingSwitch
+                title="Tunti lukitusnäytöllä"
+                description="Näytä meneillään oleva tunti, sen päättymisaika ja seuraava tunti tai lounas. Päivittyy, kun avaat sovelluksen."
+                value={liveActivity}
+                onValueChange={(value) => void changeLiveActivity(value)}
+                colors={{ titleColor, descriptionColor }}
+              />
+              <Divider isDark={isDark} />
+            </>
+          )}
           <SettingSwitch
             title="Debug-tila"
             description="Näytä kehittäjätoiminnot."
@@ -365,8 +401,11 @@ function SettingSwitch({
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
+        // The thumb stays white in both states — tinting it with the same blue
+        // as the "on" track made the whole control read as one solid blob.
+        ios_backgroundColor="#D0D5DD"
         trackColor={{ false: "#D0D5DD", true: "#3478F5" }}
-        thumbColor={value ? "#3478F5" : "#F2F4F7"}
+        thumbColor="#FFFFFF"
       />
     </View>
   );

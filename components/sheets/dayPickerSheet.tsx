@@ -1,3 +1,8 @@
+import {
+  sheetChrome,
+  sheetPalette,
+  sheetShadow,
+} from "@/components/sheets/sheetTheme";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import {
@@ -66,6 +71,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
   ({ onSelectDay, onDismiss }, ref) => {
     const sheetRef = useRef<BottomSheetModal>(null);
     const isDark = useColorScheme() === "dark";
+    const { surface } = sheetPalette(isDark);
 
     const todayISO = useMemo(() => {
       const d = new Date();
@@ -140,24 +146,10 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
         enableDynamicSizing={false}
         enablePanDownToClose
         onDismiss={onDismiss}
-        style={styles.sheetShadow}
-        backgroundStyle={{ backgroundColor: isDark ? "#202226" : "#FFFFFF" }}
-        handleStyle={{
-          backgroundColor: isDark ? "#202226" : "#fff",
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
-          // In dark mode the sheet's own background is close enough to the
-          // page behind it (dimmed while the sheet is open) that the two can
-          // blend together — a top border gives it a clear edge.
-          ...(isDark && { borderTopWidth: 1, borderTopColor: "#3a3d42" }),
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: isDark ? "#666666" : "#cccccc",
-        }}
+        style={sheetShadow}
+        {...sheetChrome(isDark)}
       >
-        <BottomSheetView
-          style={[styles.content, isDark && { backgroundColor: "#202226" }]}
-        >
+        <BottomSheetView style={[styles.content, { backgroundColor: surface }]}>
           <View style={styles.monthNav}>
             <Pressable
               onPress={goToToday}
@@ -287,13 +279,6 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
 );
 
 const styles = StyleSheet.create({
-  sheetShadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    elevation: 24,
-  },
   content: {
     flex: 1,
     paddingHorizontal: 20,

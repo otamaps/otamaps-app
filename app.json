@@ -19,8 +19,11 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "OtaMaps uses GPS and nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "OtaMaps uses nearby school beacons in the background only if you opt in to background tracking for an enabled location feature.",
-        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in."
-      }
+        "NSBluetoothAlwaysUsageDescription": "OtaMaps uses Bluetooth to detect nearby school beacons for the location features you choose. Identified or anonymous data is sent only after you opt in.",
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": false
+      },
+      "appleTeamId": "QJKF447Z9D"
     },
     "android": {
       "adaptiveIcon": {
@@ -56,6 +59,7 @@
       "./plugins/withNotifeeAndroid",
       "./plugins/withIosGoogleModularHeaders",
       "./plugins/withIosForceQuitNotification",
+      "@bacons/apple-targets",
       [
         "expo-splash-screen",
         {
@@ -76,7 +80,9 @@
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": ["central"],
+          "modes": [
+            "central"
+          ],
           "bluetoothAlwaysPermission": "OtaMaps uses nearby school beacons only for the location features you choose. Identified or anonymous data is sent only after you opt in."
         }
       ],

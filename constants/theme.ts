@@ -48,6 +48,37 @@ export const colors = {
   danger: "#D92D20",
 } as const;
 
+/**
+ * Bottom sheets.
+ *
+ * Every sheet in the app — the map sheet, room, friend, day picker and the
+ * canteen queue — is built from these, so they read as one component rather
+ * than five that happen to slide up from the bottom. Pair with
+ * `sheetChrome`/`sheetPalette` in `components/sheets/sheetTheme`.
+ */
+export const sheet = {
+  /** The sheet's own surface. Cards sit on it; flat lists sit directly on it. */
+  surface: "#F7F8FA",
+  surfaceDark: "#16181C",
+  /** A card, row or state block sitting on `surface`. */
+  card: "#FFFFFF",
+  cardDark: "#202226",
+  /** The grab handle. */
+  handle: "#C6CBD3",
+  handleDark: "#626874",
+  /**
+   * A hairline along the sheet's top edge, dark mode only: the surface is
+   * close enough to the dimmed page behind it that the two otherwise blend.
+   */
+  edgeDark: "#3A3D42",
+  text: "#14171C",
+  textDark: "#F5F7FA",
+  textSecondary: "#657080",
+  textSecondaryDark: "#AEB4BE",
+  /** Corner radius of the sheet itself, not of the cards inside it. */
+  radius: 16,
+} as const;
+
 export const radii = {
   sm: 8,
   md: 10,

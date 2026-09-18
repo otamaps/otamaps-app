@@ -14,10 +14,12 @@
     "test:queue": "tsc lib/queueFormattingCore.ts --ignoreConfig --outDir .expo/queue-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/queueFormatting.test.cjs",
     "test:lunch-shifts": "tsc lib/lunchShiftCore.ts --ignoreConfig --outDir .expo/lunch-shift-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/lunchShift.test.cjs",
     "test:shared-schedule": "tsc lib/sharedScheduleCore.ts --ignoreConfig --outDir .expo/shared-schedule-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/sharedSchedule.test.cjs",
-    "test:lesson-labels": "tsc lib/wilma/lessonLabels.ts --ignoreConfig --outDir .expo/lesson-labels-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/lessonLabels.test.cjs"
+    "test:lesson-labels": "tsc lib/wilma/lessonLabels.ts --ignoreConfig --outDir .expo/lesson-labels-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/lessonLabels.test.cjs",
+    "test:now-next": "tsc lib/scheduleNowNext.ts --ignoreConfig --outDir .expo/now-next-test-build --module node16 --moduleResolution node16 --target es2020 --esModuleInterop --skipLibCheck && node --test tests/scheduleNowNext.test.cjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.29.7",
+    "@bacons/apple-targets": "^5.0.0",
     "@expo/metro-runtime": "~57.0.8",
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.1.6",

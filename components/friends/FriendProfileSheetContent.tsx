@@ -2,6 +2,7 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import DayScheduleSection, {
   type DayScheduleEntry,
 } from "@/components/schedule/DayScheduleSection";
+import { formatClassLabel } from "@/lib/classLabel";
 import { friendLocationSentence } from "@/lib/friendPresentation";
 import type { Friend } from "@/lib/friendsHandler";
 import {
@@ -360,7 +361,7 @@ export default function FriendProfileSheetContent({
           </Text>
           {!!friend.class && (
             <Text style={[styles.className, isDark && styles.textMutedDark]}>
-              {friend.class}
+              {formatClassLabel(friend.class)}
             </Text>
           )}
         </View>

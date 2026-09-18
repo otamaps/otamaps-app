@@ -1,3 +1,8 @@
+import {
+  sheetChrome,
+  sheetPalette,
+  sheetShadow,
+} from "@/components/sheets/sheetTheme";
 import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, {
   forwardRef,
@@ -30,6 +35,7 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
     const [currentSnapIndex, setCurrentSnapIndex] = useState(-1);
 
     const isDark = useColorScheme() === "dark";
+    const { surface } = sheetPalette(isDark);
 
     const snapPoints = useMemo(() => ["42%", "68%", "94%"], []);
 
@@ -67,26 +73,17 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
           onDismiss();
         }}
         onChange={setCurrentSnapIndex}
-        backgroundStyle={{ backgroundColor: isDark ? "#202226" : "#FFFFFF" }}
-        handleStyle={{
-          backgroundColor: isDark ? "#18191B" : "#fff",
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: isDark ? "#666666" : "#cccccc",
-        }}
+        style={sheetShadow}
+        {...sheetChrome(isDark)}
       >
         <BottomSheetScrollView
           contentContainerStyle={[
             styles.contentContainer,
-            isDark && { backgroundColor: "#18191B" },
+            { backgroundColor: surface },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[styles.content, isDark && { backgroundColor: "#18191B" }]}
-          >
+          <View style={[styles.content, { backgroundColor: surface }]}>
             {children}
           </View>
         </BottomSheetScrollView>

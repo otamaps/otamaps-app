@@ -3,6 +3,7 @@ import {
   WilmaMessage,
   WilmaMessageFolder,
 } from "@/lib/wilma/graphqlClient";
+import { formatLocalISO } from "@/lib/wilma/scheduleDates";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -33,9 +34,12 @@ function formatTimestamp(ts: string): string {
   const d = new Date(ts.replace(" ", "T"));
   if (isNaN(d.getTime())) return ts;
 
+  // Local calendar dates, not `toISOString()`: in UTC a Finnish evening is
+  // still the previous day, so a message sent at 23:30 and read at 00:30 fell
+  // on the same UTC day and was labelled with a time instead of "Eilen".
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const msgStr = d.toISOString().split("T")[0];
+  const todayStr = formatLocalISO(now);
+  const msgStr = formatLocalISO(d);
 
   if (msgStr === todayStr) {
     return d.toLocaleTimeString("fi-FI", {
@@ -46,7 +50,7 @@ function formatTimestamp(ts: string): string {
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (msgStr === yesterday.toISOString().split("T")[0]) return "Eilen";
+  if (msgStr === formatLocalISO(yesterday)) return "Eilen";
 
   const daysDiff = Math.floor(
     (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),

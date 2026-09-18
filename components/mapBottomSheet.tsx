@@ -2,10 +2,12 @@
  * Used in:
  * - app/(tabs)/index.tsx - Main map screen
  */
+import { sheetChrome, sheetShadow } from "@/components/sheets/sheetTheme";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React, {
   forwardRef,
   ReactNode,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -32,6 +34,11 @@ export interface BottomSheetProps {
   maxHeight?: number;
   midHeight?: number;
   minHeight?: number;
+  /**
+   * Slide the sheet away entirely while something else — the canteen queue
+   * sheet — is open on top of it, and put it back where it was afterwards.
+   */
+  hidden?: boolean;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -44,6 +51,7 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
       maxHeight = SCREEN_HEIGHT * 0.85,
       midHeight = SCREEN_HEIGHT * 0.35,
       minHeight = SCREEN_HEIGHT * 0.2,
+      hidden = false,
     },
     ref
   ) => {
@@ -61,6 +69,21 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
     });
 
     const sheetRef = useRef<BottomSheet>(null);
+
+    // Where to put the sheet back once `hidden` clears. `currentSnapIndex`
+    // itself goes to -1 while it is away, so the snap point the user had
+    // chosen is remembered separately.
+    const restoreIndexRef = useRef(currentSnapIndex);
+    const wasHiddenRef = useRef(false);
+    useEffect(() => {
+      if (hidden) {
+        wasHiddenRef.current = true;
+        sheetRef.current?.close();
+      } else if (wasHiddenRef.current) {
+        wasHiddenRef.current = false;
+        sheetRef.current?.snapToIndex(restoreIndexRef.current);
+      }
+    }, [hidden]);
 
     useImperativeHandle(
       ref,
@@ -90,14 +113,14 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
         enablePanDownToClose={false}
         enableContentPanningGesture={currentSnapIndex !== 2}
         enableHandlePanningGesture={true}
-        style={styles.container}
-        backgroundStyle={
-          isDark ? { backgroundColor: "#18191B" } : { backgroundColor: "#fff" }
-        }
-        handleIndicatorStyle={isDark ? styles.darkHandle : styles.handle}
+        style={[sheetShadow, styles.container]}
+        {...sheetChrome(isDark)}
         keyboardBehavior="extend"
         enableDynamicSizing={false}
-        onChange={(index) => setCurrentSnapIndex(index)}
+        onChange={(index) => {
+          if (index >= 0) restoreIndexRef.current = index;
+          setCurrentSnapIndex(index);
+        }}
       >
         <BottomSheetView style={{ flex: 1, height: "100%" }}>
           {children({ currentSnapIndex })}
@@ -113,36 +136,7 @@ export default MapBottomSheet;
 
 const styles = StyleSheet.create({
   container: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
     zIndex: 3,
     paddingBottom: 5,
-  },
-  background: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  darkBackground: {
-    backgroundColor: "#18191B",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#aaa",
-    marginVertical: 2,
-  },
-  darkHandle: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#525252",
-    marginVertical: 2,
   },
 });

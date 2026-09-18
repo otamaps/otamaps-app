@@ -1,6 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
-import React from "react";
 import {
   Pressable,
   ScrollView,
@@ -54,7 +53,7 @@ const Guide = () => {
               <MaterialIcons
                 name="arrow-back"
                 size={24}
-                style={{ marginRight: 8 }}
+                style={{ marginRight: 0 }}
                 color={isDark ? "#fff" : "#000"}
               />
             </Pressable>
