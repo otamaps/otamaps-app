@@ -8,12 +8,6 @@ type Args = {
   title: string;
   /** The page colour behind the content. Applied without adding a view. */
   background?: Background;
-  /**
-   * The bar's own colour. Defaults to `card`, which `theme` documents as the
-   * surface a row *or header* sits on — so the bar matches the rows rather
-   * than sitting darker than them, as the system's own dark bar does.
-   */
-  headerBackground?: Background;
   /** Adds the system search bar beneath the large title. */
   search?: {
     placeholder: string;
@@ -28,16 +22,24 @@ type Args = {
  *
  * ⚠️ The screen's scroll view must be its ROOT element. UIKit attaches the
  * large title, the search bar and the scroll-edge effect to the first scroll
- * view it finds directly under the screen; wrap it in even a single
+ * view directly under the screen; wrap it in even a single
  * `<View style={{ flex: 1 }}>` and it finds nothing. The title then never
  * collapses, no glass appears, and the rows scroll under a floating title at
  * full opacity. That is why the background is set through `contentStyle`
  * here instead of by a wrapper — there is no wrapper to put it on.
+ *
+ * ⚠️ The bar's own background cannot be set. `headerStyle.backgroundColor`,
+ * `headerLargeStyle` and `headerTransparent` each make the large title
+ * vanish at rest — the space stays reserved and the text does not draw.
+ * Tested with explicit `headerLargeTitleStyle.color`, and with
+ * `scrollEdgeEffects` removed, in case it was an interaction; it is not.
+ * So the bar keeps the system's colour, which in dark mode sits a little
+ * darker than `card` and reads as a band above the rows. That is the cost
+ * of the platform bar until react-native-screens fixes it.
  */
 export function useNativeHeader({
   title,
   background = "page",
-  headerBackground = "card",
   search,
 }: Args): HeaderOptions {
   const theme = useTheme();
@@ -48,9 +50,11 @@ export function useNativeHeader({
     headerLargeTitle: true,
     headerBackButtonDisplayMode: "minimal",
     contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
-    headerStyle: {
-      backgroundColor: theme[BACKGROUND_KEY[headerBackground]],
-    },
+
+    // Set explicitly rather than derived, so the title cannot pick up the
+    // back button's tint and the two stay independently adjustable.
+    headerTintColor: theme.accent,
+    headerTitleStyle: { color: theme.text },
 
     // iOS 26 draws the bar over the scroll view rather than above it, and
     // this decides what happens where they meet. `hard` stops the rows dead
@@ -65,7 +69,7 @@ export function useNativeHeader({
 
     // The system default of 34pt leaves a long Finnish title no margin at
     // all — "Tilojen lukujärjestykset" runs the full width.
-    headerLargeTitleStyle: { fontSize: 30 },
+    headerLargeTitleStyle: { fontSize: 30, color: theme.text },
 
     ...(search
       ? {
