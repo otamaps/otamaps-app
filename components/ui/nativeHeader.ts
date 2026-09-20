@@ -6,7 +6,14 @@ type HeaderOptions = NonNullable<ComponentProps<typeof Stack.Screen>["options"]>
 
 type Args = {
   title: string;
-  /** The page colour behind the content. Applied without adding a view. */
+  /**
+   * The page colour behind the content, applied without adding a view.
+   *
+   * At rest the bar is transparent and shows this through, so a full-bleed
+   * list wants `card` — the colour of its own rows — rather than `flat`.
+   * Anything else leaves a visibly darker band above the first row in dark
+   * mode, which cannot be fixed from the bar's side (see below).
+   */
   background?: Background;
   /** Adds the system search bar beneath the large title. */
   search?: {
@@ -33,9 +40,9 @@ type Args = {
  * vanish at rest — the space stays reserved and the text does not draw.
  * Tested with explicit `headerLargeTitleStyle.color`, and with
  * `scrollEdgeEffects` removed, in case it was an interaction; it is not.
- * So the bar keeps the system's colour, which in dark mode sits a little
- * darker than `card` and reads as a band above the rows. That is the cost
- * of the platform bar until react-native-screens fixes it.
+ * The bar therefore keeps the system's colour. Match it from the content
+ * side instead: the bar shows `contentStyle` through, so a screen whose
+ * rows are `card` passes `background: "card"` and the band disappears.
  */
 export function useNativeHeader({
   title,
