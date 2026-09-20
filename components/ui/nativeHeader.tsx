@@ -1,5 +1,7 @@
-import { Stack } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
 import type { ComponentProps } from "react";
+import { Pressable } from "react-native";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
 
 type HeaderOptions = NonNullable<ComponentProps<typeof Stack.Screen>["options"]>;
@@ -15,6 +17,16 @@ type Args = {
    * mode, which cannot be fixed from the bar's side (see below).
    */
   background?: Background;
+  /**
+   * The back chevron, on by default.
+   *
+   * A screen pushed across navigator boundaries — as rooms is, from the tabs
+   * stack — mounts as the first route of its own stack, so the system's own
+   * back button never appears however the screen was reached. Supplying one
+   * covers both cases, and behaves identically to the system's where that
+   * would have shown. A tab root passes `false`.
+   */
+  back?: boolean;
   /** Adds the system search bar beneath the large title. */
   search?: {
     placeholder: string;
@@ -47,9 +59,11 @@ type Args = {
 export function useNativeHeader({
   title,
   background = "page",
+  back = true,
   search,
 }: Args): HeaderOptions {
   const theme = useTheme();
+  const router = useRouter();
 
   return {
     headerShown: true,
@@ -76,6 +90,21 @@ export function useNativeHeader({
     // The system default of 34pt leaves a long Finnish title no margin at
     // all — "Tilojen lukujärjestykset" runs the full width.
     headerLargeTitleStyle: { fontSize: 30, color: theme.text },
+
+    ...(back
+      ? {
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Takaisin"
+            >
+              <MaterialIcons name="chevron-left" size={28} color={theme.accent} />
+            </Pressable>
+          ),
+        }
+      : {}),
 
     ...(search
       ? {
