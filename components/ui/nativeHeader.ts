@@ -42,10 +42,12 @@ export function useNativeHeader({
     headerBackButtonDisplayMode: "minimal",
     contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
 
-    // iOS 26 draws the bar over the scroll view rather than above it. `hard`
-    // gives it a firm edge for the rows to stop against; `soft` fades them
-    // out instead, if the content should dissolve under the glass.
-    scrollEdgeEffects: { top: "hard" },
+    // iOS 26 draws the bar over the scroll view rather than above it, and
+    // this decides what happens where they meet. `soft` fades the rows out
+    // under the glass; `hard` stops them against a firm edge, but on a dark
+    // bar it also renders the search field as a pale capsule, so it is not
+    // simply the stricter of the two.
+    scrollEdgeEffects: { top: "soft" },
 
     // The system default of 34pt leaves a long Finnish title no margin at
     // all — "Tilojen lukujärjestykset" runs the full width.
