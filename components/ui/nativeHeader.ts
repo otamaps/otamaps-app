@@ -68,10 +68,9 @@ export function useNativeHeader({
     // against the bar's edge; `soft` fades them out under the glass instead,
     // leaving them faintly legible through it.
     //
-    // `hard` costs one thing: the stacked search field renders as a pale
-    // capsule that ignores dark mode, and `barTintColor` does not override
-    // it. `soft` renders the field correctly. There is no setting that buys
-    // both — it is a straight trade.
+    // Under `hard` the simulator draws the stacked search field as a pale
+    // capsule ignoring dark mode; on a device it is correct. Simulator only
+    // — do not "fix" it, and do not switch to `soft` on account of it.
     scrollEdgeEffects: { top: "hard" },
 
     // The system default of 34pt leaves a long Finnish title no margin at
