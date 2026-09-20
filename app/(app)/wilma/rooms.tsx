@@ -1,4 +1,4 @@
-import { AppText, Row, Screen, StateView, useTheme } from "@/components/ui";
+import { AppText, nativeHeader, Row, Screen, StateView, useTheme } from "@/components/ui";
 import { fetchWilmaRooms, WilmaRoomProfile } from "@/lib/wilma/graphqlClient";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -42,27 +42,14 @@ export default function WilmaRoomsScreen() {
 
   return (
     <Screen background="flat">
-      {/* The navigation bar is the platform's own: large title, back gesture
-          and, on iOS 26, the glass the content scrolls under. The filter is
-          the system search bar rather than a field in the body. */}
       <Stack.Screen
-        options={{
-          headerShown: true,
+        options={nativeHeader({
           title: "Tilojen lukujärjestykset",
-          headerLargeTitle: true,
-          headerBackButtonDisplayMode: "minimal",
-          headerSearchBarOptions: {
-            // iOS 26 defaults `automatic` to `integrated`, which folds the
-            // field into the bar itself. `stacked` keeps it on its own row
-            // under the large title, which is what a filter over a long list
-            // wants — it stays reachable without opening anything first.
-            placement: "stacked",
+          search: {
             placeholder: "Hae tilan numerolla tai nimellä",
-            onChangeText: (event) => setQuery(event.nativeEvent.text),
-            hideWhenScrolling: false,
-            autoCapitalize: "none",
+            onChangeText: setQuery,
           },
-        }}
+        })}
       />
 
       {loading ? (
