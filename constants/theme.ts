@@ -20,10 +20,21 @@ export const colors = {
   text: "#222",
   /** Supporting copy that still needs to be read. */
   textSecondary: "#666",
+  /**
+   * The same role on a dark surface. Not the light value, which disappears
+   * against `bgDark`; this is the one `sheet.textSecondaryDark` already uses.
+   */
+  textSecondaryDark: "#AEB4BE",
   /** Labels, metadata, timestamps. */
   textMuted: "#888",
   /** Text that is present but not meant to compete. */
   textFaint: "#AAA",
+  /**
+   * Faint on a dark surface goes *darker*, not lighter — the same inversion
+   * `placeholderDark` documents. A lighter grey here would outrank the
+   * secondary text it is meant to sit beneath.
+   */
+  textFaintDark: "#666",
   textOnDark: "#fff",
 
   /**
@@ -37,6 +48,13 @@ export const colors = {
   /** Page background behind the cards. */
   bg: "#f5f5f5",
   bgDark: "#18191B",
+  /**
+   * The page background for a full-bleed screen — one whose rows run edge to
+   * edge instead of sitting on cards. Light mode goes white so the rows have
+   * nothing to sit against; dark mode stays `bgDark`, which the rows are
+   * already lighter than. 15 screens use this pairing.
+   */
+  bgFlat: "#fff",
   /** A card, row, or header sitting on `bg`. */
   card: "#fff",
   cardDark: "#232427",
