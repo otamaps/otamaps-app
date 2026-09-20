@@ -8,6 +8,12 @@ type Args = {
   title: string;
   /** The page colour behind the content. Applied without adding a view. */
   background?: Background;
+  /**
+   * The bar's own colour. Defaults to `card`, which `theme` documents as the
+   * surface a row *or header* sits on — so the bar matches the rows rather
+   * than sitting darker than them, as the system's own dark bar does.
+   */
+  headerBackground?: Background;
   /** Adds the system search bar beneath the large title. */
   search?: {
     placeholder: string;
@@ -31,6 +37,7 @@ type Args = {
 export function useNativeHeader({
   title,
   background = "page",
+  headerBackground = "card",
   search,
 }: Args): HeaderOptions {
   const theme = useTheme();
@@ -41,13 +48,20 @@ export function useNativeHeader({
     headerLargeTitle: true,
     headerBackButtonDisplayMode: "minimal",
     contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
+    headerStyle: {
+      backgroundColor: theme[BACKGROUND_KEY[headerBackground]],
+    },
 
     // iOS 26 draws the bar over the scroll view rather than above it, and
-    // this decides what happens where they meet. `soft` fades the rows out
-    // under the glass; `hard` stops them against a firm edge, but on a dark
-    // bar it also renders the search field as a pale capsule, so it is not
-    // simply the stricter of the two.
-    scrollEdgeEffects: { top: "soft" },
+    // this decides what happens where they meet. `hard` stops the rows dead
+    // against the bar's edge; `soft` fades them out under the glass instead,
+    // leaving them faintly legible through it.
+    //
+    // `hard` costs one thing: the stacked search field renders as a pale
+    // capsule that ignores dark mode, and `barTintColor` does not override
+    // it. `soft` renders the field correctly. There is no setting that buys
+    // both — it is a straight trade.
+    scrollEdgeEffects: { top: "hard" },
 
     // The system default of 34pt leaves a long Finnish title no margin at
     // all — "Tilojen lukujärjestykset" runs the full width.
