@@ -75,15 +75,14 @@ export function useNativeHeader({
     headerTintColor: theme.accent,
     headerTitleStyle: { color: theme.text },
 
-    // iOS 26 draws the bar over the scroll view rather than above it, and
-    // this decides what happens where they meet. `hard` stops the rows dead
-    // against the bar's edge; `soft` fades them out under the glass instead,
-    // leaving them faintly legible through it.
-    //
-    // Under `hard` the simulator draws the stacked search field as a pale
-    // capsule ignoring dark mode; on a device it is correct. Simulator only
-    // — do not "fix" it, and do not switch to `soft` on account of it.
-    scrollEdgeEffects: { top: "hard" },
+    // `scrollEdgeEffects` is deliberately not set. `hard` draws its backdrop
+    // at the top edge whether or not anything is under it, so at rest it read
+    // as a grey bar across the width behind the back chevron, growing into
+    // the whole bar on scroll. It was only ever reached for because the rows
+    // were showing through the bar — which turned out to be the navigation
+    // bar not tracking the scroll view at all (see above), not the edge
+    // effect. With that fixed the system default is already right: nothing at
+    // the top, its own material once content is underneath.
 
     // The system default of 34pt leaves a long Finnish title no margin at
     // all — "Tilojen lukujärjestykset" runs the full width.
