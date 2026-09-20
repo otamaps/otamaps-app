@@ -91,3 +91,12 @@ export function palette(isDark: boolean): Palette {
 export function useTheme(): Theme {
   return useColorScheme() === "dark" ? DARK_THEME : LIGHT_THEME;
 }
+
+/**
+ * The three page backgrounds a screen picks from, as palette keys.
+ * Shared so `Screen` and `useNativeHeader` cannot drift apart on what
+ * "flat" means.
+ */
+export const BACKGROUND_KEY = { page: "bg", flat: "bgFlat", card: "card" } as const;
+
+export type Background = keyof typeof BACKGROUND_KEY;
