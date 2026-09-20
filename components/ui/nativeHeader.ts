@@ -1,7 +1,5 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import type { ComponentProps } from "react";
-import { Pressable } from "react-native";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
 
 type HeaderOptions = NonNullable<ComponentProps<typeof Stack.Screen>["options"]>;
@@ -93,16 +91,21 @@ export function useNativeHeader({
 
     ...(back
       ? {
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Takaisin"
-            >
-              <MaterialIcons name="chevron-left" size={28} color={theme.accent} />
-            </Pressable>
-          ),
+          // A real bar button item rather than a React `headerLeft`: iOS 26
+          // wraps custom header views in the shared glass capsule, and
+          // `hidesSharedBackground` — the only way off it — exists on the
+          // native item alone. The chevron is then drawn by the system at
+          // the size and weight it uses for its own back button.
+          unstable_headerLeftItems: () => [
+            {
+              type: "button" as const,
+              label: "",
+              icon: { type: "sfSymbol" as const, name: "chevron.left" as const },
+              onPress: () => router.back(),
+              tintColor: theme.text,
+              hidesSharedBackground: true,
+            },
+          ],
         }
       : {}),
 
