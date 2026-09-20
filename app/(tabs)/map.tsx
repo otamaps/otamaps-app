@@ -6,6 +6,14 @@ import useBLEScanner, {
 import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import { sheetPalette } from "@/components/sheets/sheetTheme";
+import { colors, radii } from "@/constants/theme";
+import { BlurView } from "expo-blur";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import MapBottomSheet, {
   BottomSheetMethods,
 } from "@/components/mapBottomSheet";
@@ -154,7 +162,7 @@ const MIN_ROOM_LABEL_TEXT_SIZE = 1;
 
 function collectGeometryCoordinates(
   value: unknown,
-  coordinates: [number, number][] = []
+  coordinates: [number, number][] = [],
 ): [number, number][] {
   if (!Array.isArray(value)) return coordinates;
 
@@ -173,7 +181,7 @@ function collectGeometryCoordinates(
 
 function getRoomNumberMaxTextSize(
   geometry: Polygon | MultiPolygon,
-  roomNumber: unknown
+  roomNumber: unknown,
 ): number {
   const coordinates = collectGeometryCoordinates(geometry.coordinates);
   if (coordinates.length < 3) return MAX_ROOM_LABEL_TEXT_SIZE;
@@ -205,11 +213,7 @@ function getRoomNumberMaxTextSize(
 
   return Math.max(
     MIN_ROOM_LABEL_TEXT_SIZE,
-    Math.min(
-      MAX_ROOM_LABEL_TEXT_SIZE,
-      widthLimitedSize,
-      heightLimitedSize
-    )
+    Math.min(MAX_ROOM_LABEL_TEXT_SIZE, widthLimitedSize, heightLimitedSize),
   );
 }
 
@@ -222,7 +226,7 @@ export default function HomeScreen() {
   // Fetch the style JSON and switch those layers off client-side instead of
   // editing the hosted style, since "place" (city/town) labels should stay.
   const [mapStyleJSON, setMapStyleJSON] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   useEffect(() => {
@@ -238,7 +242,8 @@ export default function HomeScreen() {
 
     fetch(styleUrl)
       .then((res) => {
-        if (!res.ok) throw new Error(`MapTiler style request failed: ${res.status}`);
+        if (!res.ok)
+          throw new Error(`MapTiler style request failed: ${res.status}`);
         return res.json();
       })
       .then((style) => {
@@ -246,7 +251,7 @@ export default function HomeScreen() {
         style.layers = (style.layers ?? []).map((layer: any) =>
           layer["source-layer"] === "poi"
             ? { ...layer, layout: { ...layer.layout, visibility: "none" } }
-            : layer
+            : layer,
         );
         setMapStyleJSON(JSON.stringify(style));
       })
@@ -268,7 +273,8 @@ export default function HomeScreen() {
   const { currentRoom, getScannedBeacons, getCurrentLocation } =
     useBLEScanner();
   const scannedBeacons = getScannedBeacons();
-  if (process.env.EXPO_PUBLIC_DEBUG_BLE === 'true') console.log("Scanned beacons:", scannedBeacons);
+  if (process.env.EXPO_PUBLIC_DEBUG_BLE === "true")
+    console.log("Scanned beacons:", scannedBeacons);
 
   // Helper function to check if user is in any room
   const isInAnyRoom = () => {
@@ -311,7 +317,7 @@ export default function HomeScreen() {
   const filteredFriends = useMemo(() => {
     return friends
       .filter((friend) =>
-        friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+        friend.name.toLowerCase().includes(searchQuery.toLowerCase()),
       )
       .sort((a, b) => {
         if (!a.lastSeen && !b.lastSeen) return 0;
@@ -328,13 +334,31 @@ export default function HomeScreen() {
   const [localUserLocation, setLocalUserLocation] =
     useState<LocalUserLocation | null>(null);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
+
+  // The beacon pill rides just above the sheet's top edge, so it tracks the
+  // sheet continuously rather than only at its resting height, and fades out
+  // as the sheet approaches full height where there is no room left for it.
+  const sheetPosition = useSharedValue(0);
+  const sheetIndex = useSharedValue(1);
+  const beaconPillHeight = useSharedValue(28);
+  const beaconPillStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: sheetPosition.value - beaconPillHeight.value - 12 },
+    ],
+    opacity: interpolate(
+      sheetIndex.value,
+      [1.6, 1.95],
+      [1, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
   const [canteenVisible, setCanteenVisible] = useState(false);
 
   // Camera state for dynamic positioning
   const [cameraConfig, setCameraConfig] = useState({
     centerCoordinate: [24.818510511790645, 60.18394233125424] as [
       number,
-      number
+      number,
     ],
     zoomLevel: 16,
     animationDuration: 1000,
@@ -350,7 +374,8 @@ export default function HomeScreen() {
       const location = await getCurrentLocation();
       if (location) {
         setLocalUserLocation(location);
-        if (process.env.EXPO_PUBLIC_DEBUG_BLE === 'true') console.log("📍 Local user location updated:", location);
+        if (process.env.EXPO_PUBLIC_DEBUG_BLE === "true")
+          console.log("📍 Local user location updated:", location);
       } else {
         setLocalUserLocation(null);
       }
@@ -393,7 +418,7 @@ export default function HomeScreen() {
     try {
       const statuses = await getQueueStatuses();
       setQueueStatus(
-        statuses.find((status) => status.slug === "ruokalinjasto") ?? null
+        statuses.find((status) => status.slug === "ruokalinjasto") ?? null,
       );
     } catch (queueError) {
       console.warn("Unable to refresh queue status:", queueError);
@@ -409,7 +434,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       void fetchQueueStatus();
-    }, [fetchQueueStatus])
+    }, [fetchQueueStatus]),
   );
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const {
@@ -436,7 +461,7 @@ export default function HomeScreen() {
     if (filtered.length > 0) {
       console.log(
         `  Sample filtered rooms:`,
-        filtered.slice(0, 3).map((r) => `${r.room_number} (floor ${r.floor})`)
+        filtered.slice(0, 3).map((r) => `${r.room_number} (floor ${r.floor})`),
       );
     }
 
@@ -447,7 +472,7 @@ export default function HomeScreen() {
   const [friendId, setFriendId] = useState("");
   const selectedFriend = useMemo(
     () => friends.find((friend) => friend.id === friendId) ?? null,
-    [friendId, friends]
+    [friendId, friends],
   );
 
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -518,14 +543,17 @@ export default function HomeScreen() {
       console.log("Sample rooms with floors:");
       rooms.slice(0, 5).forEach((room) => {
         console.log(
-          `  ${room.room_number} -> floor ${room.floor} (from database)`
+          `  ${room.room_number} -> floor ${room.floor} (from database)`,
         );
       });
 
-      const floorCounts = transformedRooms.reduce((acc, room) => {
-        acc[room.floor] = (acc[room.floor] || 0) + 1;
-        return acc;
-      }, {} as Record<number, number>);
+      const floorCounts = transformedRooms.reduce(
+        (acc, room) => {
+          acc[room.floor] = (acc[room.floor] || 0) + 1;
+          return acc;
+        },
+        {} as Record<number, number>,
+      );
       console.log("Rooms per floor:", floorCounts);
     } else {
       setRoomData([]);
@@ -539,20 +567,26 @@ export default function HomeScreen() {
       console.log("Sample features with types:");
       features.slice(0, 5).forEach((feature) => {
         console.log(
-          `  ${feature.id} -> floor ${feature.floor}, type: ${feature.type}`
+          `  ${feature.id} -> floor ${feature.floor}, type: ${feature.type}`,
         );
       });
 
-      const featureTypeCounts = features.reduce((acc, feature) => {
-        acc[feature.type] = (acc[feature.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      const featureTypeCounts = features.reduce(
+        (acc, feature) => {
+          acc[feature.type] = (acc[feature.type] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
       console.log("Features by type:", featureTypeCounts);
 
-      const floorCounts = features.reduce((acc, feature) => {
-        acc[feature.floor] = (acc[feature.floor] || 0) + 1;
-        return acc;
-      }, {} as Record<number, number>);
+      const floorCounts = features.reduce(
+        (acc, feature) => {
+          acc[feature.floor] = (acc[feature.floor] || 0) + 1;
+          return acc;
+        },
+        {} as Record<number, number>,
+      );
       console.log("Features per floor:", floorCounts);
     }
   }, [features]);
@@ -577,7 +611,7 @@ export default function HomeScreen() {
       };
       loadFriends();
       loadRequests();
-    }, [])
+    }, []),
   );
 
   const handleAddFriend = () => {
@@ -606,13 +640,21 @@ export default function HomeScreen() {
       // Switch to the room's floor if it's different from current
       if (room && room.floor !== selectedFloor) {
         console.log(
-          `🏢 Switching from floor ${selectedFloor} to floor ${room.floor} for room ${room.room_number}`
+          `🏢 Switching from floor ${selectedFloor} to floor ${room.floor} for room ${room.room_number}`,
         );
         setSelectedFloor(room.floor);
       }
 
-      // Only update selection state if it's different
-      if (selectedRoomId !== roomId) {
+      // Ruokalinjasto is a queue rather than a room: what someone wants on
+      // tapping it is how long the line is and what is being served, not the
+      // generic room card. Falls through to the room sheet if the queue
+      // status has not loaded, so the tap is never a dead end.
+      if (queueStatus && roomId === queueStatus.room_id) {
+        roomModalRef.current?.close();
+        setSelectedRoomId(null);
+        setCanteenVisible(true);
+      } else if (selectedRoomId !== roomId) {
+        // Only update selection state if it's different
         setSelectedRoomId(roomId);
         // Don't open modal immediately, let useEffect handle it
       } else {
@@ -657,11 +699,11 @@ export default function HomeScreen() {
 
         console.log(
           `🎯 Focusing map on room ${room.room_number} at coordinates:`,
-          centroid
+          centroid,
         );
       }
     },
-    [rooms, selectedRoomId, selectedFloor]
+    [rooms, selectedRoomId, selectedFloor, queueStatus],
   );
 
   // A lesson tapped on the Wilma tab hands off its room as free text (Wilma
@@ -711,7 +753,8 @@ export default function HomeScreen() {
     const unsubscribe = navigation.addListener("tabPress" as never, () => {
       if (!navigation.isFocused()) return;
 
-      const friendSheetIndex = friendModalRef.current?.getCurrentSnapIndex() ?? -1;
+      const friendSheetIndex =
+        friendModalRef.current?.getCurrentSnapIndex() ?? -1;
       if (friendSheetIndex >= 0) {
         if (friendSheetIndex === 2) {
           friendModalRef.current?.snapToMid();
@@ -722,7 +765,8 @@ export default function HomeScreen() {
         return;
       }
 
-      const mainSheetIndex = mapBottomSheetRef.current?.getCurrentSnapIndex() ?? 1;
+      const mainSheetIndex =
+        mapBottomSheetRef.current?.getCurrentSnapIndex() ?? 1;
       if (mainSheetIndex !== 1) {
         mapBottomSheetRef.current?.snapToMid();
       }
@@ -767,7 +811,7 @@ export default function HomeScreen() {
   const roomsWithGeometry = useMemo(
     () =>
       rooms.filter((room): room is RoomWithGeometry => Boolean(room?.geometry)),
-    [rooms]
+    [rooms],
   );
 
   // Filter rooms with geometry by selected floor
@@ -811,7 +855,7 @@ export default function HomeScreen() {
           roomNumber,
           roomNumberMaxTextSize: getRoomNumberMaxTextSize(
             room.geometry,
-            roomNumber
+            roomNumber,
           ),
           title: roomTitle || "Untitled Room",
           isSelected: selectedRoomId === room.id,
@@ -838,7 +882,7 @@ export default function HomeScreen() {
       return emptyGeoJSON;
     }
     const room = roomsWithGeometry.find(
-      (candidate) => candidate.id === queueStatus.room_id
+      (candidate) => candidate.id === queueStatus.room_id,
     );
     if (!room) return emptyGeoJSON;
 
@@ -920,7 +964,7 @@ export default function HomeScreen() {
           console.warn(
             "🏗️ Feature has invalid geometry structure:",
             feature.id,
-            feature.geometry
+            feature.geometry,
           );
           return false;
         }
@@ -928,7 +972,7 @@ export default function HomeScreen() {
         if (!Array.isArray(feature.geometry.coordinates)) {
           console.warn(
             "🏗️ Feature geometry coordinates not an array:",
-            feature.id
+            feature.id,
           );
           return false;
         }
@@ -1095,7 +1139,7 @@ export default function HomeScreen() {
         }
       }
     },
-    [handleRoomPress]
+    [handleRoomPress],
   );
 
   // Handle friend press on the map
@@ -1109,35 +1153,8 @@ export default function HomeScreen() {
         }
       }
     },
-    [handleFriendOpen]
+    [handleFriendOpen],
   );
-
-  const focusQueueArea = useCallback(() => {
-    if (!queueStatus) return;
-    setSelectedFloor(queueStatus.floor);
-    const room = roomsWithGeometry.find(
-      (candidate) => candidate.id === queueStatus.room_id
-    );
-    const firstRing = room?.geometry.coordinates?.[0];
-    if (!Array.isArray(firstRing)) return;
-
-    const points = firstRing.filter(
-      (point): point is [number, number] =>
-        Array.isArray(point) &&
-        typeof point[0] === "number" &&
-        typeof point[1] === "number"
-    );
-    if (points.length === 0) return;
-    const center = points.reduce(
-      (sum, point) => [sum[0] + point[0], sum[1] + point[1]] as [number, number],
-      [0, 0] as [number, number]
-    );
-    setCameraConfig({
-      centerCoordinate: [center[0] / points.length, center[1] / points.length],
-      zoomLevel: 19.5,
-      animationDuration: 700,
-    });
-  }, [queueStatus, roomsWithGeometry]);
 
   const recenterOnUser = useCallback(() => {
     if (!localUserLocation?.coordinates) return;
@@ -1572,6 +1589,69 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
+          {!canteenVisible && (
+            <Animated.View
+              pointerEvents="none"
+              accessibilityRole="text"
+              onLayout={(event) => {
+                beaconPillHeight.value = event.nativeEvent.layout.height;
+              }}
+              style={[styles.beaconPillShadow, beaconPillStyle]}
+              accessibilityLabel={
+                localUserLocation
+                  ? `Sijaintisi majakoiden mukaan: ${
+                      localUserLocation.currentRoom ?? "tuntematon tila"
+                    }`
+                  : "Sijaintia ei tunnistettu majakoista"
+              }
+            >
+              <BlurView
+                intensity={isDark ? 60 : 80}
+                tint={
+                  isDark
+                    ? "systemThickMaterialDark"
+                    : "systemThickMaterialLight"
+                }
+                // Android has no live blur by default; without this it renders
+                // a flat translucent view. SDK 31+ only, older falls back.
+                blurMethod="dimezisBlurViewSdk31Plus"
+                style={styles.beaconPill}
+              >
+                <View
+                  style={[
+                    styles.beaconPillDot,
+                    {
+                      backgroundColor: localUserLocation
+                        ? isDark
+                          ? colors.accentDark
+                          : colors.accent
+                        : colors.textFaint,
+                    },
+                  ]}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.beaconPillLabel,
+                    { color: isDark ? colors.textOnDark : colors.text },
+                    !localUserLocation && { color: colors.textMuted },
+                  ]}
+                >
+                  {localUserLocation
+                    ? [
+                        localUserLocation.currentRoom ?? "Tuntematon tila",
+                        localUserLocation.floor != null
+                          ? `${localUserLocation.floor}. krs`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "Ei sijaintia"}
+                </Text>
+              </BlurView>
+            </Animated.View>
+          )}
+
           <GlobalSearch
             roomModalRef={
               roomModalRef as React.MutableRefObject<RoomModalSheetMethods>
@@ -1616,7 +1696,6 @@ export default function HomeScreen() {
             visible={canteenVisible}
             status={queueStatus}
             onClose={() => setCanteenVisible(false)}
-            onFocusMap={focusQueueArea}
             onReported={fetchQueueStatus}
           />
 
@@ -1624,6 +1703,8 @@ export default function HomeScreen() {
             ref={mapBottomSheetRef}
             initialSnap="mid"
             hidden={canteenVisible}
+            animatedPosition={sheetPosition}
+            animatedIndex={sheetIndex}
           >
             {({ currentSnapIndex }) => (
               <BottomSheetView
@@ -1716,7 +1797,7 @@ export default function HomeScreen() {
                               styles.queuePillDot,
                               {
                                 backgroundColor: getQueueColor(
-                                  queueStatus?.status_level ?? null
+                                  queueStatus?.status_level ?? null,
                                 ),
                               },
                             ]}
@@ -1736,12 +1817,13 @@ export default function HomeScreen() {
                                 isDark && { color: "#BFC5CE" },
                               ]}
                             >
-                              Vilkkaus · {queueStatus
+                              Vilkkaus ·{" "}
+                              {queueStatus
                                 ? queueStatus.reporting_open
                                   ? getQueueLabel(queueStatus.status_level) +
                                     (queueStatus.status_is_stale
                                       ? ` · ${formatElapsedSince(
-                                          queueStatus.status_observed_at
+                                          queueStatus.status_observed_at,
                                         )}`
                                       : "")
                                   : formatReportingWindow(queueStatus)
@@ -1774,7 +1856,8 @@ export default function HomeScreen() {
                                   backgroundColor: sheetColors.card,
                                   color: isDark ? "white" : "black",
                                 },
-                                !!searchQuery && styles.friendSearchInputWithClear,
+                                !!searchQuery &&
+                                  styles.friendSearchInputWithClear,
                               ]}
                             />
                             {!!searchQuery && (
@@ -1915,8 +1998,8 @@ export default function HomeScreen() {
                             prev.map((room) =>
                               room.id === item.id
                                 ? { ...room, isFavorite: !room.isFavorite }
-                                : room
-                            )
+                                : room,
+                            ),
                           );
                         },
                       };
@@ -2149,6 +2232,39 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   recenterDisabled: { opacity: 0.5 },
+  // The shadow lives on a wrapper: `overflow: "hidden"` is needed to clip the
+  // blur to the pill, and on iOS it would clip the shadow away too.
+  beaconPillShadow: {
+    position: "absolute",
+    top: 0,
+    right: 14,
+    maxWidth: 190,
+    borderRadius: radii.pill,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  beaconPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: radii.pill,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  beaconPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  beaconPillLabel: {
+    fontFamily: "Figtree-Medium",
+    fontSize: 13,
+    flexShrink: 1,
+  },
   fab: {
     position: "absolute",
     right: 20,

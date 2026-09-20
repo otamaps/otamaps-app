@@ -13,6 +13,7 @@ import React, {
   useState,
 } from "react";
 import { Dimensions, StyleSheet, useColorScheme } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 
 export type BottomSheetMethods = {
   /** Snap fully open */
@@ -39,9 +40,22 @@ export interface BottomSheetProps {
    * sheet — is open on top of it, and put it back where it was afterwards.
    */
   hidden?: boolean;
+  /**
+   * The sheet's top edge, in screen coordinates, and its position between snap
+   * points. Both update continuously while dragging — pass them in to let an
+   * overlay outside the sheet track it.
+   */
+  animatedPosition?: SharedValue<number>;
+  animatedIndex?: SharedValue<number>;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+/**
+ * The sheet's default resting height. Exported so overlays that sit just above
+ * the sheet can anchor to it instead of repeating the fraction.
+ */
+export const MAP_SHEET_MID_HEIGHT = SCREEN_HEIGHT * 0.35;
 
 const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
   (
@@ -49,9 +63,11 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
       children,
       initialSnap = "mid",
       maxHeight = SCREEN_HEIGHT * 0.85,
-      midHeight = SCREEN_HEIGHT * 0.35,
+      midHeight = MAP_SHEET_MID_HEIGHT,
       minHeight = SCREEN_HEIGHT * 0.2,
       hidden = false,
+      animatedPosition,
+      animatedIndex,
     },
     ref
   ) => {
@@ -109,6 +125,8 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
       <BottomSheet
         ref={sheetRef}
         index={currentSnapIndex}
+        animatedPosition={animatedPosition}
+        animatedIndex={animatedIndex}
         snapPoints={[minHeight, midHeight, maxHeight]}
         enablePanDownToClose={false}
         enableContentPanningGesture={currentSnapIndex !== 2}

@@ -229,13 +229,26 @@ export default function PermissionsScreen() {
     if (metadataError) throw metadataError;
   };
 
+  // Captured once, at mount: true when this screen was pushed on top of
+  // Settings, false on the first-launch pass where skipping is not offered.
+  const [canLeave] = useState(() => router.canDismiss());
+
+  // Onboarding is reached two ways: replaced onto the root on first launch, and
+  // pushed on top of Settings when re-run. From the pushed stack a bare
+  // `replace` swaps the screen inside that stack and leaves nothing rendered,
+  // so unwind it first.
+  const leaveOnboarding = () => {
+    if (router.canDismiss()) router.dismissAll();
+    router.replace("/home");
+  };
+
   const finishOnboarding = async () => {
     setSaving(true);
     let saveStage: SaveStage = "profile";
     try {
       await saveProfile();
       saveStage = "preferences";
-      let saved = await saveOnboardingChoices({
+      await saveOnboardingChoices({
         friend_location_enabled: friendLocation,
         schedule_sharing_enabled: shareSchedule,
         anonymous_analytics_enabled: anonymousAnalytics,
@@ -270,7 +283,7 @@ export default function PermissionsScreen() {
       } else if (backgroundTracking) {
         const result = await setBLEBackgroundEnabled(true);
         if (!result?.success) {
-          saved = await updateConsentChoices({
+          await updateConsentChoices({
             background_tracking_enabled: false,
           });
           Alert.alert(
@@ -286,7 +299,7 @@ export default function PermissionsScreen() {
         await Notifications.requestPermissionsAsync();
       }
 
-      if (saved.onboarding_version > 0) router.replace("/home");
+      leaveOnboarding();
     } catch (error) {
       console.error(`[onboarding] ${saveStage} save failed`, error);
       Alert.alert(
@@ -505,6 +518,18 @@ export default function PermissionsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      {canLeave && (
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={leaveOnboarding}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Sulje onboarding"
+          >
+            <Ionicons name="close" size={24} color={theme.secondaryText} />
+          </Pressable>
+        </View>
+      )}
       <View style={styles.progress}>
         {STEPS.map((label, index) => (
           <View key={label} style={styles.progressItem}>
@@ -620,6 +645,11 @@ function ChoiceRow({
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    alignItems: "flex-end",
+  },
   safeArea: { flex: 1 },
   loading: {
     flex: 1,

@@ -215,6 +215,25 @@ function formatDateFI(d: string): string {
   return d;
 }
 
+/** The year a mark falls in, whichever of the two shapes the API used. */
+function markYear(d: string): string {
+  return formatDateFI(d).split(".")[2] ?? "";
+}
+
+/**
+ * An attendance date with the year left off when it is the current one — the
+ * card only ever covers the last four weeks, so "3.10." is unambiguous. Marks
+ * from an earlier year are dropped before they reach here; the full date is
+ * kept as a fallback rather than silently printing a bare day and month for
+ * one that somehow gets through.
+ */
+function formatMarkDate(d: string): string {
+  const [day, month, year] = formatDateFI(d).split(".");
+  return year === String(new Date().getFullYear())
+    ? `${day}.${month}.`
+    : `${day}.${month}.${year}`;
+}
+
 function finnishToISO(d: string): string {
   const [day, month, year] = d.split(".");
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
@@ -254,14 +273,28 @@ function SectionCard({
   return (
     <View style={[styles.card, isDark && { backgroundColor: "#232427" }]}>
       <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, isDark && { color: "#fff" }]}>
-          {title}
-        </Text>
-        {badge !== undefined && badge > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge}</Text>
-          </View>
-        )}
+        {/* The title opens the same screen as "Kaikki →" — a heading is a much
+            bigger target than the link, and people reach for it first. */}
+        <Pressable
+          onPress={onMore}
+          disabled={!onMore}
+          hitSlop={8}
+          accessibilityRole={onMore ? "button" : "header"}
+          accessibilityLabel={onMore ? `${title} – avaa kaikki` : title}
+          style={({ pressed }) => [
+            styles.cardTitleGroup,
+            pressed && onMore ? styles.cardTitlePressed : null,
+          ]}
+        >
+          <Text style={[styles.cardTitle, isDark && { color: "#fff" }]}>
+            {title}
+          </Text>
+          {badge !== undefined && badge > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge}</Text>
+            </View>
+          )}
+        </Pressable>
         <View style={{ flex: 1 }} />
         {onMore && (
           <Pressable onPress={onMore} hitSlop={8}>
@@ -594,7 +627,13 @@ function Dashboard({
           )
           .slice(0, 3);
 
+        // The four-week window reaches back into the previous year every
+        // January. Those marks are dropped outright rather than shown with a
+        // year hanging off them; filtering before the slice keeps the list at
+        // eight entries instead of eight-minus-the-dropped-ones.
+        const thisYear = String(new Date().getFullYear());
         const sortedAtt = [...att]
+          .filter((a) => markYear(a.date) === thisYear)
           .sort((a, b) =>
             finnishToISO(b.date).localeCompare(finnishToISO(a.date)),
           )
@@ -1309,7 +1348,7 @@ function Dashboard({
                   {i > 0 && <Divider isDark={isDark} />}
                   <View style={styles.attRow}>
                     <Text style={[styles.attDate, isDark && { color: "#aaa" }]}>
-                      {formatDateFI(entry.date)}
+                      {formatMarkDate(entry.date)}
                     </Text>
                     <Text
                       style={[styles.attCourse, isDark && { color: "#d4d4d4" }]}
@@ -1768,6 +1807,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
     gap: 8,
+  },
+  cardTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardTitlePressed: {
+    opacity: 0.6,
   },
   cardTitle: {
     fontFamily: "Figtree-SemiBold",

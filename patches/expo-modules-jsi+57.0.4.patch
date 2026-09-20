@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-modules-jsi/apple/scripts/create-stub-xcframework.sh b/node_modules/expo-modules-jsi/apple/scripts/create-stub-xcframework.sh
+index 7b31b5d..24ac79e 100755
+--- a/node_modules/expo-modules-jsi/apple/scripts/create-stub-xcframework.sh
++++ b/node_modules/expo-modules-jsi/apple/scripts/create-stub-xcframework.sh
+@@ -31,7 +31,7 @@ echo -e "${BLUE}[Expo]${RESET} Ensuring required slices in ${PACKAGE_NAME}.xcfra
+ # reuse the same binary for every slice that needs stamping.
+ mkdir -p "$XCFRAMEWORK_PATH"
+ STUB_SOURCE="${XCFRAMEWORK_PATH}/.stub-binary"
+-echo "" | clang -x c - -dynamiclib \
++echo "" | clang -x c - -dynamiclib -isysroot "$(xcrun --sdk macosx --show-sdk-path)" \
+   -o "$STUB_SOURCE" \
+   -install_name "@rpath/${PACKAGE_NAME}.framework/${PACKAGE_NAME}"
+ 
