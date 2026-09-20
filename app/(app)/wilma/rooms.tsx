@@ -1,6 +1,6 @@
-import { AppHeader, AppText, Row, Screen, SearchField, StateView, useTheme } from "@/components/ui";
+import { AppText, Row, Screen, StateView, useTheme } from "@/components/ui";
 import { fetchWilmaRooms, WilmaRoomProfile } from "@/lib/wilma/graphqlClient";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
@@ -42,12 +42,27 @@ export default function WilmaRoomsScreen() {
 
   return (
     <Screen background="flat">
-      <AppHeader title="Tilojen lukujärjestykset" />
-
-      <SearchField
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Hae tilan numerolla tai nimellä"
+      {/* The navigation bar is the platform's own: large title, back gesture
+          and, on iOS 26, the glass the content scrolls under. The filter is
+          the system search bar rather than a field in the body. */}
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Tilojen lukujärjestykset",
+          headerLargeTitle: true,
+          headerBackButtonDisplayMode: "minimal",
+          headerSearchBarOptions: {
+            // iOS 26 defaults `automatic` to `integrated`, which folds the
+            // field into the bar itself. `stacked` keeps it on its own row
+            // under the large title, which is what a filter over a long list
+            // wants — it stays reachable without opening anything first.
+            placement: "stacked",
+            placeholder: "Hae tilan numerolla tai nimellä",
+            onChangeText: (event) => setQuery(event.nativeEvent.text),
+            hideWhenScrolling: false,
+            autoCapitalize: "none",
+          },
+        }}
       />
 
       {loading ? (
@@ -63,6 +78,9 @@ export default function WilmaRoomsScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
+          // Lets the large title collapse and the rows pass under the bar,
+          // which is where the glass reads from.
+          contentInsetAdjustmentBehavior="automatic"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

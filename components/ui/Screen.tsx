@@ -15,18 +15,20 @@ type Props = {
   children: ReactNode;
   background?: Background;
   /**
-   * The status-bar inset is painted separately because it should match the
-   * *header* rather than the body — otherwise the bar sits on a visibly
-   * different colour to the nav bar directly beneath it. Defaults to
-   * `background`, which is right whenever the header is the same colour as
-   * the page.
+   * `native` leaves the platform navigation bar in place and lets it own the
+   * top inset — the direction the app is moving, and what gives a screen the
+   * system's own large title, back gesture and glass.
+   *
+   * `custom` hides it for a screen still drawing its own `AppHeader`, and
+   * takes over the safe-area inset itself.
+   */
+  header?: "native" | "custom";
+  /**
+   * `custom` only. The inset above the header is painted separately because
+   * it should match the *header* rather than the body — otherwise the status
+   * bar sits on a visibly different colour to the bar beneath it.
    */
   insetBackground?: Background;
-  /**
-   * Screens using `AppHeader` draw their own, so the native one is hidden by
-   * default. Set false to keep expo-router's header.
-   */
-  hideNativeHeader?: boolean;
 };
 
 const KEY = { page: "bg", flat: "bgFlat", card: "card" } as const;
@@ -34,18 +36,24 @@ const KEY = { page: "bg", flat: "bgFlat", card: "card" } as const;
 export function Screen({
   children,
   background = "page",
+  header = "native",
   insetBackground,
-  hideNativeHeader = true,
 }: Props) {
   const theme = useTheme();
+  const body = { backgroundColor: theme[KEY[background]] };
+
+  // The navigation bar already covers the status bar, so a SafeAreaView here
+  // would inset the content a second time and leave a band below the header.
+  if (header === "native") {
+    return <View style={[styles.body, body]}>{children}</View>;
+  }
+
   const inset = theme[KEY[insetBackground ?? background]];
 
   return (
     <SafeAreaView style={[styles.inset, { backgroundColor: inset }]} edges={["top"]}>
-      {hideNativeHeader ? <Stack.Screen options={{ headerShown: false }} /> : null}
-      <View style={[styles.body, { backgroundColor: theme[KEY[background]] }]}>
-        {children}
-      </View>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.body, body]}>{children}</View>
     </SafeAreaView>
   );
 }
