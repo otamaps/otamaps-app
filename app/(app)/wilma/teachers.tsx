@@ -1,3 +1,5 @@
+import { AppText, Row, StateView, useNativeHeader, useTheme } from "@/components/ui";
+import { radii } from "@/constants/theme";
 import {
   fetchMessageRecipients,
   fetchWilmaQueryCapabilities,
@@ -6,22 +8,11 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 
 export default function TeachersScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
   const [recipients, setRecipients] = useState<WilmaMessageRecipient[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -55,7 +46,7 @@ export default function TeachersScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -91,286 +82,131 @@ export default function TeachersScreen() {
       params: { teacherId: String(item.id), name: item.name, code: item.code },
     });
 
+  const header = useNativeHeader({
+    title: "Opettajat ja henkilökunta",
+    background: "card",
+    search: {
+      placeholder: "Hae nimellä tai lyhenteellä",
+      onChangeText: setQuery,
+    },
+  });
+
+  // The list is the screen's root element and stays mounted through every
+  // state, so the large title has a scroll view to attach to from the first
+  // frame. See `useNativeHeader`.
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.container, isDark && styles.containerDark]}>
-        <View style={[styles.header, isDark && styles.headerDark]}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
-          <Text style={[styles.headerTitle, isDark && styles.textLight]}>
-            Opettajat ja henkilökunta
-          </Text>
-        </View>
-
-        <View style={[styles.searchBox, isDark && styles.searchBoxDark]}>
-          <MaterialIcons
-            name="search"
-            size={20}
-            color={isDark ? "#888" : "#999"}
-          />
-          <TextInput
-            style={[styles.searchInput, isDark && styles.textLight]}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Hae nimellä tai lyhenteellä"
-            placeholderTextColor={isDark ? "#777" : "#aaa"}
-            autoCorrect={false}
-          />
-        </View>
-
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <MaterialIcons
-              name="error-outline"
-              size={48}
-              color={isDark ? "#666" : "#ccc"}
-            />
-            <Text style={[styles.stateText, isDark && styles.mutedDark]}>
-              {error}
-            </Text>
-            <Pressable style={styles.retryButton} onPress={() => load()}>
-              <Text style={styles.retryText}>Yritä uudelleen</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => `${item.id}:${item.schoolId}`}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  load(true);
-                }}
-                tintColor={isDark ? "#51a2ff" : "#3478F5"}
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.centered}>
-                <Text style={[styles.stateText, isDark && styles.mutedDark]}>
-                  Ei hakutuloksia
-                </Text>
-              </View>
-            }
-            renderItem={({ item }) => {
-              const isTeacher = item.category
-                .toLocaleLowerCase("fi-FI")
-                .includes("opettajat");
-              const hasSchedule = isTeacher && scheduleSupported;
-              return (
-                <Pressable
-                  disabled={!hasSchedule}
-                  onPress={() => openSchedule(item)}
-                  accessibilityRole={hasSchedule ? "button" : undefined}
-                  accessibilityLabel={
-                    hasSchedule
-                      ? `Näytä opettajan ${item.name} lukujärjestys`
-                      : undefined
-                  }
-                  style={({ pressed }) => [
-                    styles.row,
-                    isDark && styles.rowDark,
-                    pressed && hasSchedule && styles.rowPressed,
-                  ]}
-                >
-                  {/* <View style={[styles.avatar, isDark && styles.avatarDark]}>
-                <MaterialIcons name="person-outline" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
-              </View> */}
-                  <View style={styles.rowText}>
-                    <View style={styles.nameLine}>
-                      <Text
-                        style={[styles.name, isDark && styles.textLight]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      {!!item.code && (
-                        <Text style={[styles.code, isDark && styles.mutedDark]}>
-                          ({item.code})
-                        </Text>
-                      )}
-                    </View>
-                    <Text
-                      style={[styles.category, isDark && styles.mutedDark]}
-                      numberOfLines={1}
-                    >
-                      {item.isOwnTeacher ? "Oma opettaja · " : ""}
-                      {item.category}
-                    </Text>
-                  </View>
-                  <View style={styles.actions}>
-                    {hasSchedule && (
-                      <Pressable
-                        style={[
-                          styles.actionButton,
-                          isDark && styles.actionButtonDark,
-                          {
-                            backgroundColor: isDark ? "#ff516828" : "#ee4a4d24",
-                          },
-                        ]}
-                        onPress={() => openSchedule(item)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Näytä opettajan ${item.name} lukujärjestys`}
-                      >
-                        <MaterialIcons
-                          name="calendar-month"
-                          size={19}
-                          color={isDark ? "#ff5168" : "#ee4a4d"}
-                        />
-                      </Pressable>
-                    )}
-                    <Pressable
-                      style={[
-                        styles.actionButton,
-                        isDark && styles.actionButtonDark,
-                      ]}
-                      onPress={() => openMessage(item)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
-                    >
-                      <MaterialIcons
-                        name="mail-outline"
-                        size={19}
-                        color={isDark ? "#51a2ff" : "#3478F5"}
-                      />
-                    </Pressable>
-                  </View>
-                </Pressable>
-              );
+    <>
+      <Stack.Screen options={header} />
+      <FlatList
+        data={loading || error ? [] : filtered}
+        keyExtractor={(item) => `${item.id}:${item.schoolId}`}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load(true);
             }}
+            tintColor={theme.accent}
           />
-        )}
-      </View>
-    </SafeAreaView>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <StateView loading />
+          ) : error ? (
+            <StateView
+              icon="error-outline"
+              message={error}
+              actionLabel="Yritä uudelleen"
+              onAction={() => void load()}
+            />
+          ) : (
+            <StateView message="Ei hakutuloksia" />
+          )
+        }
+        renderItem={({ item }) => {
+          const isTeacher = item.category
+            .toLocaleLowerCase("fi-FI")
+            .includes("opettajat");
+          const hasSchedule = isTeacher && scheduleSupported;
+
+          return (
+            <Row
+              // Only a teacher with a published schedule has anywhere to go,
+              // so the rest render flat — and without a chevron promising a
+              // destination that is not there.
+              onPress={hasSchedule ? () => openSchedule(item) : undefined}
+              accessibilityLabel={
+                hasSchedule
+                  ? `Näytä opettajan ${item.name} lukujärjestys`
+                  : undefined
+              }
+            >
+              <View style={styles.rowText}>
+                <View style={styles.nameLine}>
+                  <AppText
+                    variant="rowTitle"
+                    style={styles.name}
+                    numberOfLines={1}
+                  >
+                    {item.name}
+                  </AppText>
+                  {!!item.code && (
+                    <AppText variant="meta" color="textMuted">
+                      ({item.code})
+                    </AppText>
+                  )}
+                </View>
+                <AppText
+                  variant="caption"
+                  color="textMuted"
+                  style={styles.category}
+                  numberOfLines={1}
+                >
+                  {item.isOwnTeacher ? "Oma opettaja · " : ""}
+                  {item.category}
+                </AppText>
+              </View>
+
+              {/* Messaging is the one action with no other way in from this
+                  screen, so it stays visible rather than becoming a swipe. */}
+              <Pressable
+                onPress={() => openMessage(item)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
+                style={({ pressed }) => [
+                  styles.mailButton,
+                  { backgroundColor: theme.accentTint },
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialIcons name="mail-outline" size={19} color={theme.accent} />
+              </Pressable>
+            </Row>
+          );
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#fff" },
-  containerDark: { backgroundColor: "#18191B" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fff",
-  },
-  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    margin: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    // Sits on the page background rather than on a card of its own — the
-    // border alone outlines the field.
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-  },
-  searchBoxDark: { backgroundColor: "#18191B", borderColor: "#444" },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#222",
-  },
-  centered: {
-    flex: 1,
-    minHeight: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 24,
-  },
-  stateText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    textAlign: "center",
-    color: "#888",
-  },
-  retryButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 9,
-    backgroundColor: "#eef4ff",
-  },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#eee",
-  },
-  rowDark: { backgroundColor: "#232427", borderBottomColor: "#3a3a3a" },
-  rowPressed: { opacity: 0.6 },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#eef4ff",
-  },
-  avatarDark: { backgroundColor: "#25334a" },
+  // Lets the loading and empty blocks fill the screen rather than collapsing
+  // to nothing at the top of an empty list.
+  content: { flexGrow: 1 },
   rowText: { flex: 1 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: {
-    flexShrink: 1,
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  code: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#888" },
-  category: {
-    marginTop: 2,
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-  },
-  actions: { flexDirection: "row", gap: 7 },
-  actionButton: {
+  name: { flexShrink: 1 },
+  category: { marginTop: 2 },
+  mailButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: radii.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#eef4ff",
   },
-  actionButtonDark: { backgroundColor: "#25334a" },
-  textLight: { color: "#fff" },
-  mutedDark: { color: "#888" },
+  pressed: { opacity: 0.6 },
 });
