@@ -7,16 +7,102 @@ import {
   WilmaMessageRecipient,
 } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import Reanimated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  type SharedValue,
+} from "react-native-reanimated";
 
 /**
  * Dismissed for good once tapped: the gesture is only unguessable the first
  * time, and a hint that comes back is worse than one that never showed.
  */
 const HINT_DISMISSED_KEY = "otamaps-teachers-swipe-hint-v1";
+
+/** The action's resting width, before a drag stretches it further. */
+const ACTION_WIDTH = 84;
+
+/**
+ * How far the row must travel before the action commits on its own. iOS
+ * treats roughly half the row as the point of no return, and this is measured
+ * once: the value is a constant of the gesture, not of any particular row.
+ */
+const FULL_SWIPE = Dimensions.get("window").width * 0.5;
+
+type SwipeableMethodsLike = { close: () => void };
+
+/**
+ * The revealed action, matched to how UIKit behaves rather than just sitting
+ * there: it stretches with the drag instead of sliding in at a fixed width,
+ * commits itself past `FULL_SWIPE` without waiting for a tap, and marks that
+ * commit with the same impact the system uses.
+ */
+function MessageAction({
+  translation,
+  methods,
+  onMessage,
+  accessibilityLabel,
+}: {
+  translation: SharedValue<number>;
+  methods: SwipeableMethodsLike;
+  onMessage: () => void;
+  accessibilityLabel: string;
+}) {
+  const theme = useTheme();
+
+  const fire = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    methods.close();
+    onMessage();
+  }, [methods, onMessage]);
+
+  // Dragging right-side actions open moves the row negative, so the distance
+  // travelled is the negated translation.
+  useAnimatedReaction(
+    () => -translation.value,
+    (travelled, previous) => {
+      if (previous === null) return;
+      if (travelled >= FULL_SWIPE && previous < FULL_SWIPE) runOnJS(fire)();
+    },
+  );
+
+  const stretch = useAnimatedStyle(() => ({
+    width: Math.max(ACTION_WIDTH, -translation.value),
+  }));
+
+  return (
+    <Reanimated.View style={stretch}>
+      <Pressable
+        onPress={fire}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={({ pressed }) => [
+          styles.swipeAction,
+          { backgroundColor: theme.accent },
+          pressed && styles.pressed,
+        ]}
+      >
+        <MaterialIcons name="mail-outline" size={22} color={colors.textOnDark} />
+        <AppText variant="micro" style={styles.swipeLabel}>
+          Viesti
+        </AppText>
+      </Pressable>
+    </Reanimated.View>
+  );
+}
 
 export default function TeachersScreen() {
   const router = useRouter();
@@ -189,32 +275,18 @@ export default function TeachersScreen() {
 
           return (
             <ReanimatedSwipeable
-              friction={2}
-              rightThreshold={40}
-              overshootRight={false}
-              renderRightActions={(_progress, _translation, methods) => (
-                <Pressable
-                  onPress={() => {
-                    methods.close();
-                    openMessage(item);
-                  }}
-                  accessibilityRole="button"
+              // Lighter than the default so the row tracks the finger the
+              // way a UIKit cell does, and free to overshoot, which is what
+              // makes the stretch past the threshold feel like a commit.
+              friction={1.6}
+              rightThreshold={ACTION_WIDTH * 0.6}
+              renderRightActions={(_progress, translation, methods) => (
+                <MessageAction
+                  translation={translation}
+                  methods={methods}
+                  onMessage={() => openMessage(item)}
                   accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
-                  style={({ pressed }) => [
-                    styles.swipeAction,
-                    { backgroundColor: theme.accent },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="mail-outline"
-                    size={22}
-                    color={colors.textOnDark}
-                  />
-                  <AppText variant="micro" style={styles.swipeLabel}>
-                    Viesti
-                  </AppText>
-                </Pressable>
+                />
               )}
             >
               <Row
@@ -280,7 +352,7 @@ const styles = StyleSheet.create({
   },
   hintText: { flex: 1 },
   swipeAction: {
-    width: 84,
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
