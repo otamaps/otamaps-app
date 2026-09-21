@@ -1,5 +1,6 @@
 import { AppText, Row, StateView, useNativeHeader, useTheme } from "@/components/ui";
-import { radii } from "@/constants/theme";
+import { colors } from "@/constants/theme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   fetchMessageRecipients,
   fetchWilmaQueryCapabilities,
@@ -9,6 +10,13 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+
+/**
+ * Dismissed for good once tapped: the gesture is only unguessable the first
+ * time, and a hint that comes back is worse than one that never showed.
+ */
+const HINT_DISMISSED_KEY = "otamaps-teachers-swipe-hint-v1";
 
 export default function TeachersScreen() {
   const router = useRouter();
@@ -19,6 +27,29 @@ export default function TeachersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scheduleSupported, setScheduleSupported] = useState(false);
+  // `null` until storage answers, so the hint cannot flash up and vanish for
+  // someone who dismissed it long ago.
+  const [hintVisible, setHintVisible] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(HINT_DISMISSED_KEY)
+      .then((dismissed) => {
+        if (!cancelled) setHintVisible(dismissed !== "1");
+      })
+      .catch(() => {
+        // Storage being unreadable is not a reason to withhold the hint.
+        if (!cancelled) setHintVisible(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissHint = useCallback(() => {
+    setHintVisible(false);
+    void AsyncStorage.setItem(HINT_DISMISSED_KEY, "1").catch(() => {});
+  }, []);
 
   const load = useCallback(async (refresh = false) => {
     if (!refresh) setLoading(true);
@@ -112,6 +143,30 @@ export default function TeachersScreen() {
             tintColor={theme.accent}
           />
         }
+        ListHeaderComponent={
+          hintVisible ? (
+            <View
+              style={[
+                styles.hint,
+                { backgroundColor: theme.card, borderBottomColor: theme.border },
+              ]}
+            >
+              <MaterialIcons name="swipe-left" size={18} color={theme.textMuted} />
+              <AppText variant="caption" color="textMuted" style={styles.hintText}>
+                Napauta avataksesi lukujärjestyksen. Pyyhkäise vasemmalle
+                lähettääksesi viestin.
+              </AppText>
+              <Pressable
+                onPress={dismissHint}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Piilota vinkki"
+              >
+                <MaterialIcons name="close" size={18} color={theme.textFaint} />
+              </Pressable>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
             <StateView loading />
@@ -133,59 +188,73 @@ export default function TeachersScreen() {
           const hasSchedule = isTeacher && scheduleSupported;
 
           return (
-            <Row
-              // Only a teacher with a published schedule has anywhere to go,
-              // so the rest render flat — and without a chevron promising a
-              // destination that is not there.
-              onPress={hasSchedule ? () => openSchedule(item) : undefined}
-              accessibilityLabel={
-                hasSchedule
-                  ? `Näytä opettajan ${item.name} lukujärjestys`
-                  : undefined
-              }
+            <ReanimatedSwipeable
+              friction={2}
+              rightThreshold={40}
+              overshootRight={false}
+              renderRightActions={(_progress, _translation, methods) => (
+                <Pressable
+                  onPress={() => {
+                    methods.close();
+                    openMessage(item);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
+                  style={({ pressed }) => [
+                    styles.swipeAction,
+                    { backgroundColor: theme.accent },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <MaterialIcons
+                    name="mail-outline"
+                    size={22}
+                    color={colors.textOnDark}
+                  />
+                  <AppText variant="micro" style={styles.swipeLabel}>
+                    Viesti
+                  </AppText>
+                </Pressable>
+              )}
             >
-              <View style={styles.rowText}>
-                <View style={styles.nameLine}>
+              <Row
+                // Only a teacher with a published schedule has anywhere to go,
+                // so the rest render flat — and without a chevron promising a
+                // destination that is not there. Every row still swipes.
+                onPress={hasSchedule ? () => openSchedule(item) : undefined}
+                accessibilityLabel={
+                  hasSchedule
+                    ? `Näytä opettajan ${item.name} lukujärjestys`
+                    : undefined
+                }
+              >
+                <View style={styles.rowText}>
+                  <View style={styles.nameLine}>
+                    <AppText
+                      variant="rowTitle"
+                      style={styles.name}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </AppText>
+                    {!!item.code && (
+                      <AppText variant="meta" color="textMuted">
+                        ({item.code})
+                      </AppText>
+                    )}
+                  </View>
                   <AppText
-                    variant="rowTitle"
-                    style={styles.name}
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.category}
                     numberOfLines={1}
                   >
-                    {item.name}
+                    {item.isOwnTeacher ? "Oma opettaja · " : ""}
+                    {item.category}
                   </AppText>
-                  {!!item.code && (
-                    <AppText variant="meta" color="textMuted">
-                      ({item.code})
-                    </AppText>
-                  )}
                 </View>
-                <AppText
-                  variant="caption"
-                  color="textMuted"
-                  style={styles.category}
-                  numberOfLines={1}
-                >
-                  {item.isOwnTeacher ? "Oma opettaja · " : ""}
-                  {item.category}
-                </AppText>
-              </View>
-
-              {/* Messaging is the one action with no other way in from this
-                  screen, so it stays visible rather than becoming a swipe. */}
-              <Pressable
-                onPress={() => openMessage(item)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
-                style={({ pressed }) => [
-                  styles.mailButton,
-                  { backgroundColor: theme.accentTint },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <MaterialIcons name="mail-outline" size={19} color={theme.accent} />
-              </Pressable>
-            </Row>
+              </Row>
+            </ReanimatedSwipeable>
           );
         }}
       />
@@ -201,12 +270,21 @@ const styles = StyleSheet.create({
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { flexShrink: 1 },
   category: { marginTop: 2 },
-  mailButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
+  hint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  hintText: { flex: 1 },
+  swipeAction: {
+    width: 84,
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
   },
+  swipeLabel: { color: colors.textOnDark },
   pressed: { opacity: 0.6 },
 });
