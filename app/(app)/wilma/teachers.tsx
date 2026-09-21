@@ -9,7 +9,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -19,10 +19,9 @@ import {
   View,
 } from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
-import Reanimated, {
+import {
   runOnJS,
   useAnimatedReaction,
-  useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
 
@@ -42,13 +41,17 @@ const ACTION_WIDTH = 84;
  */
 const FULL_SWIPE = Dimensions.get("window").width * 0.5;
 
-type SwipeableMethodsLike = { close: () => void };
+type SwipeableRef = React.ComponentRef<typeof ReanimatedSwipeable>;
 
 /**
- * The revealed action, matched to how UIKit behaves rather than just sitting
- * there: it stretches with the drag instead of sliding in at a fixed width,
- * commits itself past `FULL_SWIPE` without waiting for a tap, and marks that
- * commit with the same impact the system uses.
+ * The revealed action.
+ *
+ * Its width is fixed and never animated: driving `width` from the drag makes
+ * the whole row re-layout on every frame, which is what made this stutter.
+ * The background instead reaches far past the right edge, so pulling beyond
+ * the action's resting width still shows colour rather than a gap, and the
+ * only thing that moves is the row itself — a transform the UI thread
+ * handles alone.
  */
 function MessageAction({
   translation,
@@ -57,7 +60,7 @@ function MessageAction({
   accessibilityLabel,
 }: {
   translation: SharedValue<number>;
-  methods: SwipeableMethodsLike;
+  methods: { close: () => void };
   onMessage: () => void;
   accessibilityLabel: string;
 }) {
@@ -70,7 +73,8 @@ function MessageAction({
   }, [methods, onMessage]);
 
   // Dragging right-side actions open moves the row negative, so the distance
-  // travelled is the negated translation.
+  // travelled is the negated translation. Runs on the UI thread; only the
+  // single crossing hops to JS.
   useAnimatedReaction(
     () => -translation.value,
     (travelled, previous) => {
@@ -79,30 +83,106 @@ function MessageAction({
     },
   );
 
-  const stretch = useAnimatedStyle(() => ({
-    width: Math.max(ACTION_WIDTH, -translation.value),
-  }));
-
   return (
-    <Reanimated.View style={stretch}>
+    <View style={styles.actionSlot}>
+      <View style={[styles.actionBleed, { backgroundColor: theme.accent }]} />
       <Pressable
         onPress={fire}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        style={({ pressed }) => [
-          styles.swipeAction,
-          { backgroundColor: theme.accent },
-          pressed && styles.pressed,
-        ]}
+        style={({ pressed }) => [styles.swipeAction, pressed && styles.pressed]}
       >
         <MaterialIcons name="mail-outline" size={22} color={colors.textOnDark} />
         <AppText variant="micro" style={styles.swipeLabel}>
           Viesti
         </AppText>
       </Pressable>
-    </Reanimated.View>
+    </View>
   );
 }
+
+/**
+ * Memoised: without it every keystroke in the search field re-renders each
+ * visible row, and a row carries a gesture handler.
+ */
+const TeacherRow = memo(function TeacherRow({
+  item,
+  hasSchedule,
+  openRowRef,
+  onMessage,
+  onSchedule,
+}: {
+  item: WilmaMessageRecipient;
+  hasSchedule: boolean;
+  openRowRef: React.MutableRefObject<SwipeableRef | null>;
+  onMessage: (item: WilmaMessageRecipient) => void;
+  onSchedule: (item: WilmaMessageRecipient) => void;
+}) {
+  const swipeRef = useRef<SwipeableRef | null>(null);
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      // Lighter than the default so the row tracks the finger the way a UIKit
+      // cell does, and free to overshoot, which is what makes pulling past
+      // the threshold feel like a commit.
+      friction={1.6}
+      rightThreshold={ACTION_WIDTH * 0.6}
+      onSwipeableWillOpen={() => {
+        // One row open at a time, as in Mail: opening this closes whichever
+        // was left open.
+        const previous = openRowRef.current;
+        if (previous && previous !== swipeRef.current) previous.close();
+        openRowRef.current = swipeRef.current;
+      }}
+      onSwipeableWillClose={() => {
+        if (openRowRef.current === swipeRef.current) openRowRef.current = null;
+      }}
+      renderRightActions={(_progress, translation, methods) => (
+        <MessageAction
+          translation={translation}
+          methods={methods}
+          onMessage={() => onMessage(item)}
+          accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
+        />
+      )}
+    >
+      <Row
+        // Only a teacher with a published schedule has anywhere to go, so the
+        // rest render flat — and without a chevron promising a destination
+        // that is not there. Every row still swipes.
+        onPress={hasSchedule ? () => onSchedule(item) : undefined}
+        accessibilityLabel={
+          hasSchedule
+            ? `Näytä opettajan ${item.name} lukujärjestys`
+            : undefined
+        }
+      >
+        <View style={styles.rowText}>
+          <View style={styles.nameLine}>
+            <AppText variant="rowTitle" style={styles.name} numberOfLines={1}>
+              {item.name}
+            </AppText>
+            {!!item.code && (
+              <AppText variant="meta" color="textMuted">
+                ({item.code})
+              </AppText>
+            )}
+          </View>
+          <AppText
+            variant="caption"
+            color="textMuted"
+            style={styles.category}
+            numberOfLines={1}
+          >
+            {item.isOwnTeacher ? "Oma opettaja · " : ""}
+            {item.category}
+          </AppText>
+        </View>
+      </Row>
+    </ReanimatedSwipeable>
+  );
+});
 
 export default function TeachersScreen() {
   const router = useRouter();
@@ -182,22 +262,30 @@ export default function TeachersScreen() {
       });
   }, [query, recipients]);
 
-  const openMessage = (item: WilmaMessageRecipient) =>
-    router.push({
+  const openRowRef = useRef<SwipeableRef | null>(null);
+
+  const openMessage = useCallback(
+    (item: WilmaMessageRecipient) =>
+      router.push({
       pathname: "/wilma/compose" as never,
       params: {
         recipientId: String(item.id),
         schoolId: String(item.schoolId),
         name: item.name,
-        code: item.code,
-      },
-    });
+          code: item.code,
+        },
+      }),
+    [router],
+  );
 
-  const openSchedule = (item: WilmaMessageRecipient) =>
-    router.push({
-      pathname: "/wilma/teacher-schedule" as never,
-      params: { teacherId: String(item.id), name: item.name, code: item.code },
-    });
+  const openSchedule = useCallback(
+    (item: WilmaMessageRecipient) =>
+      router.push({
+        pathname: "/wilma/teacher-schedule" as never,
+        params: { teacherId: String(item.id), name: item.name, code: item.code },
+      }),
+    [router],
+  );
 
   const header = useNativeHeader({
     title: "Opettajat ja henkilökunta",
@@ -271,62 +359,14 @@ export default function TeachersScreen() {
           const isTeacher = item.category
             .toLocaleLowerCase("fi-FI")
             .includes("opettajat");
-          const hasSchedule = isTeacher && scheduleSupported;
-
           return (
-            <ReanimatedSwipeable
-              // Lighter than the default so the row tracks the finger the
-              // way a UIKit cell does, and free to overshoot, which is what
-              // makes the stretch past the threshold feel like a commit.
-              friction={1.6}
-              rightThreshold={ACTION_WIDTH * 0.6}
-              renderRightActions={(_progress, translation, methods) => (
-                <MessageAction
-                  translation={translation}
-                  methods={methods}
-                  onMessage={() => openMessage(item)}
-                  accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
-                />
-              )}
-            >
-              <Row
-                // Only a teacher with a published schedule has anywhere to go,
-                // so the rest render flat — and without a chevron promising a
-                // destination that is not there. Every row still swipes.
-                onPress={hasSchedule ? () => openSchedule(item) : undefined}
-                accessibilityLabel={
-                  hasSchedule
-                    ? `Näytä opettajan ${item.name} lukujärjestys`
-                    : undefined
-                }
-              >
-                <View style={styles.rowText}>
-                  <View style={styles.nameLine}>
-                    <AppText
-                      variant="rowTitle"
-                      style={styles.name}
-                      numberOfLines={1}
-                    >
-                      {item.name}
-                    </AppText>
-                    {!!item.code && (
-                      <AppText variant="meta" color="textMuted">
-                        ({item.code})
-                      </AppText>
-                    )}
-                  </View>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.category}
-                    numberOfLines={1}
-                  >
-                    {item.isOwnTeacher ? "Oma opettaja · " : ""}
-                    {item.category}
-                  </AppText>
-                </View>
-              </Row>
-            </ReanimatedSwipeable>
+            <TeacherRow
+              item={item}
+              hasSchedule={isTeacher && scheduleSupported}
+              openRowRef={openRowRef}
+              onMessage={openMessage}
+              onSchedule={openSchedule}
+            />
           );
         }}
       />
@@ -351,6 +391,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   hintText: { flex: 1 },
+  actionSlot: { width: ACTION_WIDTH },
+  // Reaches past the right edge so an overshooting drag still lands on
+  // colour. Cheaper than widening the action as the row moves.
+  actionBleed: { position: "absolute", top: 0, bottom: 0, left: 0, right: -600 },
   swipeAction: {
     flex: 1,
     alignItems: "center",
