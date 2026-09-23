@@ -7,23 +7,10 @@ import {
   WilmaMessageRecipient,
 } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Dimensions,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
-import {
-  runOnJS,
-  useAnimatedReaction,
-  type SharedValue,
-} from "react-native-reanimated";
 
 /**
  * Dismissed for good once tapped: the gesture is only unguessable the first
@@ -44,60 +31,33 @@ const NEVER_RIGHTWARD = 10_000;
 /** The action's resting width, before a drag stretches it further. */
 const ACTION_WIDTH = 84;
 
-/**
- * How far the row must travel before the action commits on its own. iOS
- * treats roughly half the row as the point of no return, and this is measured
- * once: the value is a constant of the gesture, not of any particular row.
- */
-const FULL_SWIPE = Dimensions.get("window").width * 0.5;
-
 type SwipeableRef = React.ComponentRef<typeof ReanimatedSwipeable>;
 
 /**
- * The revealed action.
- *
- * Its width is fixed and never animated: driving `width` from the drag makes
- * the whole row re-layout on every frame, which is what made this stutter.
- * The background instead reaches far past the right edge, so pulling beyond
- * the action's resting width still shows colour rather than a gap, and the
- * only thing that moves is the row itself — a transform the UI thread
- * handles alone.
+ * The revealed action. Deliberately plain: gesture-handler builds this for
+ * every mounted row, not the one being swiped, so anything it holds is held
+ * a hundred times over. It takes the accent as a prop rather than reading
+ * the theme, which would subscribe each row to appearance changes twice.
  */
 function MessageAction({
-  translation,
+  accent,
   methods,
   onMessage,
   accessibilityLabel,
 }: {
-  translation: SharedValue<number>;
+  accent: string;
   methods: { close: () => void };
   onMessage: () => void;
   accessibilityLabel: string;
 }) {
-  const theme = useTheme();
-
-  const fire = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    methods.close();
-    onMessage();
-  }, [methods, onMessage]);
-
-  // Dragging right-side actions open moves the row negative, so the distance
-  // travelled is the negated translation. Runs on the UI thread; only the
-  // single crossing hops to JS.
-  useAnimatedReaction(
-    () => -translation.value,
-    (travelled, previous) => {
-      if (previous === null) return;
-      if (travelled >= FULL_SWIPE && previous < FULL_SWIPE) runOnJS(fire)();
-    },
-  );
-
   return (
     <View style={styles.actionSlot}>
-      <View style={[styles.actionBleed, { backgroundColor: theme.accent }]} />
+      <View style={[styles.actionBleed, { backgroundColor: accent }]} />
       <Pressable
-        onPress={fire}
+        onPress={() => {
+          methods.close();
+          onMessage();
+        }}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [styles.swipeAction, pressed && styles.pressed]}
@@ -128,7 +88,12 @@ const TeacherRow = memo(function TeacherRow({
   onMessage: (item: WilmaMessageRecipient) => void;
   onSchedule: (item: WilmaMessageRecipient) => void;
 }) {
+  const theme = useTheme();
   const swipeRef = useRef<SwipeableRef | null>(null);
+  // A closed row must let a rightward drag through to the screen's edge-swipe
+  // back; an open one must claim it, or closing the row navigates away
+  // instead.
+  const [open, setOpen] = useState(false);
 
   return (
     <ReanimatedSwipeable
@@ -138,11 +103,10 @@ const TeacherRow = memo(function TeacherRow({
       // the threshold feel like a commit.
       friction={1.6}
       rightThreshold={ACTION_WIDTH * 0.6}
-      // Right actions only: the row is dragged leftward to reveal them and
-      // has no business following the opposite direction. An open row is
-      // closed by tapping it, which the swipeable already handles.
-      dragOffsetFromLeftEdge={NEVER_RIGHTWARD}
+      // The rightward threshold, which only a closed row puts out of reach.
+      dragOffsetFromLeftEdge={open ? undefined : NEVER_RIGHTWARD}
       onSwipeableWillOpen={() => {
+        setOpen(true);
         // One row open at a time, as in Mail: opening this closes whichever
         // was left open.
         const previous = openRowRef.current;
@@ -150,11 +114,12 @@ const TeacherRow = memo(function TeacherRow({
         openRowRef.current = swipeRef.current;
       }}
       onSwipeableWillClose={() => {
+        setOpen(false);
         if (openRowRef.current === swipeRef.current) openRowRef.current = null;
       }}
-      renderRightActions={(_progress, translation, methods) => (
+      renderRightActions={(_progress, _translation, methods) => (
         <MessageAction
-          translation={translation}
+          accent={theme.accent}
           methods={methods}
           onMessage={() => onMessage(item)}
           accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
