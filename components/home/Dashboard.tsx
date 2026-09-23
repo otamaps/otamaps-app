@@ -1,5 +1,5 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
-import { AppText, StateView, useNativeHeader, useTheme } from "@/components/ui";
+import { AppText, Screen, StateView, useTheme } from "@/components/ui";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import {
   addMinutesClock,
@@ -36,7 +36,7 @@ import {
   isoWeekdayOf,
   weekdayLabel,
 } from "@/lib/wilma/scheduleDates";
-import { Stack, router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pressable,
@@ -564,21 +564,12 @@ export default function Dashboard({
     load(true);
   }, [load]);
 
-  const header = useNativeHeader({
-    title: `${timeOfDayGreeting()}, ${data?.profile.firstName || "opiskelija"}! 👋`,
-    back: false,
-    background: "page",
-  });
-
-  // One scroll view, mounted through every state: UIKit attaches the large
-  // title to the first scroll view under the screen and does not look again,
-  // so returning a plain View while loading would leave the greeting with
-  // nothing to collapse against.
+  // The greeting stays the app's own, at the top of the scroll rather than
+  // in a navigation bar. `Screen` gives the shell the bar would otherwise
+  // have: the safe-area inset and the page colour behind the cards.
   return (
-    <>
-      <Stack.Screen options={header} />
+    <Screen background="page">
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.dashContent}
         refreshControl={
           <RefreshControl
@@ -588,6 +579,15 @@ export default function Dashboard({
           />
         }
       >
+        <View style={styles.dashHeader}>
+          <AppText variant="heading2" style={styles.dashGreeting}>
+            {timeOfDayGreeting()}, {data?.profile.firstName || "opiskelija"}! 👋
+          </AppText>
+          <AppText variant="body" color="textMuted" style={styles.dashDate}>
+            {todayFinnish()}
+          </AppText>
+        </View>
+
         {loading ? (
           <StateView loading />
         ) : loadError ? (
@@ -603,10 +603,6 @@ export default function Dashboard({
           />
         ) : (
           <>
-        <AppText variant="body" color="textMuted" style={styles.dashDate}>
-          {todayFinnish()}
-        </AppText>
-
         {/* Today's lessons (or, once the day is done, the next school day's) */}
         <SectionCard
           title={data?.scheduleDayLabel ?? "Tänään"}
@@ -1315,7 +1311,7 @@ export default function Dashboard({
           </>
         )}
       </ScrollView>
-    </>
+    </Screen>
   );
 }
 
@@ -1343,15 +1339,13 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 2,
   },
+  dashHeader: { marginBottom: 4 },
+  dashGreeting: { letterSpacing: -0.4 },
   dashContent: {
     flexGrow: 1, padding: 16, paddingBottom: 100 },
-  dashDate: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#888",
-    marginTop: 2,
-    textTransform: "capitalize",
-  },
+  // AppText supplies the face and the colour; only the placement and the
+  // capitalisation are this screen's own.
+  dashDate: { marginTop: 2, textTransform: "capitalize" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,
