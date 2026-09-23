@@ -43,10 +43,8 @@ export default function WilmaRoomsScreen() {
   const header = useNativeHeader({
     title: "Tilojen lukujärjestykset",
     background: "card",
-    search: {
-      placeholder: "Hae tilan numerolla tai nimellä",
-      onChangeText: setQuery,
-    },
+    searchPlaceholder: "Hae tilan numerolla tai nimellä",
+    onSearch: setQuery,
   });
 
   // The list is the screen's root element, and stays mounted through every

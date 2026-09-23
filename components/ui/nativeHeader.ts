@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import type { ComponentProps } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
 
 type HeaderOptions = NonNullable<ComponentProps<typeof Stack.Screen>["options"]>;
@@ -25,11 +25,15 @@ type Args = {
    * would have shown. A tab root passes `false`.
    */
   back?: boolean;
-  /** Adds the system search bar beneath the large title. */
-  search?: {
-    placeholder: string;
-    onChangeText: (text: string) => void;
-  };
+  /**
+   * Adds the system search bar beneath the large title. Flat rather than a
+   * nested object so that passing it inline cannot defeat the memoisation
+   * below — an options object with a new identity each render makes
+   * react-navigation reconfigure the native bar, and reinstall the search
+   * controller, on every keystroke typed into it.
+   */
+  searchPlaceholder?: string;
+  onSearch?: (text: string) => void;
 };
 
 /**
@@ -58,70 +62,74 @@ export function useNativeHeader({
   title,
   background = "page",
   back = true,
-  search,
+  searchPlaceholder,
+  onSearch,
 }: Args): HeaderOptions {
   const theme = useTheme();
   const router = useRouter();
 
-  return {
-    headerShown: true,
-    title,
-    headerLargeTitle: true,
-    headerBackButtonDisplayMode: "minimal",
-    contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
+  return useMemo(
+    () => ({
+      headerShown: true,
+      title,
+      headerLargeTitle: true,
+      headerBackButtonDisplayMode: "minimal" as const,
+      contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
 
-    // Set explicitly rather than derived, so the title cannot pick up the
-    // back button's tint and the two stay independently adjustable.
-    headerTintColor: theme.accent,
-    headerTitleStyle: { color: theme.text },
+      // Set explicitly rather than derived, so the title cannot pick up the
+      // back button's tint and the two stay independently adjustable.
+      headerTintColor: theme.accent,
+      headerTitleStyle: { color: theme.text },
 
-    // `scrollEdgeEffects` is deliberately not set. `hard` draws its backdrop
-    // at the top edge whether or not anything is under it, so at rest it read
-    // as a grey bar across the width behind the back chevron, growing into
-    // the whole bar on scroll. It was only ever reached for because the rows
-    // were showing through the bar — which turned out to be the navigation
-    // bar not tracking the scroll view at all (see above), not the edge
-    // effect. With that fixed the system default is already right: nothing at
-    // the top, its own material once content is underneath.
+      // `scrollEdgeEffects` is deliberately not set. `hard` draws its backdrop
+      // at the top edge whether or not anything is under it, so at rest it read
+      // as a grey bar across the width behind the back chevron, growing into
+      // the whole bar on scroll. It was only ever reached for because the rows
+      // were showing through the bar — which turned out to be the navigation
+      // bar not tracking the scroll view at all (see above), not the edge
+      // effect. With that fixed the system default is already right: nothing at
+      // the top, its own material once content is underneath.
 
-    // The system default of 34pt leaves a long Finnish title no margin at
-    // all — "Tilojen lukujärjestykset" runs the full width.
-    headerLargeTitleStyle: { fontSize: 30, color: theme.text },
+      // The system default of 34pt leaves a long Finnish title no margin at
+      // all — "Tilojen lukujärjestykset" runs the full width.
+      headerLargeTitleStyle: { fontSize: 30, color: theme.text },
 
-    ...(back
-      ? {
-          // A real bar button item rather than a React `headerLeft`: iOS 26
-          // wraps custom header views in the shared glass capsule, and
-          // `hidesSharedBackground` — the only way off it — exists on the
-          // native item alone. The chevron is then drawn by the system at
-          // the size and weight it uses for its own back button.
-          unstable_headerLeftItems: () => [
-            {
-              type: "button" as const,
-              label: "",
-              icon: { type: "sfSymbol" as const, name: "chevron.left" as const },
-              onPress: () => router.back(),
-              tintColor: theme.text,
-              hidesSharedBackground: true,
+      ...(back
+        ? {
+            // A real bar button item rather than a React `headerLeft`: iOS 26
+            // wraps custom header views in the shared glass capsule, and
+            // `hidesSharedBackground` — the only way off it — exists on the
+            // native item alone. The chevron is then drawn by the system at
+            // the size and weight it uses for its own back button.
+            unstable_headerLeftItems: () => [
+              {
+                type: "button" as const,
+                label: "",
+                icon: { type: "sfSymbol" as const, name: "chevron.left" as const },
+                onPress: () => router.back(),
+                tintColor: theme.text,
+                hidesSharedBackground: true,
+              },
+            ],
+          }
+        : {}),
+
+      ...(searchPlaceholder && onSearch
+        ? {
+            headerSearchBarOptions: {
+              // iOS 26 resolves `automatic` to `integrated`, folding the field
+              // into the bar — which renders nothing whatsoever on a screen
+              // that has no other bar items.
+              placement: "stacked" as const,
+              placeholder: searchPlaceholder,
+              onChangeText: (event: { nativeEvent: { text: string } }) =>
+                onSearch(event.nativeEvent.text),
+              hideWhenScrolling: false,
+              autoCapitalize: "none" as const,
             },
-          ],
-        }
-      : {}),
-
-    ...(search
-      ? {
-          headerSearchBarOptions: {
-            // iOS 26 resolves `automatic` to `integrated`, folding the field
-            // into the bar — which renders nothing whatsoever on a screen
-            // with no other bar items.
-            placement: "stacked" as const,
-            placeholder: search.placeholder,
-            onChangeText: (event: { nativeEvent: { text: string } }) =>
-              search.onChangeText(event.nativeEvent.text),
-            hideWhenScrolling: false,
-            autoCapitalize: "none" as const,
-          },
-        }
-      : {}),
-  };
+          }
+        : {}),
+    }),
+    [title, background, back, searchPlaceholder, onSearch, theme, router],
+  );
 }

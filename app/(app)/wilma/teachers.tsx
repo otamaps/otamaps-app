@@ -290,10 +290,8 @@ export default function TeachersScreen() {
   const header = useNativeHeader({
     title: "Opettajat ja henkilökunta",
     background: "card",
-    search: {
-      placeholder: "Hae nimellä tai lyhenteellä",
-      onChangeText: setQuery,
-    },
+    searchPlaceholder: "Hae nimellä tai lyhenteellä",
+    onSearch: setQuery,
   });
 
   // The list is the screen's root element and stays mounted through every
