@@ -7,7 +7,7 @@ import {
   Surface,
   useTheme,
 } from "@/components/ui";
-import { DEFAULT_USER_COLOR, colors, radii } from "@/constants/theme";
+import { DEFAULT_USER_COLOR, colors, radii, tint } from "@/constants/theme";
 import { FONT_FAMILY } from "@/constants/typography";
 import { FABLAB_VISIBLE } from "@/constants/features";
 import { formatClassLabel } from "@/lib/classLabel";
@@ -263,7 +263,7 @@ export default function MeScreen() {
                   <RowIcon
                     ios="checkmark.shield"
                     android="admin_panel_settings"
-                    color={theme.accent}
+                    color={tint.queue}
                   />
                   <AppText variant="body" style={styles.rowLabel}>
                     Jonotilanteen hallinta
@@ -273,7 +273,7 @@ export default function MeScreen() {
                   <RowIcon
                     ios="fork.knife"
                     android="restaurant"
-                    color={theme.accent}
+                    color={tint.lunch}
                   />
                   <AppText variant="body" style={styles.rowLabel}>
                     Ruokailuvuorojen hallinta

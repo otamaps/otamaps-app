@@ -106,6 +106,22 @@ export const radii = {
 } as const;
 
 /**
+ * Fills for the rounded glyph at the head of a settings row.
+ *
+ * One value each rather than a light/dark pair: iOS holds these steady
+ * across both schemes and puts a white glyph on them, so the tile stays
+ * recognisable as the same thing in either. They are saturated for that
+ * reason — the schedule's lunch chip is a pale `#FEF3C7` because text sits
+ * on it, which a white glyph could not.
+ */
+export const tint = {
+  /** Lunch, in the amber the schedule already marks lunch slots with. */
+  lunch: "#D97706",
+  /** Queue and canteen state. */
+  queue: "#0D9488",
+} as const;
+
+/**
  * The default colour for a person who has not picked one. Deliberately not
  * `accent`: it identifies a user, and reusing the accent would make every
  * default avatar read as a piece of app chrome.
