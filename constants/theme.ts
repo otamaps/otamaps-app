@@ -45,8 +45,8 @@ export const colors = {
   placeholder: "#AAA",
   placeholderDark: "#777",
 
-  /** Page background behind the cards. */
-  bg: "#f5f5f5",
+  /** Page background behind the cards — iOS's own grouped-content grey. */
+  bg: "#F2F2F6",
   bgDark: "#18191B",
   /**
    * The page background for a full-bleed screen — one whose rows run edge to

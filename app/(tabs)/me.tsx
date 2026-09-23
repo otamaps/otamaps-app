@@ -203,7 +203,7 @@ export default function MeScreen() {
                   </AppText>
                 </View>
                 <View style={styles.identity}>
-                  <AppText variant="sectionTitle" numberOfLines={1}>
+                  <AppText variant="title" numberOfLines={1}>
                     {profile?.name || "Käyttäjä"}
                   </AppText>
                   {profile?.class ? (
@@ -215,10 +215,10 @@ export default function MeScreen() {
               </Row>
 
               <Row onPress={copyFriendCode} chevron={false}>
-                <AppText variant="rowTitle" style={styles.rowLabel}>
+                <AppText variant="body" style={styles.rowLabel}>
                   Ystäväkoodi
                 </AppText>
-                <AppText variant="rowTitle" color="textMuted">
+                <AppText variant="body" color="textMuted">
                   {profile?.code ?? "—"}
                 </AppText>
                 <PlatformSymbol
@@ -233,7 +233,7 @@ export default function MeScreen() {
             {isAdmin ? (
               <Surface title="Hallinta">
                 <Row onPress={() => router.push("/me/admin/queue")}>
-                  <AppText variant="rowTitle" style={styles.rowLabel}>
+                  <AppText variant="body" style={styles.rowLabel}>
                     Jonotilanteen hallinta
                   </AppText>
                   <PlatformSymbol
@@ -244,7 +244,7 @@ export default function MeScreen() {
                   />
                 </Row>
                 <Row onPress={() => router.push("/me/admin/lunch-shifts")}>
-                  <AppText variant="rowTitle" style={styles.rowLabel}>
+                  <AppText variant="body" style={styles.rowLabel}>
                     Ruokailuvuorojen hallinta
                   </AppText>
                   <PlatformSymbol
@@ -259,31 +259,31 @@ export default function MeScreen() {
 
             <Surface>
               <Row onPress={() => router.push("/me/wilma")}>
-                <AppText variant="rowTitle" style={styles.rowLabel}>
+                <AppText variant="body" style={styles.rowLabel}>
                   {isWilmaProfile ? "Wilma-tili" : "Yhdistä Wilma-tili"}
                 </AppText>
                 <Badge label={isWilmaProfile ? "Yhdistetty" : "Yhdistä"} />
               </Row>
               {FABLAB_VISIBLE ? (
                 <Row onPress={() => router.push("/me/fablab")}>
-                  <AppText variant="rowTitle" style={styles.rowLabel}>
+                  <AppText variant="body" style={styles.rowLabel}>
                     Fablab
                   </AppText>
                   <Badge label="Uusi!" />
                 </Row>
               ) : null}
               <Row onPress={() => router.push("/me/settings")}>
-                <AppText variant="rowTitle" style={styles.rowLabel}>
+                <AppText variant="body" style={styles.rowLabel}>
                     Asetukset
                   </AppText>
               </Row>
               <Row onPress={() => router.push("/me/guide")}>
-                <AppText variant="rowTitle" style={styles.rowLabel}>
+                <AppText variant="body" style={styles.rowLabel}>
                     Ohje
                   </AppText>
               </Row>
               <Row onPress={() => router.push("/me/about")}>
-                <AppText variant="rowTitle" style={styles.rowLabel}>
+                <AppText variant="body" style={styles.rowLabel}>
                     Tietoja
                   </AppText>
               </Row>
@@ -292,7 +292,7 @@ export default function MeScreen() {
             {isDebugMode ? (
               <Surface>
                 <Row onPress={() => router.push("/(app)/debug2/ble")}>
-                  <AppText variant="rowTitle" style={styles.rowLabel}>
+                  <AppText variant="body" style={styles.rowLabel}>
                     Debug
                   </AppText>
                 </Row>
@@ -301,7 +301,7 @@ export default function MeScreen() {
 
             <Surface>
               <Row onPress={signOut} chevron={false}>
-                <AppText variant="rowTitle" color="danger">
+                <AppText variant="body" color="danger">
                   Kirjaudu ulos
                 </AppText>
               </Row>
