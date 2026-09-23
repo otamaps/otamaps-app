@@ -8,6 +8,7 @@ import {
   useTheme,
 } from "@/components/ui";
 import { DEFAULT_USER_COLOR, colors, radii } from "@/constants/theme";
+import { FONT_FAMILY } from "@/constants/typography";
 import { FABLAB_VISIBLE } from "@/constants/features";
 import { formatClassLabel } from "@/lib/classLabel";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
@@ -33,6 +34,32 @@ const copyToClipboard = async (value: string | undefined) => {
   const Clipboard = await import("expo-clipboard");
   await Clipboard.setStringAsync(value);
 };
+
+/**
+ * The filled, rounded glyph iOS sets at the head of a settings row. White on
+ * a colour, so it reads as a badge for the row rather than an icon floating
+ * beside the label.
+ */
+function RowIcon({
+  ios,
+  android,
+  color,
+}: {
+  ios: React.ComponentProps<typeof PlatformSymbol>["ios"];
+  android: React.ComponentProps<typeof PlatformSymbol>["android"];
+  color: string;
+}) {
+  return (
+    <View style={[styles.rowIcon, { backgroundColor: color }]}>
+      <PlatformSymbol
+        ios={ios}
+        android={android}
+        size={17}
+        tintColor={colors.textOnDark}
+      />
+    </View>
+  );
+}
 
 /** A short neutral tag at the end of a row: "Yhdistetty", "Uusi!". */
 function Badge({ label }: { label: string }) {
@@ -203,7 +230,7 @@ export default function MeScreen() {
                   </AppText>
                 </View>
                 <View style={styles.identity}>
-                  <AppText variant="title" numberOfLines={1}>
+                  <AppText variant="title" style={styles.name} numberOfLines={1}>
                     {profile?.name || "Käyttäjä"}
                   </AppText>
                   {profile?.class ? (
@@ -233,26 +260,24 @@ export default function MeScreen() {
             {isAdmin ? (
               <Surface title="Hallinta">
                 <Row onPress={() => router.push("/me/admin/queue")}>
+                  <RowIcon
+                    ios="checkmark.shield"
+                    android="admin_panel_settings"
+                    color={theme.accent}
+                  />
                   <AppText variant="body" style={styles.rowLabel}>
                     Jonotilanteen hallinta
                   </AppText>
-                  <PlatformSymbol
-                    ios="checkmark.shield"
-                    android="admin_panel_settings"
-                    size={20}
-                    tintColor={theme.accent}
-                  />
                 </Row>
                 <Row onPress={() => router.push("/me/admin/lunch-shifts")}>
+                  <RowIcon
+                    ios="fork.knife"
+                    android="restaurant"
+                    color={theme.accent}
+                  />
                   <AppText variant="body" style={styles.rowLabel}>
                     Ruokailuvuorojen hallinta
                   </AppText>
-                  <PlatformSymbol
-                    ios="fork.knife"
-                    android="restaurant"
-                    size={20}
-                    tintColor={theme.accent}
-                  />
                 </Row>
               </Surface>
             ) : null}
@@ -325,7 +350,17 @@ const styles = StyleSheet.create({
   // Always white: it sits on the user's own colour, not on a themed surface.
   avatarLetter: { color: colors.textOnDark },
   identity: { flex: 1 },
+  // The scale tops out at semibold in this size; name the bold face rather
+  // than let a numeric weight be synthesised from the regular one.
+  name: { fontFamily: FONT_FAMILY.bold },
   rowLabel: { flex: 1 },
+  rowIcon: {
+    width: 29,
+    height: 29,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
