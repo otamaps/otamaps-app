@@ -214,7 +214,7 @@ export default function MeScreen() {
                 </View>
               </Row>
 
-              <Row onPress={copyFriendCode} chevron={false}>
+              <Row onPress={copyFriendCode}>
                 <AppText variant="rowTitle" style={styles.rowLabel}>
                   Ystäväkoodi
                 </AppText>
@@ -292,7 +292,7 @@ export default function MeScreen() {
             ) : null}
 
             <Surface>
-              <Row onPress={signOut} chevron={false}>
+              <Row onPress={signOut}>
                 <AppText variant="rowTitle" color="danger">
                   Kirjaudu ulos
                 </AppText>
