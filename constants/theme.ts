@@ -110,15 +110,18 @@ export const radii = {
  *
  * One value each rather than a light/dark pair: iOS holds these steady
  * across both schemes and puts a white glyph on them, so the tile stays
- * recognisable as the same thing in either. They are saturated for that
- * reason — the schedule's lunch chip is a pale `#FEF3C7` because text sits
- * on it, which a white glyph could not.
+ * recognisable as the same thing in either.
+ *
+ * These are the system's own values, which is what makes the pattern read:
+ * iOS picks them bright and fully saturated, not the muted end of a ramp.
+ * The schedule's lunch chip is a pale `#FEF3C7` for the opposite reason —
+ * dark text sits on it, where a tile carries a white glyph.
  */
 export const tint = {
-  /** Lunch, in the amber the schedule already marks lunch slots with. */
-  lunch: "#D97706",
-  /** Queue and canteen state. */
-  queue: "#0D9488",
+  /** Lunch. systemOrange, the warm end of the schedule's amber. */
+  lunch: "#FF9500",
+  /** Queue and canteen state. systemMint. */
+  queue: "#00C7BE",
 } as const;
 
 /**
