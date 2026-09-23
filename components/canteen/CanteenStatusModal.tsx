@@ -15,6 +15,7 @@ import {
   QUEUE_LEVEL_COLORS,
   QUEUE_LEVEL_LABELS,
   QueueLevel,
+  queueLevelFromValue,
   QueueStatus,
   recordCanteenQueueReport,
 } from "@/lib/queueService";
@@ -33,6 +34,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
   interpolate,
   interpolateColor,
   useAnimatedProps,
@@ -51,12 +53,14 @@ type Props = {
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-const DEFAULT_LEVEL: QueueLevel = 3;
+/** Queue length runs from 0 (no queue) to 1 (longest); this is the middle. */
+const DEFAULT_VALUE = 0.5;
 const LEVELS: QueueLevel[] = [1, 2, 3, 4, 5];
 
 // Floor plan, seen from above: the canteen door is at the right screen edge and
 // the queue runs out of it, around the corner and left past the stairs. How far
-// each level reaches along that corridor, as a share of its full length.
+// each named level reaches along that corridor, as a share of its full length;
+// values in between are interpolated.
 const QUEUE_REACH: Record<QueueLevel, number> = {
   1: 0,
   2: 0.32,
@@ -79,10 +83,16 @@ const ARROW_HALF_WIDTH = 13;
 // Blocks are drawn past the map edge so the corners that fall outside are not
 // rounded: only what stays on screen gets a radius.
 const EDGE_BLEED = 24;
-const COLOR_SHIFT_MS = 300;
+// How long the queue takes to settle on a new reading: when the sheet opens,
+// and when a refreshed status arrives while it is open.
+const SETTLE_TIMING = {
+  duration: 550,
+  easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+};
 
-// Worklet-friendly copies of the per-level scales.
-const LEVEL_STOPS = LEVELS as number[];
+// Worklet-friendly copies of the per-level scales, placed on the 0-1 value
+// axis: level 1 sits at 0, level 5 at 1.
+const LEVEL_STOPS = LEVELS.map((level) => (level - 1) / 4);
 const LEVEL_COLORS = LEVELS.map((level) => QUEUE_LEVEL_COLORS[level]);
 const LEVEL_REACH = LEVELS.map((level) => QUEUE_REACH[level]);
 
@@ -213,10 +223,44 @@ export default function CanteenStatusModal({
   const [menu, setMenu] = useState<CanteenDayMenu | null>(null);
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(false);
-  const [reportingLevel, setReportingLevel] = useState<QueueLevel | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<QueueLevel>(DEFAULT_LEVEL);
-  /** Whether the slider has been moved since the sheet opened. */
+  const [reportingValue, setReportingValue] = useState<number | null>(null);
+  /**
+   * Where the slider sits, 0-1. A ref rather than state: dragging fires many
+   * events a second, and re-rendering the whole sheet on each one is what makes
+   * the queue on the map stutter. React only hears about it when the nearest
+   * named level changes.
+   */
+  const selectedValue = useRef<number>(DEFAULT_VALUE);
+  const [selectedLevel, setSelectedLevel] = useState<QueueLevel>(
+    queueLevelFromValue(DEFAULT_VALUE),
+  );
+  /**
+   * The slider's controlled value, only set when a reading is loaded into it.
+   * Feeding every drag event back in as `value` would make the native thumb
+   * fight the finger.
+   */
+  const [sliderStart, setSliderStart] = useState<number>(DEFAULT_VALUE);
+  /**
+   * Remounts the slider each time the sheet opens. If the thumb was dragged and
+   * the sheet closed without a report, reopening onto the same reading leaves
+   * `value` unchanged, and the native thumb would stay where it was left.
+   */
+  const [sliderMount, setSliderMount] = useState(0);
+  // Drives the map and the level colours on the UI thread. It follows the
+  // finger exactly while dragging and eases whenever a new reading arrives, so
+  // the queue grows and shrinks instead of jumping.
+  const queueProgress = useSharedValue<number>(DEFAULT_VALUE);
+  /** Whether the slider has been moved since the sheet opened or last report. */
   const [adjusted, setAdjusted] = useState(false);
+  /**
+   * The value this device last reported, and for which slot. The status only
+   * says *that* the viewer reported, not what, so without this the slider would
+   * reopen on the community level instead of the user's own report.
+   */
+  const [ownReport, setOwnReport] = useState<{
+    slot: string | null;
+    value: number;
+  } | null>(null);
   const [mapWidth, setMapWidth] = useState(0);
 
   const snapPoints = useMemo(() => ["70%", "94%"], []);
@@ -239,13 +283,40 @@ export default function CanteenStatusModal({
     }
   }, [visible]);
 
+  /** Loads a reading into the slider and eases the map onto it. */
+  const settleOn = (value: number) => {
+    selectedValue.current = value;
+    setSelectedLevel(queueLevelFromValue(value));
+    setSliderStart(value);
+    queueProgress.value = withTiming(value, SETTLE_TIMING);
+  };
+
+  const ownValueThisSlot =
+    status?.current_user_reported &&
+    ownReport?.slot === status.current_slot_start
+      ? ownReport.value
+      : null;
+
   useEffect(() => {
     if (!visible) return;
-    setSelectedLevel(status?.status_level ?? DEFAULT_LEVEL);
+    settleOn(ownValueThisSlot ?? status?.status_value ?? DEFAULT_VALUE);
+    setSliderMount((mount) => mount + 1);
     setAdjusted(false);
-    // Only on open: a refreshed status must not move the slider under the user.
+    // Only on open; refreshes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // A refreshed status moves the queue too, but only while the slider still
+  // shows the community reading. Once the user has moved it, or it is showing
+  // their own report, it is theirs and must not move under them.
+  const statusValue = status?.status_value ?? null;
+  useEffect(() => {
+    if (!visible || adjusted || ownValueThisSlot != null) return;
+    if (statusValue == null) return;
+    if (Math.abs(statusValue - selectedValue.current) < 0.001) return;
+    settleOn(statusValue);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusValue]);
 
   useEffect(() => {
     if (!visible) return;
@@ -270,32 +341,43 @@ export default function CanteenStatusModal({
     };
   }, [visible]);
 
-  const submitLevel = async (level: QueueLevel) => {
-    if (reportingLevel || !status?.reporting_open) return;
-    setReportingLevel(level);
+  const submitValue = async (value: number) => {
+    if (reportingValue !== null || !status?.reporting_open) return;
+    setReportingValue(value);
     try {
-      await recordCanteenQueueReport(level, status);
+      await recordCanteenQueueReport(value, status);
+      setOwnReport({ slot: status.current_slot_start, value });
       await onReported();
+      // The slider now shows the report itself, so there is nothing to send
+      // until it moves again.
+      setAdjusted(false);
     } catch (error) {
       Alert.alert(
         "Raporttia ei voitu tallentaa",
         reportErrorText(error, status),
       );
     } finally {
-      setReportingLevel(null);
+      setReportingValue(null);
     }
   };
 
   const reportingOpen = !!status?.reporting_open;
+  /** The viewer already has a report in the slot that is open right now. */
+  const reportedThisSlot = reportingOpen && !!status?.current_user_reported;
+  /** The slider is sitting on the viewer's own report for this slot. */
+  const showsOwnReport =
+    reportedThisSlot && ownReport?.slot === status?.current_slot_start;
   /**
    * Whether the level on the map and in the row means anything. Until there is
    * a real reading — outside the reporting window, or inside it before anyone
-   * has reported — `selectedLevel` is only the slider's default, so drawing it
+   * has reported — `selectedValue` is only the slider's default, so drawing it
    * would invent a queue. It starts meaning something the moment the slider is
    * moved, because from then on it is the user's own report.
    */
   const showsLevel =
-    adjusted || (reportingOpen && status?.status_level != null);
+    adjusted ||
+    showsOwnReport ||
+    (reportingOpen && status?.status_value != null);
   const map = useMemo(
     () => (mapWidth > 0 ? buildMap(mapWidth) : null),
     [mapWidth],
@@ -303,31 +385,22 @@ export default function CanteenStatusModal({
   /** The corridor with nobody in it — and the arrow when there is no reading. */
   const emptyCorridor = isDark ? "#31343A" : "#EDEFF2";
 
-  // The queue is one solid color at a time; only the move between two levels is
-  // eased, so the color slides through the scale instead of snapping.
-  const levelProgress = useSharedValue<number>(DEFAULT_LEVEL);
-  useEffect(() => {
-    levelProgress.value = withTiming(selectedLevel, {
-      duration: COLOR_SHIFT_MS,
-    });
-  }, [levelProgress, selectedLevel]);
-
   const queueProps = useAnimatedProps(() => {
-    const reach = interpolate(levelProgress.value, LEVEL_STOPS, LEVEL_REACH);
+    const reach = interpolate(queueProgress.value, LEVEL_STOPS, LEVEL_REACH);
     return {
       d: map ? queuePath(map, map.cornerX * (1 - reach)) : "",
-      stroke: interpolateColor(levelProgress.value, LEVEL_STOPS, LEVEL_COLORS),
+      stroke: interpolateColor(queueProgress.value, LEVEL_STOPS, LEVEL_COLORS),
     };
   });
 
   // The head's shape is fixed; only its colour rides the level.
   const arrowHeadProps = useAnimatedProps(() => ({
-    fill: interpolateColor(levelProgress.value, LEVEL_STOPS, LEVEL_COLORS),
+    fill: interpolateColor(queueProgress.value, LEVEL_STOPS, LEVEL_COLORS),
   }));
 
   const levelColorStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
-      levelProgress.value,
+      queueProgress.value,
       LEVEL_STOPS,
       LEVEL_COLORS,
     ),
@@ -521,7 +594,7 @@ export default function CanteenStatusModal({
         </Text> */}
         {status?.reporting_open &&
         status.status_is_stale &&
-        status.status_level != null ? (
+        status.status_value != null ? (
           <View
             style={[
               styles.staleNote,
@@ -554,6 +627,7 @@ export default function CanteenStatusModal({
             style={[styles.sliderTrack, !reportingOpen && styles.disabled]}
           />
           <Slider
+            key={sliderMount}
             accessibilityLabel="Jonon pituus"
             accessibilityValue={{
               min: 1,
@@ -562,14 +636,18 @@ export default function CanteenStatusModal({
               text: QUEUE_LEVEL_LABELS[selectedLevel],
             }}
             inverted
-            disabled={!reportingOpen || reportingLevel !== null}
-            minimumValue={1}
-            maximumValue={5}
-            step={1}
-            value={selectedLevel}
+            disabled={!reportingOpen || reportingValue !== null}
+            minimumValue={0}
+            maximumValue={1}
+            step={0}
+            value={sliderStart}
             onValueChange={(value) => {
-              setAdjusted(true);
-              setSelectedLevel(Math.round(value) as QueueLevel);
+              // Follows the finger directly; easing here would trail behind it.
+              queueProgress.value = value;
+              selectedValue.current = value;
+              if (!adjusted) setAdjusted(true);
+              const level = queueLevelFromValue(value);
+              if (level !== selectedLevel) setSelectedLevel(level);
             }}
             minimumTrackTintColor="transparent"
             maximumTrackTintColor="transparent"
@@ -586,23 +664,45 @@ export default function CanteenStatusModal({
           </Text>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={!reportingOpen || reportingLevel !== null}
-          onPress={() => void submitLevel(selectedLevel)}
-          style={({ pressed }) => [
-            styles.submitButton,
-            (!reportingOpen || reportingLevel !== null) && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Animated.View style={[styles.submitFill, levelColorStyle]} />
-          {reportingLevel !== null ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitButtonText}>Lähetä raportti</Text>
-          )}
-        </Pressable>
+        {reportedThisSlot && !adjusted ? (
+          // Already counted: a button here would read as "you still need to do
+          // this". Moving the slider brings it back as an update.
+          <View style={[styles.reportedNote, { backgroundColor: card }]}>
+            <MaterialIcons
+              name="check-circle"
+              size={22}
+              color={QUEUE_LEVEL_COLORS[1]}
+            />
+            <View style={styles.contributionText}>
+              <Text style={[styles.reportedNoteTitle, { color: primaryText }]}>
+                Raporttisi on mukana tässä jaksossa
+              </Text>
+              <Text style={[styles.sectionCaption, { color: secondaryText }]}>
+                Siirrä liukusäädintä, jos jono muuttuu.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            disabled={!reportingOpen || reportingValue !== null}
+            onPress={() => void submitValue(selectedValue.current)}
+            style={({ pressed }) => [
+              styles.submitButton,
+              (!reportingOpen || reportingValue !== null) && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Animated.View style={[styles.submitFill, levelColorStyle]} />
+            {reportingValue !== null ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>
+                {reportedThisSlot ? "Päivitä raporttini" : "Lähetä raportti"}
+              </Text>
+            )}
+          </Pressable>
+        )}
 
         <View style={[styles.contributionCard, { backgroundColor: card }]}>
           <MaterialIcons name="volunteer-activism" size={24} color={accent} />
@@ -796,6 +896,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 18,
     overflow: "hidden",
+  },
+  reportedNote: {
+    minHeight: 48,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  reportedNoteTitle: {
+    fontFamily: "Figtree-Bold",
+    fontSize: 15,
   },
   submitFill: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
   submitButtonText: {

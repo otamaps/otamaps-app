@@ -9,6 +9,8 @@ const {
   formatReportingWindow,
   getCanteenReportingText,
   LEGACY_QUEUE_CONFIG,
+  queueLevelFromValue,
+  queueValueFromLevel,
 } = require("../.expo/queue-test-build/queueFormattingCore.js");
 
 const openWindow = {
@@ -128,4 +130,18 @@ test("coerces malformed configuration back to the pre-migration defaults", () =>
   assert.equal(asPositiveInt("20", 15), 20);
   assert.equal(asClock(undefined, "10:45:00"), "10:45:00");
   assert.equal(asClock("9:00:00", "10:45:00"), "9:00:00");
+});
+
+test("maps 0-1 queue values onto the five named levels and back", () => {
+  assert.equal(queueLevelFromValue(0), 1);
+  assert.equal(queueLevelFromValue(0.12), 1);
+  assert.equal(queueLevelFromValue(0.13), 2);
+  assert.equal(queueLevelFromValue(0.5), 3);
+  assert.equal(queueLevelFromValue(1), 5);
+  // Out-of-range input still lands on a real level.
+  assert.equal(queueLevelFromValue(-0.2), 1);
+  assert.equal(queueLevelFromValue(1.4), 5);
+  for (const level of [1, 2, 3, 4, 5]) {
+    assert.equal(queueLevelFromValue(queueValueFromLevel(level)), level);
+  }
 });

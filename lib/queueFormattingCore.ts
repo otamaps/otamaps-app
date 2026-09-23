@@ -16,6 +16,25 @@
 export const QUEUE_STATUS_SCHEMA_VERSION = 3;
 
 /**
+ * From this `schema_version` on (migration 20260923140000) queue length is a
+ * value from 0 (no queue) to 1 (longest): `get_queue_statuses()` returns
+ * `status_value` and `record_canteen_queue_value` accepts one. Older databases
+ * only speak the five whole levels.
+ */
+export const QUEUE_VALUE_SCHEMA_VERSION = 4;
+
+/** The nearest of the five named levels (1-5) for a 0-1 queue value. */
+export function queueLevelFromValue(value: number): 1 | 2 | 3 | 4 | 5 {
+  const clamped = Math.min(1, Math.max(0, value));
+  return (1 + Math.round(clamped * 4)) as 1 | 2 | 3 | 4 | 5;
+}
+
+/** A 1-5 level as a 0-1 queue value. */
+export function queueValueFromLevel(level: number): number {
+  return (level - 1) / 4;
+}
+
+/**
  * The values the database hard-coded before migration 20260817002500 moved
  * them into `public.queue_areas`. They are the fallback for a client that
  * reaches an older database: the feature keeps behaving exactly as it did,

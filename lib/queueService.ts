@@ -5,6 +5,8 @@ import {
   canteenFailureReason,
   LEGACY_QUEUE_CONFIG,
   QUEUE_STATUS_SCHEMA_VERSION,
+  QUEUE_VALUE_SCHEMA_VERSION,
+  queueValueFromLevel,
 } from "@/lib/queueFormattingCore";
 import { reportHandledMessage } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +16,7 @@ export {
   formatReportingWindow,
   getCanteenReportingText,
   QUEUE_STATUS_SCHEMA_VERSION,
+  queueLevelFromValue,
 } from "@/lib/queueFormattingCore";
 export type { CanteenReportFailure } from "@/lib/queueFormattingCore";
 
@@ -28,11 +31,15 @@ export type QueueStatus = {
   name: string;
   room_id: string;
   floor: number;
+  /** `status_value` rounded to the nearest named level. */
   status_level: QueueLevel | null;
+  /** Queue length from 0 (no queue) to 1 (longest). */
+  status_value: number | null;
   status_source: QueueStatusSource;
   status_observed_at: string | null;
   status_is_stale: boolean;
   activity_level: QueueLevel | null;
+  activity_value: number | null;
   reporting_open: boolean;
   report_count: number;
   contributor_count: number;
@@ -98,6 +105,13 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
   floor: Number(row.floor),
   status_level:
     row.status_level == null ? null : (Number(row.status_level) as QueueLevel),
+  // Databases before schema 4 only return the level; derive the value from it.
+  status_value:
+    row.status_value != null
+      ? Number(row.status_value)
+      : row.status_level == null
+        ? null
+        : queueValueFromLevel(Number(row.status_level)),
   status_source: String(row.status_source) as QueueStatusSource,
   status_observed_at:
     row.status_observed_at == null ? null : String(row.status_observed_at),
@@ -106,6 +120,12 @@ const normalizeStatus = (row: Record<string, unknown>): QueueStatus => ({
     row.activity_level == null
       ? null
       : (Number(row.activity_level) as QueueLevel),
+  activity_value:
+    row.activity_value != null
+      ? Number(row.activity_value)
+      : row.activity_level == null
+        ? null
+        : queueValueFromLevel(Number(row.activity_level)),
   reporting_open: Boolean(row.reporting_open),
   report_count: Number(row.report_count ?? 0),
   contributor_count: Number(row.contributor_count ?? 0),
@@ -246,22 +266,54 @@ export async function recordQueueObservation(
   if (error) throw error;
 }
 
+/**
+ * Records the caller's report for the current slot. `value` is the queue
+ * length from 0 (no queue) to 1 (longest).
+ */
 export async function recordCanteenQueueReport(
-  level: QueueLevel,
+  value: number,
   status?: QueueStatus | null
 ): Promise<void> {
-  // The two-argument overload only exists from migration 20260817002500 on.
-  // Older databases keep the single-argument signature, so only address an
-  // area explicitly once the status proves the new contract is deployed.
+  const exact = Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
+
+  // From schema 4 on the database takes the value as is.
+  if (status && status.schema_version >= QUEUE_VALUE_SCHEMA_VERSION) {
+    const { error } = await supabase.rpc("record_canteen_queue_value", {
+      input_value: exact,
+      area_slug: status.slug,
+    });
+    if (!error) return;
+    throw new CanteenReportError(
+      canteenFailureReason(error),
+      error.message || "Raportointi epäonnistui."
+    );
+  }
+
+  // Older databases only know 1-5. The two-argument overload only exists from
+  // migration 20260817002500 on, so only address an area explicitly once the
+  // status proves that contract is deployed.
   const canAddressArea =
     !!status && status.schema_version >= QUEUE_STATUS_SCHEMA_VERSION;
+  const level = 1 + exact * 4;
 
-  const { error } = await supabase.rpc(
-    "record_canteen_queue_report",
-    canAddressArea
-      ? { input_level: level, area_slug: status!.slug }
-      : { input_level: level }
-  );
+  const send = (inputLevel: number) =>
+    supabase.rpc(
+      "record_canteen_queue_report",
+      canAddressArea
+        ? { input_level: inputLevel, area_slug: status!.slug }
+        : { input_level: inputLevel }
+    );
+
+  // The one-argument signature is smallint forever, and the two-argument one
+  // only takes a fraction from migration 20260923120000 on. Until that is
+  // deployed a fraction fails to parse (22P02), so fall back to the nearest
+  // whole level rather than losing the report.
+  let { error } = canAddressArea
+    ? await send(Math.round(level * 100) / 100)
+    : await send(Math.round(level));
+  if (error?.code === "22P02" && !Number.isInteger(level)) {
+    ({ error } = await send(Math.round(level)));
+  }
   if (!error) return;
 
   throw new CanteenReportError(
