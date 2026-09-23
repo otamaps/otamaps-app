@@ -198,7 +198,7 @@ export default function MeScreen() {
                     { backgroundColor: profile?.color || DEFAULT_USER_COLOR },
                   ]}
                 >
-                  <AppText variant="title" style={styles.avatarLetter}>
+                  <AppText variant="heading3" style={styles.avatarLetter}>
                     {profile?.name?.charAt(0).toUpperCase() ?? "?"}
                   </AppText>
                 </View>
@@ -214,7 +214,7 @@ export default function MeScreen() {
                 </View>
               </Row>
 
-              <Row onPress={copyFriendCode}>
+              <Row onPress={copyFriendCode} chevron={false}>
                 <AppText variant="rowTitle" style={styles.rowLabel}>
                   Ystäväkoodi
                 </AppText>
@@ -299,7 +299,7 @@ export default function MeScreen() {
               </Surface>
             ) : null}
 
-            <Surface title="Vaara-alue" titleColor="danger">
+            <Surface>
               <Row onPress={signOut} chevron={false}>
                 <AppText variant="rowTitle" color="danger">
                   Kirjaudu ulos
@@ -316,8 +316,8 @@ export default function MeScreen() {
 const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingBottom: 32 },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
     borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",

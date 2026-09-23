@@ -2,7 +2,7 @@ import { radii } from "@/constants/theme";
 import { Children, Fragment, createContext, useContext, type ReactNode } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { AppText } from "./AppText";
-import { useTheme, type Palette } from "./theme";
+import { useTheme } from "./theme";
 
 /**
  * Whether a row is inside a `Surface`, which draws the separators between its
@@ -20,8 +20,6 @@ type Props = {
   children: ReactNode;
   /** A heading above the group, as iOS sets over each section of Settings. */
   title?: string;
-  /** The heading's colour. `danger` marks a group that undoes something. */
-  titleColor?: keyof Palette;
   style?: ViewStyle;
 };
 
@@ -35,14 +33,14 @@ type Props = {
  * row leaves behind, so `{isAdmin && <Row/>}` does not leave a separator
  * hanging over nothing.
  */
-export function Surface({ children, title, titleColor = "textMuted", style }: Props) {
+export function Surface({ children, title, style }: Props) {
   const theme = useTheme();
   const rows = Children.toArray(children);
 
   return (
     <View style={styles.group}>
       {title ? (
-        <AppText variant="micro" color={titleColor} style={styles.title}>
+        <AppText variant="micro" color="textMuted" style={styles.title}>
           {title.toLocaleUpperCase("fi-FI")}
         </AppText>
       ) : null}
