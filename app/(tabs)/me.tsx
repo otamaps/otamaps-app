@@ -2,9 +2,9 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import {
   AppText,
   Row,
+  Screen,
   StateView,
   Surface,
-  useNativeHeader,
   useTheme,
 } from "@/components/ui";
 import { DEFAULT_USER_COLOR, colors, radii } from "@/constants/theme";
@@ -15,7 +15,7 @@ import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
@@ -179,17 +179,13 @@ export default function MeScreen() {
       });
   };
 
-  const header = useNativeHeader({ title: "Minä", back: false });
-
-  // The scroll view is the screen's root and stays mounted through loading,
-  // so the large title has something to attach to from the first frame.
+  // No navigation bar: the tab bar already names this screen, and a large
+  // title would only say "Minä" a second time. `Screen` supplies the shell
+  // the bar would otherwise have provided — the safe-area inset and the page
+  // colour the groups sit on.
   return (
-    <>
-      <Stack.Screen options={header} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.content}
-      >
+    <Screen background="page">
+      <ScrollView contentContainerStyle={styles.content}>
         {isLoading ? (
           <StateView loading />
         ) : (
@@ -305,7 +301,7 @@ export default function MeScreen() {
           </>
         )}
       </ScrollView>
-    </>
+    </Screen>
   );
 }
 
