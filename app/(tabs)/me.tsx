@@ -7,9 +7,9 @@ import {
   Surface,
   useTheme,
 } from "@/components/ui";
+import { FABLAB_VISIBLE } from "@/constants/features";
 import { DEFAULT_USER_COLOR, colors, radii, tint } from "@/constants/theme";
 import { FONT_FAMILY } from "@/constants/typography";
-import { FABLAB_VISIBLE } from "@/constants/features";
 import { formatClassLabel } from "@/lib/classLabel";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
@@ -230,11 +230,20 @@ export default function MeScreen() {
                   </AppText>
                 </View>
                 <View style={styles.identity}>
-                  <AppText variant="title" style={styles.name} numberOfLines={1}>
+                  <AppText
+                    variant="title"
+                    style={styles.name}
+                    numberOfLines={1}
+                  >
                     {profile?.name || "Käyttäjä"}
                   </AppText>
                   {profile?.class ? (
-                    <AppText variant="meta" color="textMuted" numberOfLines={1}>
+                    <AppText
+                      variant="meta"
+                      color="textMuted"
+                      numberOfLines={1}
+                      style={{ fontSize: 14 }}
+                    >
                       {formatClassLabel(profile.class)}
                     </AppText>
                   ) : null}
@@ -299,18 +308,18 @@ export default function MeScreen() {
               ) : null}
               <Row onPress={() => router.push("/me/settings")}>
                 <AppText variant="body" style={styles.rowLabel}>
-                    Asetukset
-                  </AppText>
+                  Asetukset
+                </AppText>
               </Row>
               <Row onPress={() => router.push("/me/guide")}>
                 <AppText variant="body" style={styles.rowLabel}>
-                    Ohje
-                  </AppText>
+                  Ohje
+                </AppText>
               </Row>
               <Row onPress={() => router.push("/me/about")}>
                 <AppText variant="body" style={styles.rowLabel}>
-                    Tietoja
-                  </AppText>
+                  Tietoja
+                </AppText>
               </Row>
             </Surface>
 
@@ -352,8 +361,8 @@ const styles = StyleSheet.create({
   identity: { flex: 1 },
   // The scale tops out at semibold in this size; name the bold face rather
   // than let a numeric weight be synthesised from the regular one.
-  name: { fontFamily: FONT_FAMILY.bold },
-  rowLabel: { flex: 1 },
+  name: { fontFamily: FONT_FAMILY.bold, fontSize: 21 },
+  rowLabel: { flex: 1, fontSize: 15 },
   rowIcon: {
     width: 29,
     height: 29,
