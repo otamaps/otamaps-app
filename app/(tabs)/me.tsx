@@ -273,26 +273,34 @@ export default function MeScreen() {
                 </Row>
               ) : null}
               <Row onPress={() => router.push("/me/settings")}>
-                <AppText variant="rowTitle">Asetukset</AppText>
+                <AppText variant="rowTitle" style={styles.rowLabel}>
+                    Asetukset
+                  </AppText>
               </Row>
               <Row onPress={() => router.push("/me/guide")}>
-                <AppText variant="rowTitle">Ohje</AppText>
+                <AppText variant="rowTitle" style={styles.rowLabel}>
+                    Ohje
+                  </AppText>
               </Row>
               <Row onPress={() => router.push("/me/about")}>
-                <AppText variant="rowTitle">Tietoja</AppText>
+                <AppText variant="rowTitle" style={styles.rowLabel}>
+                    Tietoja
+                  </AppText>
               </Row>
             </Surface>
 
             {isDebugMode ? (
               <Surface>
                 <Row onPress={() => router.push("/(app)/debug2/ble")}>
-                  <AppText variant="rowTitle">Debug</AppText>
+                  <AppText variant="rowTitle" style={styles.rowLabel}>
+                    Debug
+                  </AppText>
                 </Row>
               </Surface>
             ) : null}
 
-            <Surface>
-              <Row onPress={signOut}>
+            <Surface title="Vaara-alue" titleColor="danger">
+              <Row onPress={signOut} chevron={false}>
                 <AppText variant="rowTitle" color="danger">
                   Kirjaudu ulos
                 </AppText>
