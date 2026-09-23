@@ -31,6 +31,16 @@ import {
  */
 const HINT_DISMISSED_KEY = "otamaps-teachers-swipe-hint-v1";
 
+/**
+ * A rightward threshold far enough away that the row never follows one.
+ * `activeOffsetX` is built as [-dragOffsetFromRightEdge, dragOffsetFromLeftEdge],
+ * so the second number is what a *rightward* drag must beat to start moving
+ * the row. At its default of 10 a row claimed the screen's edge-swipe back
+ * anywhere over the list, which is why going back only worked from the
+ * header.
+ */
+const NEVER_RIGHTWARD = 10_000;
+
 /** The action's resting width, before a drag stretches it further. */
 const ACTION_WIDTH = 84;
 
@@ -128,6 +138,10 @@ const TeacherRow = memo(function TeacherRow({
       // the threshold feel like a commit.
       friction={1.6}
       rightThreshold={ACTION_WIDTH * 0.6}
+      // Right actions only: the row is dragged leftward to reveal them and
+      // has no business following the opposite direction. An open row is
+      // closed by tapping it, which the swipeable already handles.
+      dragOffsetFromLeftEdge={NEVER_RIGHTWARD}
       onSwipeableWillOpen={() => {
         // One row open at a time, as in Mail: opening this closes whichever
         // was left open.
