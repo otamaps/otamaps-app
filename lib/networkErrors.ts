@@ -90,3 +90,19 @@ export function createFetchTimeoutError(
   error.code = "ETIMEDOUT";
   return error;
 }
+
+/**
+ * The message-facing counterpart to `isTransientNetworkError`: it reads a
+ * message already rendered for a person rather than the error behind it, and
+ * decides whether to offer "try again". Kept separate because the two take
+ * different things — unifying them means settling what a screen should do
+ * with a message whose error it no longer has.
+ */
+export function isNetworkError(msg: string) {
+  return (
+    msg.includes("aikakatkaistiin") ||
+    msg.includes("Network request failed") ||
+    msg.includes("fetch") ||
+    msg.includes("network")
+  );
+}
