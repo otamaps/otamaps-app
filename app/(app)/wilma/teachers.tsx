@@ -305,6 +305,15 @@ export default function TeachersScreen() {
         keyExtractor={(item) => `${item.id}:${item.schoolId}`}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
+        // Every mounted row carries a pan detector, a tap detector and the
+        // worklet behind the full swipe — gesture-handler builds the action
+        // eagerly for each row, not when one is swiped. At the default
+        // windowSize of 21 that is ten screens of them either side, and
+        // tearing the lot down is what froze the screen on the way back.
+        // Two screens either side is plenty to scroll against.
+        windowSize={5}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
