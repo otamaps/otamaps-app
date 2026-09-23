@@ -1,4 +1,5 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { AppText, StateView, useNativeHeader, useTheme } from "@/components/ui";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import {
   addMinutesClock,
@@ -35,10 +36,9 @@ import {
   isoWeekdayOf,
   weekdayLabel,
 } from "@/lib/wilma/scheduleDates";
-import { router, useFocusEffect } from "expo-router";
+import { Stack, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -46,7 +46,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -331,6 +330,7 @@ export default function Dashboard({
   isDark: boolean;
   onLogout: () => void;
 }) {
+  const theme = useTheme();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -564,105 +564,48 @@ export default function Dashboard({
     load(true);
   }, [load]);
 
-  // ── Loading state
-  if (loading) {
-    return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-        <View style={styles.centered}>
-          <ActivityIndicator
-            size="large"
-            color={isDark ? "#51a2ff" : "#3478F5"}
-          />
-          <Text style={[styles.loadingLabel, isDark && { color: "#888" }]}>
-            Ladataan tietoja...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const header = useNativeHeader({
+    title: `${timeOfDayGreeting()}, ${data?.profile.firstName || "opiskelija"}! 👋`,
+    back: false,
+    background: "page",
+  });
 
-  // ── Connection / load error
-  if (loadError) {
-    const isNet = isNetworkError(loadError);
-    return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-        <View style={styles.centered}>
-          <PlatformSymbol
-            ios={isNet ? "wifi.slash" : "exclamationmark.circle"}
-            android={isNet ? "wifi_off" : "error"}
-            size={52}
-            tintColor={isDark ? "#555" : "#ccc"}
-          />
-          <Text style={[styles.errorHeading, isDark && { color: "#d4d4d4" }]}>
-            {isNet ? "Ei yhteyttä palvelimeen" : "Lataus epäonnistui"}
-          </Text>
-          <Text style={[styles.errorBody, isDark && { color: "#888" }]}>
-            {isNet
-              ? "Tarkista, että GraphQL-palvelin on käynnissä ja olet samassa verkossa."
-              : loadError}
-          </Text>
-          <Pressable
-            style={[styles.retryBtn, isDark && { backgroundColor: "#232427" }]}
-            onPress={() => load()}
-          >
-            <PlatformSymbol
-              ios="arrow.clockwise"
-              android="refresh"
-              size={18}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <Text style={[styles.retryBtnText, isDark && { color: "#51a2ff" }]}>
-              Yritä uudelleen
-            </Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Dashboard
+  // One scroll view, mounted through every state: UIKit attaches the large
+  // title to the first scroll view under the screen and does not look again,
+  // so returning a plain View while loading would leave the greeting with
+  // nothing to collapse against.
   return (
-    <SafeAreaView
-      edges={["top", "left", "right"]}
-      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-    >
+    <>
+      <Stack.Screen options={header} />
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.dashContent,
-          isDark && { backgroundColor: "#18191B" },
-        ]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.dashContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={isDark ? "#51a2ff" : "#3478F5"}
+            tintColor={theme.accent}
           />
         }
       >
-        {/* Header */}
-        <View style={styles.dashHeader}>
-          <View>
-            <Text style={[styles.dashGreeting, isDark && { color: "#fff" }]}>
-              {timeOfDayGreeting()}, {data?.profile.firstName || "opiskelija"}!
-              👋
-            </Text>
-            <Text style={[styles.dashDate, isDark && { color: "#aaa" }]}>
-              {todayFinnish()}
-            </Text>
-            {/* {!!data?.profile.studentClass && (
-              <Text style={[styles.dashClass, isDark && { color: "#888" }]}>
-                Ryhmä {data.profile.studentClass}
-              </Text>
-            )} */}
-          </View>
-        </View>
+        {loading ? (
+          <StateView loading />
+        ) : loadError ? (
+          <StateView
+            icon={isNetworkError(loadError) ? "wifi-off" : "error-outline"}
+            message={
+              isNetworkError(loadError)
+                ? "Ei yhteyttä palvelimeen. Tarkista, että olet verkossa."
+                : loadError
+            }
+            actionLabel="Yritä uudelleen"
+            onAction={() => load()}
+          />
+        ) : (
+          <>
+        <AppText variant="body" color="textMuted" style={styles.dashDate}>
+          {todayFinnish()}
+        </AppText>
 
         {/* Today's lessons (or, once the day is done, the next school day's) */}
         <SectionCard
@@ -1369,8 +1312,10 @@ export default function Dashboard({
             />
           </Pressable>
         </SectionCard>
+          </>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -1379,49 +1324,6 @@ export default function Dashboard({
 
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-    gap: 12,
-  },
-  loadingLabel: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 14,
-    color: "#aaa",
-    marginTop: 4,
-  },
-  errorHeading: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 18,
-    color: "#333",
-    textAlign: "center",
-    marginTop: 4,
-  },
-  errorBody: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 14,
-    color: "#888",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  retryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#f0f4ff",
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  retryBtnText: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#3478F5",
-  },
   moreWilmaRow: {
     minHeight: 58,
     flexDirection: "row",
@@ -1441,31 +1343,14 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 2,
   },
-  dashContent: { padding: 16, paddingBottom: 100 },
-  dashHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
-  },
-  dashGreeting: {
-    fontFamily: "Figtree-Bold",
-    fontSize: 28,
-    color: "#222",
-    letterSpacing: -0.4,
-  },
+  dashContent: {
+    flexGrow: 1, padding: 16, paddingBottom: 100 },
   dashDate: {
     fontFamily: "Figtree-Regular",
     fontSize: 15,
     color: "#888",
     marginTop: 2,
     textTransform: "capitalize",
-  },
-  dashClass: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 13,
-    color: "#777",
-    marginTop: 4,
   },
   card: {
     backgroundColor: "#fff",
