@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
+import { useInSurface } from "./Surface";
 import { useTheme } from "./theme";
 
 type Props = {
@@ -23,6 +24,9 @@ type Props = {
  */
 export function Row({ children, onPress, chevron, accessibilityLabel, style }: Props) {
   const theme = useTheme();
+  // Inside a Surface the group draws the separators, so the row must not add
+  // its own on top of them.
+  const inSurface = useInSurface();
   const showChevron = chevron ?? Boolean(onPress);
 
   const content = (
@@ -37,6 +41,7 @@ export function Row({ children, onPress, chevron, accessibilityLabel, style }: P
   const base: ViewStyle = {
     backgroundColor: theme.card,
     borderBottomColor: theme.border,
+    borderBottomWidth: inSurface ? 0 : StyleSheet.hairlineWidth,
   };
 
   if (!onPress) {
@@ -62,7 +67,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   pressed: { opacity: 0.6 },
 });
