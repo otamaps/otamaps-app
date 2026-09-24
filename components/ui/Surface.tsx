@@ -1,6 +1,6 @@
-import { colors, radii } from "@/constants/theme";
+import { radii } from "@/constants/theme";
 import { Children, Fragment, createContext, useContext, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
+import { StyleSheet, View, type ViewStyle } from "react-native";
 import { AppText } from "./AppText";
 import { useTheme } from "./theme";
 
@@ -20,10 +20,6 @@ type Props = {
   children: ReactNode;
   /** A heading above the group, as iOS sets over each section of Settings. */
   title?: string;
-  /** A count beside the heading — unread messages, say. */
-  badge?: number;
-  /** A link at the end of the heading row: "Kaikki". */
-  action?: { label: string; onPress: () => void };
   style?: ViewStyle;
 };
 
@@ -37,40 +33,16 @@ type Props = {
  * row leaves behind, so `{isAdmin && <Row/>}` does not leave a separator
  * hanging over nothing.
  */
-export function Surface({ children, title, badge, action, style }: Props) {
+export function Surface({ children, title, style }: Props) {
   const theme = useTheme();
   const rows = Children.toArray(children);
 
   return (
     <View style={styles.group}>
-      {title || action ? (
-        <View style={styles.heading}>
-          {title ? (
-            <AppText variant="micro" color="textMuted">
-              {title.toLocaleUpperCase("fi-FI")}
-            </AppText>
-          ) : null}
-          {badge ? (
-            <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-              <AppText variant="micro" style={styles.badgeText}>
-                {badge}
-              </AppText>
-            </View>
-          ) : null}
-          <View style={styles.spacer} />
-          {action ? (
-            <Pressable
-              onPress={action.onPress}
-              hitSlop={8}
-              accessibilityRole="button"
-              style={({ pressed }) => (pressed ? styles.pressed : null)}
-            >
-              <AppText variant="caption" color="accent">
-                {action.label}
-              </AppText>
-            </Pressable>
-          ) : null}
-        </View>
+      {title ? (
+        <AppText variant="micro" color="textMuted" style={styles.title}>
+          {title.toLocaleUpperCase("fi-FI")}
+        </AppText>
       ) : null}
       <InSurface.Provider value>
         <View style={[styles.card, { backgroundColor: theme.card }, style]}>
@@ -92,25 +64,7 @@ export function Surface({ children, title, badge, action, style }: Props) {
 
 const styles = StyleSheet.create({
   group: { marginHorizontal: 16, marginTop: 24 },
-  heading: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginLeft: 4,
-    marginRight: 4,
-    marginBottom: 6,
-  },
-  spacer: { flex: 1 },
-  badge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: radii.pill,
-    paddingHorizontal: 5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: { color: colors.textOnDark },
-  pressed: { opacity: 0.5 },
+  title: { marginLeft: 4, marginBottom: 6 },
   // `hidden` so the rows' own press highlight cannot square off the corners.
   card: { borderRadius: radii.lg, overflow: "hidden" },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },
