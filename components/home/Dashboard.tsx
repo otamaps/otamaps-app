@@ -1,6 +1,9 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
-import { AppText, Screen, StateView, useTheme } from "@/components/ui";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { AppText, Screen, StateView, useTheme } from "@/components/ui";
+import { colors } from "@/constants/theme";
+import { FONT_FAMILY } from "@/constants/typography";
+import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
 import {
   addMinutesClock,
   clockMinutes,
@@ -12,7 +15,6 @@ import {
   matchLunchShift,
   splitLessonGap,
 } from "@/lib/lunchShiftCore";
-import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
 import { getLunchShiftsForWeekday } from "@/lib/lunchShiftService";
 import { isNetworkError, isTransientNetworkError } from "@/lib/networkErrors";
 import { reportHandledError } from "@/lib/sentry";
@@ -46,7 +48,6 @@ import {
   Text,
   View,
 } from "react-native";
-
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -239,7 +240,6 @@ const ATTENDANCE_COLORS: Record<number, { bg: string; label: string }> = {
   32: { bg: "#ff9800", label: "Muu lupa" },
 };
 
-
 // ── Shared sub-components ──────────────────────────────────────────────────────
 
 function SectionCard({
@@ -247,16 +247,15 @@ function SectionCard({
   badge,
   onMore,
   children,
-  isDark,
 }: {
   title: string;
   badge?: number;
   onMore?: () => void;
   children: React.ReactNode;
-  isDark: boolean;
 }) {
+  const theme = useTheme();
   return (
-    <View style={[styles.card, isDark && { backgroundColor: "#232427" }]}>
+    <View style={[styles.card, { backgroundColor: theme.card }]}>
       <View style={styles.cardHeader}>
         {/* The title opens the same screen as "Kaikki →" — a heading is a much
             bigger target than the link, and people reach for it first. */}
@@ -271,39 +270,40 @@ function SectionCard({
             pressed && onMore ? styles.cardTitlePressed : null,
           ]}
         >
-          <Text style={[styles.cardTitle, isDark && { color: "#fff" }]}>
-            {title}
-          </Text>
-          {badge !== undefined && badge > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
+          <AppText variant="navTitle">{title}</AppText>
+          {badge !== undefined && badge > 0 ? (
+            <View style={[styles.badge, { backgroundColor: theme.accent }]}>
+              <AppText variant="micro" style={styles.badgeText}>
+                {badge}
+              </AppText>
             </View>
-          )}
+          ) : null}
         </Pressable>
-        <View style={{ flex: 1 }} />
-        {onMore && (
+        <View style={styles.spacer} />
+        {onMore ? (
           <Pressable onPress={onMore} hitSlop={8}>
-            <Text style={[styles.moreLink, isDark && { color: "#51a2ff" }]}>
+            <AppText variant="meta" color="accent" style={styles.moreLink}>
               Kaikki →
-            </Text>
+            </AppText>
           </Pressable>
-        )}
+        ) : null}
       </View>
       {children}
     </View>
   );
 }
 
-function EmptyRow({ label, isDark }: { label: string; isDark: boolean }) {
+function EmptyRow({ label }: { label: string }) {
   return (
-    <Text style={[styles.emptyText, isDark && { color: "#666" }]}>{label}</Text>
+    <AppText variant="bodySmall" color="textMuted" style={styles.emptyText}>
+      {label}
+    </AppText>
   );
 }
 
-function Divider({ isDark }: { isDark: boolean }) {
-  return (
-    <View style={[styles.divider, isDark && { backgroundColor: "#454545" }]} />
-  );
+function Divider() {
+  const theme = useTheme();
+  return <View style={[styles.divider, { backgroundColor: theme.border }]} />;
 }
 
 // ── Login screen ───────────────────────────────────────────────────────────────
@@ -581,11 +581,11 @@ export default function Dashboard({
       >
         <View style={styles.dashHeader}>
           <AppText variant="heading2" style={styles.dashGreeting}>
-            {timeOfDayGreeting()}, {data?.profile.firstName || "opiskelija"}! 👋
+            {timeOfDayGreeting()}, {data?.profile.firstName || "opiskelija"}!
           </AppText>
-          <AppText variant="body" color="textMuted" style={styles.dashDate}>
+          {/* <AppText variant="body" color="textMuted" style={styles.dashDate}>
             {todayFinnish()}
-          </AppText>
+          </AppText> */}
         </View>
 
         {loading ? (
@@ -603,711 +603,717 @@ export default function Dashboard({
           />
         ) : (
           <>
-        {/* Today's lessons (or, once the day is done, the next school day's) */}
-        <SectionCard
-          title={data?.scheduleDayLabel ?? "Tänään"}
-          onMore={() =>
-            router.push({
-              pathname: "/wilma/schedule",
-              params: data?.scheduleDayISO ? { day: data.scheduleDayISO } : {},
-            })
-          }
-          isDark={isDark}
-        >
-          {!data?.lessons.length && !data?.lunch ? (
-            <EmptyRow
-              label={
-                data?.scheduleDayLabel ? "Ei tunteja" : "Ei tunteja tänään"
+            {/* Today's lessons (or, once the day is done, the next school day's) */}
+            <SectionCard
+              title={data?.scheduleDayLabel ?? "Tänään"}
+              onMore={() =>
+                router.push({
+                  pathname: "/wilma/schedule",
+                  params: data?.scheduleDayISO
+                    ? { day: data.scheduleDayISO }
+                    : {},
+                })
               }
-              isDark={isDark}
-            />
-          ) : (
-            (() => {
-              const rows = todayRows(data?.lessons ?? [], data?.lunch ?? null);
-              return rows.map((row, i) => {
-                // A free slot already reads as a break in the list via its
-                // dashed border, so a divider directly touching it just
-                // doubles up on that same visual cue.
-                const showDivider =
-                  i > 0 &&
-                  row.kind !== "freeslot" &&
-                  rows[i - 1].kind !== "freeslot";
-                // Without that divider, a free slot needs a little breathing
-                // room from the lesson that just ended above it.
-                const spaceAboveFreeSlot =
-                  row.kind === "freeslot" &&
-                  i > 0 &&
-                  rows[i - 1].kind === "lesson";
-
-                // Past/current highlighting only makes sense against today's
-                // clock — once the card is showing the next school day, none
-                // of its rows are "past" or "current" yet.
-                const isShowingToday = !data?.scheduleDayLabel;
-                const isPast = isShowingToday && row.end <= nowClock;
-                const isCurrent =
-                  isShowingToday && row.start <= nowClock && nowClock < row.end;
-                // A lesson that is over drops its blue accent for a neutral
-                // gray, so the colored badges left on the card are only the
-                // ones still ahead.
-                const timeColor = isCurrent
-                  ? isDark
-                    ? "#4ADE80"
-                    : "#16A34A"
-                  : isPast
-                    ? isDark
-                      ? "#9CA3AF"
-                      : "#8A929D"
-                    : isDark
-                      ? "#51a2ff"
-                      : "#3478F5";
-                const timeSubColor = isCurrent
-                  ? isDark
-                    ? "#4ADE8080"
-                    : "#16A34A80"
-                  : isPast
-                    ? isDark
-                      ? "#9CA3AF80"
-                      : "#8A929D80"
-                    : isDark
-                      ? "#51a2ff70"
-                      : "#3478F580";
-
-                if (row.kind === "lunch") {
-                  const lunchOnlyTimeColor = isCurrent
-                    ? timeColor
-                    : isDark
-                      ? "#FBBF24"
-                      : "#B45309";
-                  const lunchOnlyTimeSubColor = isCurrent
-                    ? timeSubColor
-                    : isDark
-                      ? "#FBBF2480"
-                      : "#B4530980";
-                  return (
-                    <React.Fragment key={row.key}>
-                      {showDivider && <Divider isDark={isDark} />}
-                      <View
-                        style={[
-                          styles.lessonRow,
-                          isCurrent && styles.rowCurrent,
-                          isCurrent && isDark && styles.rowCurrentDark,
-                          isPast && styles.rowPast,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.timeTag,
-                            {
-                              backgroundColor: isDark ? "#78350F55" : "#FEF3C7",
-                            },
-                            isCurrent && styles.timeTagCurrent,
-                            isCurrent && isDark && styles.timeTagCurrentDark,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.timeTagText,
-                              { color: lunchOnlyTimeColor },
-                            ]}
-                          >
-                            {row.start}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.timeTagSub,
-                              { color: lunchOnlyTimeSubColor },
-                            ]}
-                          >
-                            {row.end}
-                          </Text>
-                        </View>
-                        <View style={styles.lessonInfo}>
-                          <LessonTitleRow
-                            title="Lounas"
-                            isDark={isDark}
-                            numberOfLines={1}
-                            titleStyle={[
-                              styles.lessonSubject,
-                              isDark && { color: "#fff" },
-                            ]}
-                          />
-                        </View>
-                      </View>
-                    </React.Fragment>
+            >
+              {!data?.lessons.length && !data?.lunch ? (
+                <EmptyRow
+                  label={
+                    data?.scheduleDayLabel ? "Ei tunteja" : "Ei tunteja tänään"
+                  }
+                />
+              ) : (
+                (() => {
+                  const rows = todayRows(
+                    data?.lessons ?? [],
+                    data?.lunch ?? null,
                   );
-                }
+                  return rows.map((row, i) => {
+                    // A free slot already reads as a break in the list via its
+                    // dashed border, so a divider directly touching it just
+                    // doubles up on that same visual cue.
+                    const showDivider =
+                      i > 0 &&
+                      row.kind !== "freeslot" &&
+                      rows[i - 1].kind !== "freeslot";
+                    // Without that divider, a free slot needs a little breathing
+                    // room from the lesson that just ended above it.
+                    const spaceAboveFreeSlot =
+                      row.kind === "freeslot" &&
+                      i > 0 &&
+                      rows[i - 1].kind === "lesson";
 
-                if (row.kind === "freeslot") {
-                  const freeSlotTimeColor = isCurrent
-                    ? timeColor
-                    : isDark
-                      ? "#9CA3AF"
-                      : "#8A929D";
-                  const freeSlotTimeSubColor = isCurrent
-                    ? timeSubColor
-                    : isDark
-                      ? "#9CA3AF80"
-                      : "#8A929D80";
-                  // The gap's real end always lands exactly on the next
-                  // lesson's start, so the two rows would show the same time
-                  // back to back — trim the label a few minutes early so it
-                  // doesn't read as a duplicate.
-                  const freeSlotDisplayEnd = addMinutesClock(row.end, -5);
-                  const tallHeight = freeSlotHeight(
-                    clockMinutes(row.end) - clockMinutes(row.start),
-                  );
-                  return (
-                    <React.Fragment key={row.key}>
-                      {showDivider && <Divider isDark={isDark} />}
-                      <View
-                        style={[
-                          styles.lessonRow,
-                          styles.freeSlotRow,
-                          isDark && styles.freeSlotRowDark,
-                          !!row.lunch && styles.lessonRowWithLunch,
-                          isPast && styles.rowPast,
-                          spaceAboveFreeSlot && styles.freeSlotSpaceAbove,
-                          !!tallHeight && {
-                            minHeight: tallHeight,
-                            alignItems: "center",
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.timeTag,
-                            styles.freeSlotTimeTag,
-                            isDark && styles.freeSlotTimeTagDark,
-                            isCurrent && styles.timeTagCurrent,
-                            isCurrent && isDark && styles.timeTagCurrentDark,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.timeTagText,
-                              { color: freeSlotTimeColor },
-                            ]}
-                          >
-                            {row.start}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.timeTagSub,
-                              { color: freeSlotTimeSubColor },
-                            ]}
-                          >
-                            {freeSlotDisplayEnd}
-                          </Text>
-                        </View>
-                        <View style={styles.lessonInfo}>
-                          <LessonTitleRow
-                            title="Hyppytunti"
-                            isDark={isDark}
-                            numberOfLines={1}
-                            titleStyle={
-                              isCurrent
-                                ? [
-                                    styles.lessonSubject,
-                                    isDark && { color: "#fff" },
-                                  ]
-                                : [
-                                    styles.freeSlotTitle,
-                                    isDark && styles.freeSlotTitleDark,
-                                  ]
-                            }
-                          />
-                          {!!row.lunch && (
-                            <View
-                              style={[
-                                styles.lunchChip,
-                                isDark && styles.lunchChipDark,
-                              ]}
-                            >
-                              <PlatformSymbol
-                                ios="fork.knife"
-                                android="restaurant"
-                                size={11}
-                                tintColor={isDark ? "#FBBF24" : "#B45309"}
-                              />
-                              <Text
-                                style={[
-                                  styles.lunchChipText,
-                                  isDark && styles.lunchChipTextDark,
-                                ]}
-                              >
-                                Lounas {row.lunch.start}–{row.lunch.end}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    </React.Fragment>
-                  );
-                }
+                    // Past/current highlighting only makes sense against today's
+                    // clock — once the card is showing the next school day, none
+                    // of its rows are "past" or "current" yet.
+                    const isShowingToday = !data?.scheduleDayLabel;
+                    const isPast = isShowingToday && row.end <= nowClock;
+                    const isCurrent =
+                      isShowingToday &&
+                      row.start <= nowClock &&
+                      nowClock < row.end;
+                    // A lesson that is over drops its blue accent for a neutral
+                    // gray, so the colored badges left on the card are only the
+                    // ones still ahead.
+                    const timeColor = isCurrent
+                      ? isDark
+                        ? "#4ADE80"
+                        : "#16A34A"
+                      : isPast
+                        ? isDark
+                          ? "#9CA3AF"
+                          : "#8A929D"
+                        : isDark
+                          ? "#51a2ff"
+                          : "#3478F5";
+                    const timeSubColor = isCurrent
+                      ? isDark
+                        ? "#4ADE8080"
+                        : "#16A34A80"
+                      : isPast
+                        ? isDark
+                          ? "#9CA3AF80"
+                          : "#8A929D80"
+                        : isDark
+                          ? "#51a2ff70"
+                          : "#3478F580";
 
-                const lesson = row.lesson;
-                const group = lesson.groups[0];
-                const room = group?.rooms[0]?.longCaption ?? "";
-                const teacher = group?.teachers[0]?.longCaption ?? "";
-                const { code, title } = lessonLabel(
-                  group?.shortCaption,
-                  group?.fullCaption,
-                  lesson.class,
-                );
-                const lessonTallHeight = lessonHeight(
-                  clockMinutes(row.end) - clockMinutes(row.start),
-                );
-                return (
-                  <React.Fragment key={row.key}>
-                    {showDivider && <Divider isDark={isDark} />}
-                    <Pressable
-                      disabled={!room}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/map",
-                          params: { roomQuery: room },
-                        })
-                      }
-                      style={({ pressed }) => [
-                        styles.lessonRow,
-                        !!row.lunch && styles.lessonRowWithLunch,
-                        // isCurrent && styles.rowCurrent,
-                        // isCurrent && isDark && styles.rowCurrentDark,
-                        isPast && styles.rowPast,
-                        pressed && !!room && styles.rowPressed,
-                        !!lessonTallHeight && {
-                          minHeight: lessonTallHeight,
-                          alignItems: "center",
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.timeTag,
-                          isDark && { backgroundColor: "#51A2FF1F" },
-                          isPast && styles.timeTagPast,
-                          isPast && isDark && styles.timeTagPastDark,
-                          isCurrent && styles.timeTagCurrent,
-                          isCurrent && isDark && styles.timeTagCurrentDark,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.timeTagText,
-                            { color: timeColor },
-                          ]}
-                        >
-                          {row.start}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.timeTagSub,
-                            { color: timeSubColor },
-                          ]}
-                        >
-                          {row.end}
-                        </Text>
-                      </View>
-                      <View style={styles.lessonInfo}>
-                        <LessonTitleRow
-                          title={title}
-                          code={code}
-                          isDark={isDark}
-                          numberOfLines={1}
-                          titleStyle={[
-                            styles.lessonSubject,
-                            isDark && { color: "#fff" },
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.lessonMeta,
-                            isDark && { color: "#aaa" },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {[room, teacher].filter(Boolean).join(" · ")}
-                        </Text>
-                        {!!row.lunch && (
+                    if (row.kind === "lunch") {
+                      const lunchOnlyTimeColor = isCurrent
+                        ? timeColor
+                        : isDark
+                          ? "#FBBF24"
+                          : "#B45309";
+                      const lunchOnlyTimeSubColor = isCurrent
+                        ? timeSubColor
+                        : isDark
+                          ? "#FBBF2480"
+                          : "#B4530980";
+                      return (
+                        <React.Fragment key={row.key}>
+                          {showDivider && <Divider />}
                           <View
                             style={[
-                              styles.lunchChip,
-                              isDark && styles.lunchChipDark,
+                              styles.lessonRow,
+                              isCurrent && styles.rowCurrent,
+                              isCurrent && isDark && styles.rowCurrentDark,
+                              isPast && styles.rowPast,
                             ]}
                           >
-                            <PlatformSymbol
-                              ios="fork.knife"
-                              android="restaurant"
-                              size={11}
-                              tintColor={isDark ? "#FBBF24" : "#B45309"}
+                            <View
+                              style={[
+                                styles.timeTag,
+                                {
+                                  backgroundColor: isDark
+                                    ? "#78350F55"
+                                    : "#FEF3C7",
+                                },
+                                isCurrent && styles.timeTagCurrent,
+                                isCurrent &&
+                                  isDark &&
+                                  styles.timeTagCurrentDark,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.timeTagText,
+                                  { color: lunchOnlyTimeColor },
+                                ]}
+                              >
+                                {row.start}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.timeTagSub,
+                                  { color: lunchOnlyTimeSubColor },
+                                ]}
+                              >
+                                {row.end}
+                              </Text>
+                            </View>
+                            <View style={styles.lessonInfo}>
+                              <LessonTitleRow
+                                title="Lounas"
+                                isDark={isDark}
+                                numberOfLines={1}
+                                titleStyle={[
+                                  styles.lessonSubject,
+                                  isDark && { color: "#fff" },
+                                ]}
+                              />
+                            </View>
+                          </View>
+                        </React.Fragment>
+                      );
+                    }
+
+                    if (row.kind === "freeslot") {
+                      const freeSlotTimeColor = isCurrent
+                        ? timeColor
+                        : isDark
+                          ? "#9CA3AF"
+                          : "#8A929D";
+                      const freeSlotTimeSubColor = isCurrent
+                        ? timeSubColor
+                        : isDark
+                          ? "#9CA3AF80"
+                          : "#8A929D80";
+                      // The gap's real end always lands exactly on the next
+                      // lesson's start, so the two rows would show the same time
+                      // back to back — trim the label a few minutes early so it
+                      // doesn't read as a duplicate.
+                      const freeSlotDisplayEnd = addMinutesClock(row.end, -5);
+                      const tallHeight = freeSlotHeight(
+                        clockMinutes(row.end) - clockMinutes(row.start),
+                      );
+                      return (
+                        <React.Fragment key={row.key}>
+                          {showDivider && <Divider />}
+                          <View
+                            style={[
+                              styles.lessonRow,
+                              styles.freeSlotRow,
+                              isDark && styles.freeSlotRowDark,
+                              !!row.lunch && styles.lessonRowWithLunch,
+                              isPast && styles.rowPast,
+                              spaceAboveFreeSlot && styles.freeSlotSpaceAbove,
+                              !!tallHeight && {
+                                minHeight: tallHeight,
+                                alignItems: "center",
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.timeTag,
+                                styles.freeSlotTimeTag,
+                                isDark && styles.freeSlotTimeTagDark,
+                                isCurrent && styles.timeTagCurrent,
+                                isCurrent &&
+                                  isDark &&
+                                  styles.timeTagCurrentDark,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.timeTagText,
+                                  { color: freeSlotTimeColor },
+                                ]}
+                              >
+                                {row.start}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.timeTagSub,
+                                  { color: freeSlotTimeSubColor },
+                                ]}
+                              >
+                                {freeSlotDisplayEnd}
+                              </Text>
+                            </View>
+                            <View style={styles.lessonInfo}>
+                              <LessonTitleRow
+                                title="Hyppytunti"
+                                isDark={isDark}
+                                numberOfLines={1}
+                                titleStyle={
+                                  isCurrent
+                                    ? [
+                                        styles.lessonSubject,
+                                        isDark && { color: "#fff" },
+                                      ]
+                                    : [
+                                        styles.freeSlotTitle,
+                                        isDark && styles.freeSlotTitleDark,
+                                      ]
+                                }
+                              />
+                              {!!row.lunch && (
+                                <View
+                                  style={[
+                                    styles.lunchChip,
+                                    isDark && styles.lunchChipDark,
+                                  ]}
+                                >
+                                  <PlatformSymbol
+                                    ios="fork.knife"
+                                    android="restaurant"
+                                    size={11}
+                                    tintColor={isDark ? "#FBBF24" : "#B45309"}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.lunchChipText,
+                                      isDark && styles.lunchChipTextDark,
+                                    ]}
+                                  >
+                                    Lounas {row.lunch.start}–{row.lunch.end}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </React.Fragment>
+                      );
+                    }
+
+                    const lesson = row.lesson;
+                    const group = lesson.groups[0];
+                    const room = group?.rooms[0]?.longCaption ?? "";
+                    const teacher = group?.teachers[0]?.longCaption ?? "";
+                    const { code, title } = lessonLabel(
+                      group?.shortCaption,
+                      group?.fullCaption,
+                      lesson.class,
+                    );
+                    const lessonTallHeight = lessonHeight(
+                      clockMinutes(row.end) - clockMinutes(row.start),
+                    );
+                    return (
+                      <React.Fragment key={row.key}>
+                        {showDivider && <Divider />}
+                        <Pressable
+                          disabled={!room}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/map",
+                              params: { roomQuery: room },
+                            })
+                          }
+                          style={({ pressed }) => [
+                            styles.lessonRow,
+                            !!row.lunch && styles.lessonRowWithLunch,
+                            // isCurrent && styles.rowCurrent,
+                            // isCurrent && isDark && styles.rowCurrentDark,
+                            isPast && styles.rowPast,
+                            pressed && !!room && styles.rowPressed,
+                            !!lessonTallHeight && {
+                              minHeight: lessonTallHeight,
+                              alignItems: "center",
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.timeTag,
+                              isDark && { backgroundColor: "#51A2FF1F" },
+                              isPast && styles.timeTagPast,
+                              isPast && isDark && styles.timeTagPastDark,
+                              isCurrent && styles.timeTagCurrent,
+                              isCurrent && isDark && styles.timeTagCurrentDark,
+                            ]}
+                          >
+                            <Text
+                              style={[styles.timeTagText, { color: timeColor }]}
+                            >
+                              {row.start}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.timeTagSub,
+                                { color: timeSubColor },
+                              ]}
+                            >
+                              {row.end}
+                            </Text>
+                          </View>
+                          <View style={styles.lessonInfo}>
+                            <LessonTitleRow
+                              title={title}
+                              code={code}
+                              isDark={isDark}
+                              numberOfLines={1}
+                              titleStyle={[
+                                styles.lessonSubject,
+                                isDark && { color: "#fff" },
+                              ]}
                             />
                             <Text
                               style={[
-                                styles.lunchChipText,
-                                isDark && styles.lunchChipTextDark,
+                                styles.lessonMeta,
+                                isDark && { color: "#aaa" },
                               ]}
+                              numberOfLines={1}
                             >
-                              Lounas {row.lunch.start}–{row.lunch.end}
+                              {[room, teacher].filter(Boolean).join(" · ")}
                             </Text>
+                            {!!row.lunch && (
+                              <View
+                                style={[
+                                  styles.lunchChip,
+                                  isDark && styles.lunchChipDark,
+                                ]}
+                              >
+                                <PlatformSymbol
+                                  ios="fork.knife"
+                                  android="restaurant"
+                                  size={11}
+                                  tintColor={isDark ? "#FBBF24" : "#B45309"}
+                                />
+                                <Text
+                                  style={[
+                                    styles.lunchChipText,
+                                    isDark && styles.lunchChipTextDark,
+                                  ]}
+                                >
+                                  Lounas {row.lunch.start}–{row.lunch.end}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </Pressable>
+                      </React.Fragment>
+                    );
+                  });
+                })()
+              )}
+            </SectionCard>
+
+            {/* Upcoming exams */}
+            <SectionCard title="Tulevat kokeet">
+              {!data?.exams.length ? (
+                <EmptyRow label="Ei tulevia kokeita" />
+              ) : (
+                data.exams.map((exam, i) => {
+                  const { code, title } = lessonLabel(
+                    exam.course,
+                    exam.courseTitle,
+                  );
+                  return (
+                    <React.Fragment key={exam.examId}>
+                      {i > 0 && <Divider />}
+                      <View style={styles.examRow}>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <LessonTitleRow
+                            title={title}
+                            code={code}
+                            isDark={isDark}
+                            numberOfLines={1}
+                            titleStyle={[
+                              styles.examCourse,
+                              { color: theme.text },
+                            ]}
+                          />
+                          {exam.name ? (
+                            <AppText
+                              variant="meta"
+                              color="textSecondary"
+                              style={styles.examName}
+                              numberOfLines={1}
+                            >
+                              {exam.name}
+                            </AppText>
+                          ) : null}
+                          {exam.teachers[0] && (
+                            <AppText
+                              variant="caption"
+                              color="textMuted"
+                              style={styles.examMeta}
+                              numberOfLines={1}
+                            >
+                              {exam.teachers[0].teacherName}
+                            </AppText>
+                          )}
+                        </View>
+                        <View style={styles.examDateBox}>
+                          <AppText variant="rowTitle" color="accent">
+                            {formatDateFI(exam.date)}
+                          </AppText>
+                          <AppText
+                            variant="caption"
+                            color="accent"
+                            style={styles.examTime}
+                          >
+                            {formatTime(exam.timeStart)}
+                          </AppText>
+                        </View>
+                      </View>
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </SectionCard>
+
+            {/* Messages */}
+            <SectionCard
+              title="Viestit"
+              onMore={() => router.push("/wilma/messages")}
+            >
+              {!data?.messages.length ? (
+                <EmptyRow label="Ei viestejä" />
+              ) : (
+                data.messages.map((msg, i) => (
+                  <React.Fragment key={msg.id}>
+                    {i > 0 && <Divider />}
+                    <Pressable
+                      style={styles.msgRow}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/wilma/message",
+                          params: {
+                            id: String(msg.id),
+                            subject: msg.subject,
+                            sender: msg.senders[0]?.name ?? msg.sender,
+                          },
+                        })
+                      }
+                    >
+                      <View style={styles.msgInfo}>
+                        <AppText variant="rowTitle" numberOfLines={1}>
+                          {msg.subject}
+                        </AppText>
+                        <AppText
+                          variant="meta"
+                          color="textMuted"
+                          style={styles.msgSender}
+                          numberOfLines={1}
+                        >
+                          {msg.senders.map((s) => s.name).join(", ")}
+                        </AppText>
+                      </View>
+                      <View style={styles.msgRight}>
+                        <AppText variant="caption" color="textMuted">
+                          {new Date(
+                            msg.timestamp.replace(" ", "T"),
+                          ).toLocaleDateString("fi-FI", {
+                            day: "numeric",
+                            month: "numeric",
+                          })}
+                        </AppText>
+                        {msg.isEvent && (
+                          <View
+                            style={[
+                              styles.eventChip,
+                              { backgroundColor: theme.accentTint },
+                            ]}
+                          >
+                            <AppText variant="micro" color="accent">
+                              Tapahtuma
+                            </AppText>
                           </View>
                         )}
                       </View>
                     </Pressable>
                   </React.Fragment>
-                );
-              });
-            })()
-          )}
-        </SectionCard>
+                ))
+              )}
+            </SectionCard>
 
-        {/* Upcoming exams */}
-        <SectionCard title="Tulevat kokeet" isDark={isDark}>
-          {!data?.exams.length ? (
-            <EmptyRow label="Ei tulevia kokeita" isDark={isDark} />
-          ) : (
-            data.exams.map((exam, i) => {
-              const { code, title } = lessonLabel(
-                exam.course,
-                exam.courseTitle,
-              );
-              return (
-                <React.Fragment key={exam.examId}>
-                  {i > 0 && <Divider isDark={isDark} />}
-                  <View style={styles.examRow}>
-                    <View style={{ flex: 1, marginRight: 12 }}>
-                      <LessonTitleRow
-                        title={title}
-                        code={code}
-                        isDark={isDark}
-                        numberOfLines={1}
-                        titleStyle={[
-                          styles.examCourse,
-                          isDark && { color: "#fff" },
-                        ]}
-                      />
-                      {exam.name ? (
-                        <Text
-                          style={[styles.examName, isDark && { color: "#aaa" }]}
+            {/* Attendance */}
+            <SectionCard title="Merkinnät (4 vko)">
+              {!data?.attendance.length ? (
+                <EmptyRow label="Ei merkintöjä" />
+              ) : (
+                data.attendance.map((entry, i) => {
+                  const info = ATTENDANCE_COLORS[entry.typeCode] ?? {
+                    bg: "#aaa",
+                    label: entry.status,
+                  };
+                  return (
+                    <React.Fragment key={`${entry.date}-${i}`}>
+                      {i > 0 && <Divider />}
+                      <View style={styles.attRow}>
+                        <AppText
+                          variant="meta"
+                          color="textMuted"
+                          style={styles.attDate}
+                        >
+                          {formatMarkDate(entry.date)}
+                        </AppText>
+                        <AppText
+                          variant="bodySmall"
+                          style={styles.attCourse}
                           numberOfLines={1}
                         >
-                          {exam.name}
-                        </Text>
-                      ) : null}
-                      {exam.teachers[0] && (
-                        <Text
-                          style={[styles.examMeta, isDark && { color: "#888" }]}
-                          numberOfLines={1}
+                          {entry.course}
+                        </AppText>
+                        <View
+                          style={[
+                            styles.attChip,
+                            { backgroundColor: info.bg + "28" },
+                          ]}
                         >
-                          {exam.teachers[0].teacherName}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={styles.examDateBox}>
-                      <Text
-                        style={[
-                          styles.examDate,
-                          isDark && { color: "#51a2ff" },
-                        ]}
-                      >
-                        {formatDateFI(exam.date)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.examTime,
-                          isDark && { color: "#51a2ff70" },
-                        ]}
-                      >
-                        {formatTime(exam.timeStart)}
-                      </Text>
-                    </View>
-                  </View>
-                </React.Fragment>
-              );
-            })
-          )}
-        </SectionCard>
-
-        {/* Messages */}
-        <SectionCard
-          title="Viestit"
-          onMore={() => router.push("/wilma/messages")}
-          isDark={isDark}
-        >
-          {!data?.messages.length ? (
-            <EmptyRow label="Ei viestejä" isDark={isDark} />
-          ) : (
-            data.messages.map((msg, i) => (
-              <React.Fragment key={msg.id}>
-                {i > 0 && <Divider isDark={isDark} />}
-                <Pressable
-                  style={styles.msgRow}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/wilma/message",
-                      params: {
-                        id: String(msg.id),
-                        subject: msg.subject,
-                        sender: msg.senders[0]?.name ?? msg.sender,
-                      },
-                    })
-                  }
-                >
-                  <View style={styles.msgInfo}>
-                    <Text
-                      style={[styles.msgSubject, isDark && { color: "#fff" }]}
-                      numberOfLines={1}
-                    >
-                      {msg.subject}
-                    </Text>
-                    <Text
-                      style={[styles.msgSender, isDark && { color: "#aaa" }]}
-                      numberOfLines={1}
-                    >
-                      {msg.senders.map((s) => s.name).join(", ")}
-                    </Text>
-                  </View>
-                  <View style={styles.msgRight}>
-                    <Text style={[styles.msgDate, isDark && { color: "#888" }]}>
-                      {new Date(
-                        msg.timestamp.replace(" ", "T"),
-                      ).toLocaleDateString("fi-FI", {
-                        day: "numeric",
-                        month: "numeric",
-                      })}
-                    </Text>
-                    {msg.isEvent && (
-                      <View style={styles.eventChip}>
-                        <Text style={styles.eventChipText}>Tapahtuma</Text>
+                          <AppText variant="micro" style={{ color: info.bg }}>
+                            {info.label}
+                          </AppText>
+                        </View>
                       </View>
-                    )}
-                  </View>
-                </Pressable>
-              </React.Fragment>
-            ))
-          )}
-        </SectionCard>
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </SectionCard>
 
-        {/* Attendance */}
-        <SectionCard title="Merkinnät (4 vko)" isDark={isDark}>
-          {!data?.attendance.length ? (
-            <EmptyRow label="Ei merkintöjä" isDark={isDark} />
-          ) : (
-            data.attendance.map((entry, i) => {
-              const info = ATTENDANCE_COLORS[entry.typeCode] ?? {
-                bg: "#aaa",
-                label: entry.status,
-              };
-              return (
-                <React.Fragment key={`${entry.date}-${i}`}>
-                  {i > 0 && <Divider isDark={isDark} />}
-                  <View style={styles.attRow}>
-                    <Text style={[styles.attDate, isDark && { color: "#aaa" }]}>
-                      {formatMarkDate(entry.date)}
-                    </Text>
-                    <Text
-                      style={[styles.attCourse, isDark && { color: "#d4d4d4" }]}
-                      numberOfLines={1}
-                    >
-                      {entry.course}
-                    </Text>
-                    <View
-                      style={[
-                        styles.attChip,
-                        { backgroundColor: info.bg + "28" },
-                      ]}
-                    >
-                      <Text style={[styles.attChipText, { color: info.bg }]}>
-                        {info.label}
-                      </Text>
-                    </View>
-                  </View>
-                </React.Fragment>
-              );
-            })
-          )}
-        </SectionCard>
-
-        <SectionCard title="Lisää Wilmasta" isDark={isDark}>
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/coursework" as never)}
-          >
-            <PlatformSymbol
-              ios="doc.text"
-              android="assignment"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+            <SectionCard title="Lisää Wilmasta">
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/coursework" as never)}
               >
-                Kurssit ja tehtävät
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+                <PlatformSymbol
+                  ios="doc.text"
+                  android="assignment"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">Kurssit ja tehtävät</AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Kotitehtävät, tuntipäiväkirja ja kurssikokeet
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+              <Divider />
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/course-selections" as never)}
               >
-                Kotitehtävät, tuntipäiväkirja ja kurssikokeet
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-          <Divider isDark={isDark} />
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/course-selections" as never)}
-          >
-            <PlatformSymbol
-              ios="rectangle.grid.1x2"
-              android="view_week"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+                <PlatformSymbol
+                  ios="rectangle.grid.1x2"
+                  android="view_week"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">Kurssivalinnat</AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Omat valinnat ja tarjottimet vain luku -tilassa
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+              <Divider />
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/rooms" as never)}
               >
-                Kurssivalinnat
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+                <PlatformSymbol
+                  ios="door.left.hand.open"
+                  android="meeting_room"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">Tilojen lukujärjestykset</AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Katso milloin luokkahuone on käytössä
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+              <Divider />
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/teachers" as never)}
               >
-                Omat valinnat ja tarjottimet vain luku -tilassa
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-          <Divider isDark={isDark} />
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/rooms" as never)}
-          >
-            <PlatformSymbol
-              ios="door.left.hand.open"
-              android="meeting_room"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
+                <PlatformSymbol
+                  ios="person.2"
+                  android="group"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">
+                    Opettajat ja henkilökunta
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Opettajien lukujärjestykset ja viestit
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+              <Divider />
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/news" as never)}
               >
-                Tilojen lukujärjestykset
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
+                <PlatformSymbol
+                  ios="megaphone"
+                  android="campaign"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">Tiedotteet</AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Koulun ajankohtaiset tiedotteet
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+              <Divider />
+              <Pressable
+                style={styles.moreWilmaRow}
+                onPress={() => router.push("/wilma/grades" as never)}
               >
-                Katso milloin luokkahuone on käytössä
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-          <Divider isDark={isDark} />
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/teachers" as never)}
-          >
-            <PlatformSymbol
-              ios="person.2"
-              android="group"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
-              >
-                Opettajat ja henkilökunta
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
-              >
-                Opettajien lukujärjestykset ja viestit
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-          <Divider isDark={isDark} />
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/news" as never)}
-          >
-            <PlatformSymbol
-              ios="megaphone"
-              android="campaign"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
-              >
-                Tiedotteet
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
-              >
-                Koulun ajankohtaiset tiedotteet
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-          <Divider isDark={isDark} />
-          <Pressable
-            style={styles.moreWilmaRow}
-            onPress={() => router.push("/wilma/grades" as never)}
-          >
-            <PlatformSymbol
-              ios="checkmark.seal"
-              android="fact_check"
-              size={22}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
-            />
-            <View style={styles.moreWilmaText}>
-              <Text
-                style={[styles.moreWilmaTitle, isDark && { color: "#fff" }]}
-              >
-                Arvosanat
-              </Text>
-              <Text
-                style={[styles.moreWilmaSubtitle, isDark && { color: "#888" }]}
-              >
-                Kurssisuoritukset, kokeet ja yo-tulokset
-              </Text>
-            </View>
-            <PlatformSymbol
-              ios="chevron.right"
-              android="chevron_right"
-              size={22}
-              tintColor={isDark ? "#555" : "#bbb"}
-            />
-          </Pressable>
-        </SectionCard>
+                <PlatformSymbol
+                  ios="checkmark.seal"
+                  android="fact_check"
+                  size={22}
+                  tintColor={theme.accent}
+                />
+                <View style={styles.moreWilmaText}>
+                  <AppText variant="rowTitle">Arvosanat</AppText>
+                  <AppText
+                    variant="caption"
+                    color="textMuted"
+                    style={styles.moreWilmaSubtitle}
+                  >
+                    Kurssisuoritukset, kokeet ja yo-tulokset
+                  </AppText>
+                </View>
+                <PlatformSymbol
+                  ios="chevron.right"
+                  android="chevron_right"
+                  size={22}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+            </SectionCard>
           </>
         )}
       </ScrollView>
@@ -1316,8 +1322,6 @@ export default function Dashboard({
 }
 
 // ── Root ───────────────────────────────────────────────────────────────────────
-
-
 
 const styles = StyleSheet.create({
   moreWilmaRow: {
@@ -1328,26 +1332,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   moreWilmaText: { flex: 1 },
-  moreWilmaTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  moreWilmaSubtitle: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-  dashHeader: { marginBottom: 4 },
+  moreWilmaSubtitle: { marginTop: 2 },
+  dashHeader: { marginBottom: 22, marginTop: 4 },
   dashGreeting: { letterSpacing: -0.4 },
   dashContent: {
-    flexGrow: 1, padding: 16, paddingBottom: 100 },
+    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 100,
+  },
   // AppText supplies the face and the colour; only the placement and the
   // capitalisation are this screen's own.
   dashDate: { marginTop: 2, textTransform: "capitalize" },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 14,
     padding: 18,
     marginBottom: 16,
@@ -1366,13 +1362,8 @@ const styles = StyleSheet.create({
   cardTitlePressed: {
     opacity: 0.6,
   },
-  cardTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 17,
-    color: "#222",
-  },
+  spacer: { flex: 1 },
   badge: {
-    backgroundColor: "#3478F5",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1380,24 +1371,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 5,
   },
-  badgeText: { color: "#fff", fontSize: 11, fontFamily: "Figtree-Bold" },
-  moreLink: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 13,
-    color: "#3478F5",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
-    marginVertical: 10,
-  },
-  emptyText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 14,
-    color: "#aaa",
-    textAlign: "center",
-    paddingVertical: 8,
-  },
+  badgeText: { color: colors.textOnDark },
+  moreLink: { fontFamily: FONT_FAMILY.medium },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 10 },
+  emptyText: { textAlign: "center", paddingVertical: 8 },
   lessonRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1417,9 +1394,10 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     borderColor: "#D9DEE5",
     paddingVertical: 7,
+    marginVertical: 8,
   },
   freeSlotRowDark: { borderColor: "#4A5058" },
-  freeSlotSpaceAbove: { marginVertical: 8 },
+  freeSlotSpaceAbove: { marginVertical: 0, marginTop: 8 },
   freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
   freeSlotTimeTagDark: { backgroundColor: "#3A3F46" },
   freeSlotTitle: {
@@ -1487,35 +1465,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  examCourse: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  examName: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#666",
-    marginTop: 2,
-  },
-  examMeta: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#aaa",
-    marginTop: 2,
-  },
+  examCourse: { fontFamily: FONT_FAMILY.semiBold, fontSize: 15 },
+  examName: { marginTop: 2 },
+  examMeta: { marginTop: 2 },
   examDateBox: { alignItems: "flex-end" },
-  examDate: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 14,
-    color: "#3478F5",
-  },
-  examTime: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#3478F580",
-    marginTop: 2,
-  },
+  // The accent at half strength, as the hex #3478F580 was.
+  examTime: { marginTop: 2, opacity: 0.5 },
   msgRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1523,23 +1478,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   msgInfo: { flex: 1 },
-  msgSubject: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  msgSender: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#888",
-    marginTop: 2,
-  },
+  msgSender: { marginTop: 2 },
   msgRight: { alignItems: "flex-end" },
-  msgDate: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#aaa",
-  },
   eventChip: {
     backgroundColor: "#51A2FF1F",
     borderRadius: 6,
@@ -1547,24 +1487,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     marginTop: 4,
   },
-  eventChipText: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 10,
-    color: "#3478F5",
-  },
   attRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  attDate: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#888",
-    width: 52,
-  },
-  attCourse: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 14,
-    color: "#333",
-    flex: 1,
-  },
+  attDate: { width: 52 },
+  attCourse: { fontFamily: FONT_FAMILY.medium, flex: 1 },
   attChip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  attChipText: { fontFamily: "Figtree-Medium", fontSize: 11 },
 });
