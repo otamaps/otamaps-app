@@ -1,47 +1,40 @@
+import {
+  AppText,
+  Row,
+  Surface,
+  useNativeHeader,
+  useTheme,
+} from "@/components/ui";
+import HueSlider, { hueToHex } from "@/components/ui/HueSlider";
+import { radii } from "@/constants/theme";
+import { typography } from "@/constants/typography";
+import { getReadableLabelColor } from "@/lib/color";
 import { generateCode } from "@/components/functions/codeGen";
 import { useUser } from "@/context/UserContext";
 import { formatClassLabel } from "@/lib/classLabel";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
-  useColorScheme,
   View,
 } from "react-native";
 
-const COLORS = [
-  "#fb2c36",
-  "#ff6900",
-  "#f0b100",
-  "#7ccf00",
-  "#00c950",
-  "#00bba7",
-  "#2b7fff",
-  "#615fff",
-  "#ad46ff",
-  "#f6339a",
-];
+const DEFAULT_COLOR = hueToHex(0);
 
 const Edit = () => {
+  const theme = useTheme();
   const [name, setName] = useState("");
   const [userClass, setUserClass] = useState("");
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
   const [isWilmaProfile, setIsWilmaProfile] = useState(false);
   const { setUser } = useUser();
-
-  const isDark = useColorScheme() === "dark";
 
   const validateClass = (text: string) => {
     // Only allow numbers and letters, max 3 characters
@@ -91,7 +84,9 @@ const Edit = () => {
           profileResult.data?.class || user.user_metadata?.class || "",
         );
         setSelectedColor(
-          profileResult.data?.color || user.user_metadata?.color || COLORS[0],
+          profileResult.data?.color ||
+            user.user_metadata?.color ||
+            DEFAULT_COLOR,
         );
       }
     };
@@ -180,303 +175,143 @@ const Edit = () => {
     }
   };
 
+  const header = useNativeHeader({
+    title: "Muokkaa tietoja",
+    background: "page",
+  });
+
   return (
-    <SafeAreaView
-      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-    >
-      <Stack.Screen
-        options={{
-          title: "Muokkaa tietoja",
-          headerStyle: {
-            backgroundColor: isDark ? "#18191B" : "#fff",
-          },
-          headerTitleStyle: {
-            color: isDark ? "#fff" : "#000",
-          },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                style={{ marginRight: 0 }}
-                color={isDark ? "#fff" : "#000"}
-              />
-            </Pressable>
-          ),
-        }}
-      />
+    <>
+      <Stack.Screen options={header} />
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContainer,
-          isDark && { backgroundColor: "#18191B" },
-        ]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
-        >
-          <Text style={[styles.label, isDark && { color: "#fff" }]}>Nimi</Text>
-          <TextInput
-            style={[
-              styles.input,
-              isDark && {
-                color: "#fff",
-                backgroundColor: "#262626",
-                borderColor: "#404040",
-              },
-            ]}
-            value={name}
-            onChangeText={setName}
-            editable={!isWilmaProfile}
-            placeholder="Kirjoita nimesi"
-            placeholderTextColor="#aaa"
-          />
-          {isWilmaProfile && (
-            <Text style={styles.lockedText}>Wilman vahvistama tieto</Text>
-          )}
-        </View>
+        <Surface title="Tiedot">
+          <Row>
+            <AppText variant="body" style={styles.label}>
+              Nimi
+            </AppText>
+            <TextInput
+              style={[
+                styles.field,
+                { color: isWilmaProfile ? theme.textMuted : theme.text },
+              ]}
+              value={name}
+              onChangeText={setName}
+              editable={!isWilmaProfile}
+              placeholder="Kirjoita nimesi"
+              placeholderTextColor={theme.placeholder}
+              textAlign="right"
+            />
+          </Row>
+          <Row>
+            <AppText variant="body" style={styles.label}>
+              Luokka
+            </AppText>
+            <TextInput
+              style={[
+                styles.field,
+                {
+                  color: classError
+                    ? theme.danger
+                    : isWilmaProfile
+                      ? theme.textMuted
+                      : theme.text,
+                },
+              ]}
+              // Shown capitalised, but `userClass` itself keeps the casing it
+              // was loaded with: every save submits `class`, and for a
+              // Wilma-verified profile the database rejects an update that
+              // changes it at all — including "24k" to "24K".
+              value={isWilmaProfile ? formatClassLabel(userClass) : userClass}
+              onChangeText={validateClass}
+              editable={!isWilmaProfile}
+              placeholder="Esimerkiksi 24Q"
+              placeholderTextColor={theme.placeholder}
+              maxLength={3}
+              autoCapitalize="characters"
+              textAlign="right"
+            />
+          </Row>
+        </Surface>
 
-        <View
-          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
-        >
-          <Text style={[styles.label, isDark && { color: "#fff" }]}>
-            Luokka
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              classError && styles.inputError,
-              isDark && {
-                color: "#fff",
-                backgroundColor: "#262626",
-                borderColor: "#404040",
-              },
-            ]}
-            // Shown capitalised, but `userClass` itself keeps the casing it
-            // was loaded with: every save submits `class`, and for a
-            // Wilma-verified profile the database rejects an update that
-            // changes it at all — including "24k" to "24K".
-            value={isWilmaProfile ? formatClassLabel(userClass) : userClass}
-            onChangeText={validateClass}
-            editable={!isWilmaProfile}
-            placeholder="Esimerkiksi 24Q"
-            placeholderTextColor="#aaa"
-            maxLength={3}
-            autoCapitalize="characters"
-          />
-          {isWilmaProfile && (
-            <Text style={styles.lockedText}>Wilman vahvistama tieto</Text>
-          )}
-          {classError ? (
-            <Text style={styles.errorText}>{classError}</Text>
-          ) : null}
-        </View>
+        {isWilmaProfile ? (
+          <AppText variant="meta" color="textMuted" style={styles.footnote}>
+            Nimi ja luokka tulevat Wilmasta, eikä niitä voi muokata täällä.
+          </AppText>
+        ) : null}
+        {classError ? (
+          <AppText variant="meta" color="danger" style={styles.footnote}>
+            {classError}
+          </AppText>
+        ) : null}
 
-        <View
-          style={[styles.section, isDark && { backgroundColor: "#18191B" }]}
-        >
-          <Text style={[styles.label, isDark && { color: "#fff" }]}>
-            Profiilin väri
-          </Text>
-          <View style={styles.colorsContainer}>
-            {COLORS.map((color) => (
-              <TouchableOpacity
-                key={color}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: color },
-                  selectedColor === color && styles.selectedColor,
-                ]}
-                onPress={() => setSelectedColor(color)}
+        <Surface title="Profiilin väri">
+          <Row>
+            <View style={styles.sliderWrap}>
+              <HueSlider
+                color={selectedColor}
+                onChange={setSelectedColor}
+                borderColor={theme.border}
+              />
+            </View>
+          </Row>
+        </Surface>
+
+        <Surface title="Esikatselu">
+          <Row>
+            <View style={[styles.avatar, { backgroundColor: selectedColor }]}>
+              <AppText
+                variant="heading3"
+                style={{ color: getReadableLabelColor(selectedColor) }}
               >
-                {selectedColor === color && (
-                  <Ionicons name="checkmark" size={24} color="white" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.previewSection,
-            isDark && { backgroundColor: "#18191B", borderTopColor: "#404040" },
-          ]}
-        >
-          <Text style={[styles.label, isDark && { color: "#fff" }]}>
-            Esikatselu
-          </Text>
-          <View style={styles.previewContainer}>
-            <View
-              style={[styles.previewAvatar, { backgroundColor: selectedColor }]}
-            >
-              <Text style={styles.avatarText}>
                 {name ? name.charAt(0).toUpperCase() : "?"}
-              </Text>
+              </AppText>
             </View>
-            <View style={styles.previewTextContainer}>
-              <Text style={[styles.previewName, isDark && { color: "#fff" }]}>
-                {name || "Nimi"}
-              </Text>
-              <Text
-                style={[styles.previewClass, isDark && { color: "#ffffff90" }]}
-              >
-                {userClass || "Luokka"}
-              </Text>
+            <View style={styles.identity}>
+              <AppText variant="title">{name || "Nimi"}</AppText>
+              <AppText variant="meta" color="textMuted">
+                {userClass ? formatClassLabel(userClass) : "Luokka"}
+              </AppText>
             </View>
-          </View>
-        </View>
-      </ScrollView>
+          </Row>
+        </Surface>
 
-      <View
-        style={[
-          styles.footer,
-          isDark && { backgroundColor: "#18191B", borderTopColor: "#404040" },
-        ]}
-      >
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>
-            {isLoading ? "Tallennetaan..." : "Tallenna muutokset"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <Surface>
+          <Row onPress={isLoading ? undefined : handleSave} chevron={false}>
+            <AppText
+              variant="body"
+              color="accent"
+              style={[styles.save, isLoading && styles.saving]}
+            >
+              {isLoading ? "Tallennetaan..." : "Tallenna muutokset"}
+            </AppText>
+          </Row>
+        </Surface>
+      </ScrollView>
+    </>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scrollContainer: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-    marginBottom: 8,
-    color: "#333",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    fontFamily: "Figtree-Regular",
-    backgroundColor: "#f9f9f9",
-    color: "#000",
-  },
-  lockedText: {
-    color: "#067647",
-    fontFamily: "Figtree-Medium",
-    fontSize: 12,
-    marginTop: 6,
-  },
-  colorsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 8,
-    width: "100%",
-    marginHorizontal: -5,
-    height: 120,
-  },
-  colorOption: {
-    width: "18%",
-    aspectRatio: 1,
-    height: 50,
-    maxWidth: 60,
-    minWidth: 50,
-    borderRadius: 30,
-    margin: 5,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  selectedColor: {
-    borderColor: "#333",
-    transform: [{ scale: 1.1 }],
-  },
-  previewSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  previewContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-  },
-  previewAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  avatarText: {
-    color: "white",
-    fontSize: 24,
-    fontFamily: "Figtree-Bold",
-  },
-  previewTextContainer: {
-    flex: 1,
-  },
-  previewName: {
-    fontSize: 18,
-    fontFamily: "Figtree-SemiBold",
-    marginBottom: 4,
-  },
-  previewClass: {
-    fontSize: 16,
-    color: "#666",
-    fontFamily: "Figtree-Regular",
-  },
-  footer: {
-    position: "absolute",
-    bottom: 24,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "white",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  button: {
-    backgroundColor: "#3478F5",
-    borderRadius: 10,
-    padding: 16,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-  },
-  buttonDisabled: {
-    backgroundColor: "#3478F580",
-  },
-  inputError: {
-    borderColor: "#FF6B6B",
-  },
-  errorText: {
-    color: "#FF6B6B",
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: "Figtree-Regular",
-  },
-});
-
 export default Edit;
+
+const styles = StyleSheet.create({
+  content: { flexGrow: 1, paddingBottom: 40 },
+  label: { flex: 1 },
+  // The value sits at the row's right edge, as it does in a Settings field.
+  field: { flex: 1.4, ...typography.body, paddingVertical: 0 },
+  footnote: { marginHorizontal: 20, marginTop: 6 },
+  sliderWrap: { flex: 1 },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identity: { flex: 1 },
+  save: { textAlign: "center", flex: 1 },
+  saving: { opacity: 0.5 },
+});
