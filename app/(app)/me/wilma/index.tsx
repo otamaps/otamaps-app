@@ -1,24 +1,29 @@
-import { connectWilmaAccount } from "@/lib/wilma/authBroker";
+import {
+  AppText,
+  Button,
+  Row,
+  RowIcon,
+  Surface,
+  useNativeHeader,
+  useTheme,
+} from "@/components/ui";
 import { formatClassLabel } from "@/lib/classLabel";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { router, Stack } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { connectWilmaAccount } from "@/lib/wilma/authBroker";
+import { Stack } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
 
 export default function WilmaSettings() {
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [name, setName] = useState("");
@@ -26,7 +31,6 @@ export default function WilmaSettings() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [connecting, setConnecting] = useState(false);
-  const isDark = useColorScheme() === "dark";
 
   const loadStatus = async () => {
     const preferences = await getUserPreferences({ forceRefresh: true });
@@ -52,15 +56,13 @@ export default function WilmaSettings() {
   }, []);
 
   const connect = async () => {
-    if (!username.trim() || !password) {
-      Alert.alert("Puuttuvat tiedot", "Täytä Wilma-käyttäjätunnus ja salasana.");
-      return;
-    }
+    if (!username.trim() || !password) return;
     const wasConnected = connected;
     setConnecting(true);
     try {
       await connectWilmaAccount(username, password);
       await loadStatus();
+      setUsername("");
       setPassword("");
       Alert.alert(
         wasConnected ? "Wilma-yhteys päivitetty" : "Wilma-tili yhdistetty",
@@ -73,93 +75,102 @@ export default function WilmaSettings() {
     }
   };
 
-  const background = isDark ? "#18191B" : "#F5F7FA";
-  const surface = isDark ? "#232427" : "#FFFFFF";
-  const textColor = isDark ? "#FFFFFF" : "#101828";
-  const mutedColor = isDark ? "#B3B3B3" : "#667085";
+  const header = useNativeHeader({ title: "Wilma-tili", background: "page" });
+
+  if (loading) {
+    return (
+      <>
+        <Stack.Screen options={header} />
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={theme.accent} />
+        </View>
+      </>
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
-      <Stack.Screen
-        options={{
-          title: "Wilma-tili",
-          headerStyle: { backgroundColor: surface },
-          headerTitleStyle: { color: textColor },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color={textColor} />
-            </Pressable>
-          ),
-        }}
-      />
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#3478F5" />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={[styles.statusCard, { backgroundColor: surface }]}>
-            <View style={[styles.statusIcon, connected && styles.statusIconConnected]}>
-              <Ionicons
-                name={connected ? "checkmark" : "link-outline"}
-                size={24}
-                color={connected ? "#067647" : "#3478F5"}
-              />
-            </View>
-            <View style={styles.statusText}>
-              <Text style={[styles.statusTitle, { color: textColor }]}>
+    <>
+      <Stack.Screen options={header} />
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Surface>
+          <Row chevron={false}>
+            <RowIcon
+              ios={connected ? "checkmark" : "link"}
+              android={connected ? "check" : "link"}
+              color={theme.accent}
+            />
+            <View style={styles.identity}>
+              <AppText variant="rowTitle">
                 {connected ? "Wilma on yhdistetty" : "Wilmaa ei ole yhdistetty"}
-              </Text>
-              <Text style={[styles.statusDescription, { color: mutedColor }]}>
+              </AppText>
+              <AppText variant="meta" color="textMuted" style={styles.identityBody}>
                 {connected
                   ? `${name}${userClass ? ` · ${userClass}` : ""}`
                   : "Yhdistä Wilma saadaksesi lukujärjestyksen, viestit ja vahvistetut profiilitiedot."}
-              </Text>
+              </AppText>
             </View>
-          </View>
+          </Row>
+        </Surface>
 
-          <Text style={[styles.heading, { color: textColor }]}>
-            {connected ? "Päivitä Wilma-kirjautuminen" : "Yhdistä Wilma-tili"}
-          </Text>
-          <Text style={[styles.intro, { color: mutedColor }]}>
-            Tunnukset lähetetään suojatusti Wilmalle ja tallennetaan vain tämän laitteen suojattuun tallennustilaan automaattista uudelleenkirjautumista varten.
-          </Text>
-          <Text style={[styles.label, { color: textColor }]}>Wilma-käyttäjätunnus</Text>
-          <TextInput
-            style={[styles.input, isDark && styles.inputDark]}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!connecting}
-          />
-          <Text style={[styles.label, { color: textColor }]}>Salasana</Text>
-          <TextInput
-            style={[styles.input, isDark && styles.inputDark]}
-            value={password}
-            onChangeText={setPassword}
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            editable={!connecting}
-            onSubmitEditing={() => void connect()}
-          />
-          <Pressable
-            style={[styles.button, connecting && styles.buttonDisabled]}
+        <Surface title={connected ? "Päivitä kirjautuminen" : "Yhdistä tili"}>
+          <Row chevron={false} style={styles.fieldRow}>
+            <View style={styles.field}>
+              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+                Käyttäjätunnus
+              </AppText>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!connecting}
+                placeholder="Wilma-käyttäjätunnus"
+                placeholderTextColor={theme.placeholder}
+              />
+            </View>
+          </Row>
+          <Row chevron={false} style={styles.fieldRow}>
+            <View style={styles.field}>
+              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+                Salasana
+              </AppText>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                editable={!connecting}
+                placeholder="Salasana"
+                placeholderTextColor={theme.placeholder}
+                onSubmitEditing={() => void connect()}
+              />
+            </View>
+          </Row>
+        </Surface>
+
+        <AppText variant="meta" color="textMuted" style={styles.footnote}>
+          Tunnukset lähetetään suojatusti Wilmalle ja tallennetaan vain tämän
+          laitteen suojattuun tallennustilaan automaattista
+          uudelleenkirjautumista varten.
+        </AppText>
+
+        <View style={styles.buttonWrap}>
+          <Button
+            title={connected ? "Päivitä yhteys" : "Yhdistä Wilma"}
             onPress={() => void connect()}
-            disabled={connecting}
-          >
-            {connecting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {connected ? "Päivitä yhteys" : "Yhdistä Wilma"}
-              </Text>
-            )}
-          </Pressable>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+            disabled={!username.trim() || !password}
+            loading={connecting}
+          />
+        </View>
+      </ScrollView>
+    </>
   );
 }
 
@@ -173,71 +184,14 @@ function message(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: 20, paddingBottom: 40 },
-  statusCard: {
-    alignItems: "center",
-    borderRadius: 14,
-    flexDirection: "row",
-    gap: 14,
-    padding: 16,
-  },
-  statusIcon: {
-    alignItems: "center",
-    backgroundColor: "#EFF4FF",
-    borderRadius: 22,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  statusIconConnected: { backgroundColor: "#ECFDF3" },
-  statusText: { flex: 1 },
-  statusTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17 },
-  statusDescription: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 4,
-  },
-  heading: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 22,
-    marginTop: 30,
-  },
-  intro: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 24,
-    marginTop: 7,
-  },
-  label: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 14,
-    marginBottom: 7,
-  },
-  input: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#D0D5DD",
-    borderRadius: 12,
-    borderWidth: 1,
-    color: "#101828",
-    fontFamily: "Figtree-Regular",
-    fontSize: 16,
-    marginBottom: 16,
-    minHeight: 50,
-    paddingHorizontal: 14,
-  },
-  inputDark: { backgroundColor: "#232427", borderColor: "#444", color: "#FFFFFF" },
-  button: {
-    alignItems: "center",
-    backgroundColor: "#3478F5",
-    borderRadius: 12,
-    justifyContent: "center",
-    minHeight: 52,
-    marginTop: 4,
-  },
-  buttonDisabled: { opacity: 0.55 },
-  buttonText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 16 },
+  content: { flexGrow: 1, paddingBottom: 40 },
+  identity: { flex: 1 },
+  identityBody: { marginTop: 3 },
+  fieldRow: { alignItems: "flex-start" },
+  field: { flex: 1 },
+  fieldLabel: { marginBottom: 6 },
+  input: { fontFamily: "Figtree-Regular", fontSize: 16, padding: 0 },
+  footnote: { marginHorizontal: 20, marginTop: 10 },
+  buttonWrap: { marginHorizontal: 16, marginTop: 24 },
 });

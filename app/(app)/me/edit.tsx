@@ -1,5 +1,6 @@
 import {
   AppText,
+  Button,
   Row,
   Surface,
   useNativeHeader,
@@ -31,10 +32,21 @@ const Edit = () => {
   const [name, setName] = useState("");
   const [userClass, setUserClass] = useState("");
   const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR);
+  const [saved, setSaved] = useState<{
+    name: string;
+    userClass: string;
+    color: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [classError, setClassError] = useState("");
   const [isWilmaProfile, setIsWilmaProfile] = useState(false);
   const { setUser } = useUser();
+
+  const isDirty =
+    saved !== null &&
+    (name !== saved.name ||
+      userClass !== saved.userClass ||
+      selectedColor !== saved.color);
 
   const validateClass = (text: string) => {
     // Only allow numbers and letters, max 3 characters
@@ -77,17 +89,18 @@ const Edit = () => {
         ]);
         if (profileResult.error) throw profileResult.error;
         setIsWilmaProfile(preferences.profile_source === "wilma");
-        setName(
-          profileResult.data?.name || user.user_metadata?.full_name || "",
-        );
-        setUserClass(
-          profileResult.data?.class || user.user_metadata?.class || "",
-        );
-        setSelectedColor(
+        const loadedName =
+          profileResult.data?.name || user.user_metadata?.full_name || "";
+        const loadedClass =
+          profileResult.data?.class || user.user_metadata?.class || "";
+        const loadedColor =
           profileResult.data?.color ||
-            user.user_metadata?.color ||
-            DEFAULT_COLOR,
-        );
+          user.user_metadata?.color ||
+          DEFAULT_COLOR;
+        setName(loadedName);
+        setUserClass(loadedClass);
+        setSelectedColor(loadedColor);
+        setSaved({ name: loadedName, userClass: loadedClass, color: loadedColor });
       }
     };
 
@@ -95,6 +108,8 @@ const Edit = () => {
   }, []);
 
   const handleSave = async () => {
+    if (!isDirty) return;
+
     if (!name.trim()) {
       alert("Anna nimesi");
       return;
@@ -279,17 +294,14 @@ const Edit = () => {
           </Row>
         </Surface>
 
-        <Surface>
-          <Row onPress={isLoading ? undefined : handleSave} chevron={false}>
-            <AppText
-              variant="body"
-              color="accent"
-              style={[styles.save, isLoading && styles.saving]}
-            >
-              {isLoading ? "Tallennetaan..." : "Tallenna muutokset"}
-            </AppText>
-          </Row>
-        </Surface>
+        <View style={styles.saveWrap}>
+          <Button
+            title={isLoading ? "Tallennetaan..." : "Tallenna muutokset"}
+            onPress={handleSave}
+            disabled={!isDirty}
+            loading={isLoading}
+          />
+        </View>
       </ScrollView>
     </>
   );
@@ -312,6 +324,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   identity: { flex: 1 },
-  save: { textAlign: "center", flex: 1 },
-  saving: { opacity: 0.5 },
+  saveWrap: { marginHorizontal: 16, marginTop: 24 },
 });
