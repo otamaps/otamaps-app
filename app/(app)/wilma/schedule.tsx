@@ -3,6 +3,8 @@ import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import DayPickerSheet, {
   DayPickerSheetRef,
 } from "@/components/sheets/dayPickerSheet";
+import { AppText, StateView, useNativeHeader, useTheme, type Theme } from "@/components/ui";
+import { radii } from "@/constants/theme";
 import {
   addMinutesClock,
   buildDaySlots,
@@ -34,31 +36,49 @@ import {
   weekdayLabel,
   weekMonthLabel,
 } from "@/lib/wilma/scheduleDates";
-import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
 
 /** Never highlight the next school day instead of today earlier than this. */
 const NEXT_DAY_SWITCH_EARLIEST = "12:00";
+
+/**
+ * States a lesson card's time tag can be in that the shared palette has no
+ * role for — "current" and "over" are specific to a live timetable, not text
+ * roles a settings row would ever need. Exam orange and lunch amber are
+ * genuinely one fixed hue each, light and dark alike; only their fill tints.
+ */
+const STATUS = {
+  current: { light: "#16A34A", dark: "#4ADE80" },
+  currentSub: { light: "#16A34A80", dark: "#4ADE8080" },
+  currentTint: { light: "#16A34A1A", dark: "#4ADE8022" },
+  over: { light: "#8A929D", dark: "#9CA3AF" },
+  overSub: { light: "#8A929D80", dark: "#9CA3AF80" },
+  overTint: { light: "#F3F4F6", dark: "#2E3034" },
+  exam: "#ff9800",
+  examTint: { light: "#fff8f0" },
+  lunch: { light: "#B45309", dark: "#FBBF24" },
+  lunchSub: { light: "#B4530980", dark: "#FBBF2480" },
+  lunchTint: { light: "#FEF3C7", dark: "#78350F55" },
+} as const;
+
+function pick<T extends { light: string; dark: string }>(theme: Theme, pair: T): string {
+  return theme.isDark ? pair.dark : pair.light;
+}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -125,22 +145,12 @@ function mergeScheduleData(a: ScheduleData, b: ScheduleData): ScheduleData {
 
 // ── Lesson card ───────────────────────────────────────────────────────────────
 
-function LunchChip({
-  lunch,
-  isDark,
-}: {
-  lunch: { start: string; end: string };
-  isDark: boolean;
-}) {
+function LunchChip({ lunch, theme }: { lunch: { start: string; end: string }; theme: Theme }) {
+  const fg = pick(theme, STATUS.lunch);
   return (
-    <View style={[styles.lunchChip, isDark && styles.lunchChipDark]}>
-      <PlatformSymbol
-        ios="fork.knife"
-        android="restaurant"
-        size={11}
-        tintColor={isDark ? "#FBBF24" : "#B45309"}
-      />
-      <Text style={[styles.lunchChipText, isDark && styles.lunchChipTextDark]}>
+    <View style={[styles.lunchChip, { backgroundColor: pick(theme, STATUS.lunchTint) }]}>
+      <PlatformSymbol ios="fork.knife" android="restaurant" size={11} tintColor={fg} />
+      <Text style={[styles.lunchChipText, { color: fg }]}>
         Lounas {lunch.start}–{lunch.end}
       </Text>
     </View>
@@ -149,7 +159,7 @@ function LunchChip({
 
 function LessonCard({
   lesson,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -159,7 +169,7 @@ function LessonCard({
   isCurrent,
 }: {
   lesson: ScheduleLesson;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
@@ -184,34 +194,22 @@ function LessonCard({
   // A lesson that is over drops its blue accent for a neutral gray, so the
   // colored badges left on the day are only the ones still ahead.
   const timeColor = isCurrent
-    ? isDark
-      ? "#4ADE80"
-      : "#16A34A"
+    ? pick(theme, STATUS.current)
     : isOver
-      ? isDark
-        ? "#9CA3AF"
-        : "#8A929D"
-      : isDark
-        ? "#51a2ff"
-        : undefined;
+      ? pick(theme, STATUS.over)
+      : theme.accent;
   const timeSubColor = isCurrent
-    ? isDark
-      ? "#4ADE8080"
-      : "#16A34A80"
+    ? pick(theme, STATUS.currentSub)
     : isOver
-      ? isDark
-        ? "#9CA3AF80"
-        : "#8A929D80"
-      : isDark
-        ? "#51a2ff70"
-        : undefined;
+      ? pick(theme, STATUS.overSub)
+      : theme.accent + "70";
 
   return (
     <>
       <View
         style={[
           styles.lessonCard,
-          isDark && { backgroundColor: "#232427" },
+          { backgroundColor: theme.card },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           !!lunch && styles.lessonCardWithLunch,
@@ -222,24 +220,15 @@ function LessonCard({
         <View
           style={[
             styles.timeTag,
-            isDark && { backgroundColor: "#51A2FF1F" },
-            isOver && styles.timeTagPast,
-            isOver && isDark && styles.timeTagPastDark,
-            isCurrent && styles.timeTagCurrent,
-            isCurrent && isDark && styles.timeTagCurrentDark,
+            { backgroundColor: theme.accentTint },
+            isOver && { backgroundColor: pick(theme, STATUS.overTint) },
+            isCurrent && { backgroundColor: pick(theme, STATUS.currentTint) },
           ]}
         >
-          <Text
-            style={[styles.timeTagStart, !!timeColor && { color: timeColor }]}
-          >
+          <Text style={[styles.timeTagStart, { color: timeColor }]}>
             {formatTime(lesson.start)}
           </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              !!timeSubColor && { color: timeSubColor },
-            ]}
-          >
+          <Text style={[styles.timeTagEnd, { color: timeSubColor }]}>
             {formatTime(lesson.end)}
           </Text>
         </View>
@@ -247,26 +236,19 @@ function LessonCard({
           <LessonTitleRow
             title={title}
             code={code}
-            isDark={isDark}
+            isDark={theme.isDark}
             numberOfLines={2}
-            titleStyle={[styles.lessonSubject, isDark && { color: "#fff" }]}
+            titleStyle={[styles.lessonSubject, { color: theme.text }]}
           />
           {!!meta && (
-            <Text
-              style={[styles.lessonMeta, isDark && { color: "#aaa" }]}
-              numberOfLines={1}
-            >
+            <AppText variant="bodySmall" color="textMuted" style={styles.lessonMeta} numberOfLines={1}>
               {meta}
-            </Text>
+            </AppText>
           )}
-          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
+          {!!lunch && <LunchChip lunch={lunch} theme={theme} />}
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
@@ -277,7 +259,7 @@ function FreeSlotCard({
   start,
   end,
   lunch,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -287,7 +269,7 @@ function FreeSlotCard({
   start: string;
   end: string;
   lunch: { start: string; end: string } | null;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
@@ -299,12 +281,8 @@ function FreeSlotCard({
   // two consecutive rows.
   const displayEnd = addMinutesClock(end, -5);
   const tallHeight = freeSlotHeight(clockMinutes(end) - clockMinutes(start));
-  const timeColor = isCurrent ? (isDark ? "#4ADE80" : "#16A34A") : undefined;
-  const timeSubColor = isCurrent
-    ? isDark
-      ? "#4ADE8080"
-      : "#16A34A80"
-    : undefined;
+  const timeColor = isCurrent ? pick(theme, STATUS.current) : theme.textMuted;
+  const timeSubColor = isCurrent ? pick(theme, STATUS.currentSub) : theme.textMuted;
 
   return (
     <>
@@ -312,7 +290,7 @@ function FreeSlotCard({
         style={[
           styles.lessonCard,
           styles.freeSlotCard,
-          isDark && styles.freeSlotCardDark,
+          { backgroundColor: theme.card, borderColor: theme.border },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           !!lunch && styles.lessonCardWithLunch,
@@ -324,50 +302,23 @@ function FreeSlotCard({
           style={[
             styles.timeTag,
             styles.freeSlotTimeTag,
-            isDark && styles.freeSlotTimeTagDark,
-            isCurrent && styles.timeTagCurrent,
-            isCurrent && isDark && styles.timeTagCurrentDark,
+            { backgroundColor: theme.border },
+            isCurrent && { backgroundColor: pick(theme, STATUS.currentTint) },
           ]}
         >
-          <Text
-            style={[
-              styles.timeTagStart,
-              styles.freeSlotTimeText,
-              isDark && styles.freeSlotTimeTextDark,
-              !!timeColor && { color: timeColor },
-            ]}
-          >
-            {start}
-          </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              styles.freeSlotTimeText,
-              isDark && styles.freeSlotTimeTextDark,
-              !!timeSubColor && { color: timeSubColor },
-            ]}
-          >
-            {displayEnd}
-          </Text>
+          <Text style={[styles.timeTagStart, { color: timeColor }]}>{start}</Text>
+          <Text style={[styles.timeTagEnd, { color: timeSubColor }]}>{displayEnd}</Text>
         </View>
         <View style={styles.lessonInfo}>
-          <Text
-            style={
-              isCurrent
-                ? [styles.lessonSubject, isDark && { color: "#fff" }]
-                : [styles.freeSlotTitle, isDark && styles.freeSlotTitleDark]
-            }
-          >
-            Hyppytunti
-          </Text>
-          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
+          {isCurrent ? (
+            <Text style={[styles.lessonSubject, { color: theme.text }]}>Hyppytunti</Text>
+          ) : (
+            <Text style={[styles.freeSlotTitle, { color: theme.textMuted }]}>Hyppytunti</Text>
+          )}
+          {!!lunch && <LunchChip lunch={lunch} theme={theme} />}
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
@@ -377,7 +328,7 @@ function FreeSlotCard({
 function LunchOnlyCard({
   start,
   end,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -385,93 +336,64 @@ function LunchOnlyCard({
 }: {
   start: string;
   end: string;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
   isPast: boolean;
 }) {
+  const fg = pick(theme, STATUS.lunch);
   return (
     <>
       <View
         style={[
           styles.lessonCard,
-          isDark && { backgroundColor: "#232427" },
+          { backgroundColor: theme.card },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           isPast && styles.pastOpacity,
         ]}
       >
-        <View
-          style={[
-            styles.timeTag,
-            styles.lunchOnlyTimeTag,
-            isDark && styles.lunchOnlyTimeTagDark,
-          ]}
-        >
-          <Text
-            style={[
-              styles.timeTagStart,
-              styles.lunchOnlyTimeText,
-              isDark && styles.lunchOnlyTimeTextDark,
-            ]}
-          >
-            {start}
-          </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              styles.lunchOnlyTimeTextSub,
-              isDark && styles.lunchOnlyTimeTextSubDark,
-            ]}
-          >
-            {end}
-          </Text>
+        <View style={[styles.timeTag, { backgroundColor: pick(theme, STATUS.lunchTint) }]}>
+          <Text style={[styles.timeTagStart, { color: fg }]}>{start}</Text>
+          <Text style={[styles.timeTagEnd, { color: pick(theme, STATUS.lunchSub) }]}>{end}</Text>
         </View>
         <View style={styles.lessonInfo}>
-          <Text style={[styles.lessonSubject, isDark && { color: "#fff" }]}>
-            Lounas
-          </Text>
+          <Text style={[styles.lessonSubject, { color: theme.text }]}>Lounas</Text>
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
 
 // ── Exam row ──────────────────────────────────────────────────────────────────
 
-function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
+function ExamRow({ exam, theme }: { exam: Exam; theme: Theme }) {
   const { code, title } = lessonLabel(exam.course, exam.courseTitle);
   return (
     <View
       style={[
         styles.examCard,
-        isDark && { backgroundColor: "#232427", borderColor: "#ff9800" },
+        {
+          backgroundColor: theme.isDark ? theme.card : STATUS.examTint.light,
+          borderColor: STATUS.exam,
+        },
       ]}
     >
-      <MaterialIcons
-        name="assignment"
-        size={16}
-        color="#ff9800"
-        style={{ marginTop: 2 }}
-      />
-      <View style={{ flex: 1 }}>
+      <PlatformSymbol ios="doc.text" android="assignment" size={16} tintColor={STATUS.exam} style={styles.examIcon} />
+      <View style={styles.flex1}>
         <LessonTitleRow
           title={`${title}${exam.name ? ` – ${exam.name}` : ""}`}
           code={code}
-          isDark={isDark}
+          isDark={theme.isDark}
           numberOfLines={2}
-          titleStyle={[styles.examTitle, isDark && { color: "#fff" }]}
+          titleStyle={[styles.examTitle, { color: theme.text }]}
         />
-        <Text style={[styles.examTime, isDark && { color: "#aaa" }]}>
+        <AppText variant="caption" color="textMuted" style={styles.examTime}>
           {formatTime(exam.timeStart)} – {formatTime(exam.timeEnd)}
           {exam.teachers[0] ? `  ·  ${exam.teachers[0].teacherName}` : ""}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -480,8 +402,7 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
-  const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const today = formatLocalISO(new Date());
   // Opened from the Wilma tab's "Tänään" card: that card may already be
@@ -767,72 +688,31 @@ export default function ScheduleScreen() {
     weekOffset,
   ]);
 
+  // Compact, not large: the week nav footer and the gradient overlay make
+  // the ScrollView one layer down from the screen, not its root, so a large
+  // title would have nothing to collapse against.
+  const header = useNativeHeader({
+    title: "Lukujärjestys",
+    background: "page",
+    large: false,
+  });
+
   return (
     <BottomSheetModalProvider>
-    {/* The safe-area inset above the header is otherwise painted with the
-        screen's body background, so the status bar sits on a visibly
-        different color than the nav bar right below it. Painting the inset
-        with the header's own background keeps the two matched. */}
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <View
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-        <Stack.Screen options={{ headerShown: false }} />
-
-        {/* ── Header ── */}
-        <View
-          style={[
-            styles.header,
-            isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
-          ]}
-        >
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
-          <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
-            Lukujärjestys
-          </Text>
-          <View style={{ flex: 1 }} />
-        </View>
-
-        {/* ── Body ── */}
+      <Stack.Screen options={header} />
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
         {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </View>
+          <StateView loading />
         ) : error ? (
-          <View style={styles.centered}>
-            <MaterialIcons
-              name="error-outline"
-              size={48}
-              color={isDark ? "#888" : "#ccc"}
-            />
-            <Text style={[styles.errorText, isDark && { color: "#888" }]}>
-              {error}
-            </Text>
-          </View>
+          <StateView icon="error-outline" message={error} />
         ) : (
           <View style={styles.bodyWrap}>
             <ScrollView
               ref={scrollRef}
-              style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
+              style={styles.body}
               contentContainerStyle={styles.bodyContent}
               refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={isDark ? "#51a2ff" : "#3478F5"}
-                />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
               }
             >
               {weekDays.map((day) => {
@@ -855,47 +735,27 @@ export default function ScheduleScreen() {
                     }
                   >
                     <View style={styles.dayHeader}>
-                      <Text
-                        style={[
-                          styles.dayName,
-                          isDark && { color: "#fff" },
-                          isHighlighted && {
-                            color: isDark ? "#51a2ff" : "#3478F5",
-                          },
-                        ]}
+                      <AppText
+                        variant="rowTitle"
+                        color={isHighlighted ? "accent" : "text"}
                       >
                         {heading.name}
-                      </Text>
-                      <Text
-                        style={[styles.dayDate, isDark && { color: "#888" }]}
-                      >
+                      </AppText>
+                      <AppText variant="meta" color="textMuted">
                         {heading.date}
-                      </Text>
-                      <View style={{ flex: 1 }} />
+                      </AppText>
+                      <View style={styles.flex1} />
                       {isHighlighted && (
-                        <View
-                          style={[
-                            styles.todayPill,
-                            isDark && {
-                              backgroundColor: "#51A2FF1F",
-                              borderColor: "#51a2ff49",
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.todayPillText,
-                              isDark && { color: "#51a2ff" },
-                            ]}
-                          >
+                        <View style={[styles.todayPill, { backgroundColor: theme.accentTint, borderColor: theme.accent + "49" }]}>
+                          <AppText variant="micro" color="accent">
                             {isToday ? "Tänään" : "Huomenna"}
-                          </Text>
+                          </AppText>
                         </View>
                       )}
                     </View>
 
                     {exams.map((exam) => (
-                      <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
+                      <ExamRow key={exam.examId} exam={exam} theme={theme} />
                     ))}
 
                     {daySlots.length > 0 ? (
@@ -935,7 +795,7 @@ export default function ScheduleScreen() {
                               <LessonCard
                                 key={`lesson-${slot.lesson.reservationId}`}
                                 lesson={slot.lesson}
-                                isDark={isDark}
+                                theme={theme}
                                 isFirst={isFirst}
                                 isLast={isLast}
                                 showDivider={showDivider}
@@ -953,7 +813,7 @@ export default function ScheduleScreen() {
                                 start={slot.start}
                                 end={slot.end}
                                 lunch={slot.lunch}
-                                isDark={isDark}
+                                theme={theme}
                                 isFirst={isFirst}
                                 isLast={isLast}
                                 showDivider={showDivider}
@@ -967,7 +827,7 @@ export default function ScheduleScreen() {
                               key={`lunch-${slot.start}`}
                               start={slot.start}
                               end={slot.end}
-                              isDark={isDark}
+                              theme={theme}
                               isFirst={isFirst}
                               isLast={isLast}
                               showDivider={showDivider}
@@ -978,16 +838,21 @@ export default function ScheduleScreen() {
                       </View>
                     ) : exams.length === 0 ? (
                       <View
-                        style={[styles.emptyDay, isDark && styles.emptyDayDark]}
+                        style={[
+                          styles.emptyDay,
+                          {
+                            borderColor: theme.border,
+                            // `theme.card` is the 3-digit `#fff` shorthand in
+                            // light mode, which an appended alpha pair turns
+                            // into an invalid 5-digit string — spelled out in
+                            // full here instead of reusing the token.
+                            backgroundColor: theme.isDark ? "#23242780" : "#ffffff80",
+                          },
+                        ]}
                       >
-                        <Text
-                          style={[
-                            styles.emptyDayText,
-                            isDark && { color: "#666" },
-                          ]}
-                        >
+                        <AppText variant="bodySmall" color="textFaint">
                           Ei tunteja
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                   </View>
@@ -997,21 +862,9 @@ export default function ScheduleScreen() {
             <LinearGradient
               pointerEvents="none"
               colors={
-                isDark
-                  ? [
-                      "#18191B00",
-                      "#18191B1A",
-                      "#18191B4D",
-                      "#18191B99",
-                      "#18191B",
-                    ]
-                  : [
-                      "#fafafa00",
-                      "#fafafa1A",
-                      "#fafafa4D",
-                      "#fafafa99",
-                      "#fafafa",
-                    ]
+                theme.isDark
+                  ? ["#18191B00", "#18191B1A", "#18191B4D", "#18191B99", "#18191B"]
+                  : ["#F2F2F600", "#F2F2F61A", "#F2F2F64D", "#F2F2F699", "#F2F2F6"]
               }
               locations={[0, 0.25, 0.5, 0.75, 1]}
               style={styles.bottomFade}
@@ -1020,51 +873,22 @@ export default function ScheduleScreen() {
         )}
 
         {/* ── Week navigation ── */}
-        <View
-          style={[
-            styles.weekNav,
-            { paddingBottom: 10 + insets.bottom },
-            isDark && { backgroundColor: "#18191B" },
-          ]}
-        >
-          <Pressable
-            onPress={() => goToWeek(-1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={28}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
+        <View style={[styles.weekNav, { paddingBottom: 10 + insets.bottom, backgroundColor: theme.bg }]}>
+          <Pressable onPress={() => goToWeek(-1)} style={styles.navBtn} hitSlop={12}>
+            <PlatformSymbol ios="chevron.left" android="chevron_left" size={22} tintColor={theme.accent} />
           </Pressable>
-          <Pressable
-            style={{ alignItems: "center" }}
-            onPress={() => dayPickerRef.current?.present(formatLocalISO(monday))}
-            hitSlop={8}
-          >
-            <Text style={[styles.weekLabel, isDark && { color: "#fff" }]}>
-              Viikko {weekNum}
-            </Text>
-            <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
+          <Pressable style={styles.weekLabelWrap} onPress={() => dayPickerRef.current?.present(formatLocalISO(monday))} hitSlop={8}>
+            <AppText variant="rowTitle">Viikko {weekNum}</AppText>
+            <AppText variant="meta" color="textMuted" style={styles.weekSub}>
               {weekMonthLabel(monday, friday)}
-            </Text>
+            </AppText>
           </Pressable>
-          <Pressable
-            onPress={() => goToWeek(1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-right"
-              size={28}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
+          <Pressable onPress={() => goToWeek(1)} style={styles.navBtn} hitSlop={12}>
+            <PlatformSymbol ios="chevron.right" android="chevron_right" size={22} tintColor={theme.accent} />
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
-    <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
+      <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
     </BottomSheetModalProvider>
   );
 }
@@ -1072,33 +896,9 @@ export default function ScheduleScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B", color: "#fff" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1 },
   pastOpacity: { opacity: 0.5 },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fff",
-    gap: 12,
-  },
-  headerTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 17,
-    color: "#222",
-  },
+  flex1: { flex: 1 },
 
   // Week navigation
   weekNav: {
@@ -1107,21 +907,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 4,
     paddingVertical: 6,
-    backgroundColor: "#fafafa",
   },
   navBtn: { padding: 4 },
-  weekLabel: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#222",
-  },
-  weekSub: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 1,
-    textTransform: "capitalize",
-  },
+  weekLabelWrap: { alignItems: "center" },
+  weekSub: { marginTop: 1, textTransform: "capitalize" },
 
   // Body
   bodyWrap: { flex: 1, position: "relative" },
@@ -1146,174 +935,78 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 2,
   },
-  dayName: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#222",
-  },
-  dayDate: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#999",
-  },
   todayPill: {
-    backgroundColor: "#EEF4FF",
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: "#cddcf3",
-  },
-  todayPillText: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 11,
-    color: "#3478F5",
   },
   emptyDay: {
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "#e8e8e8",
-    backgroundColor: "#ffffff80",
     paddingHorizontal: 14,
     paddingVertical: 14,
-  },
-  emptyDayDark: { borderColor: "#333", backgroundColor: "#23242780" },
-  emptyDayText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#aaa",
   },
 
   // Lesson cards (grouped, rounded first/last)
   lessonCard: {
-    backgroundColor: "#fff",
     paddingHorizontal: 14,
     paddingVertical: 13,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  cardTop: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  cardBottom: { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  cardTop: { borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg },
+  cardBottom: { borderBottomLeftRadius: radii.lg, borderBottomRightRadius: radii.lg },
   lessonCardWithLunch: { alignItems: "flex-start", paddingVertical: 15 },
-  lessonDivider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
-  },
+  lessonDivider: { height: StyleSheet.hairlineWidth },
   lunchChip: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 5,
-    backgroundColor: "#FEF3C7",
     borderRadius: 7,
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginTop: 6,
   },
-  lunchChipDark: { backgroundColor: "#78350F55" },
-  lunchChipText: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 12,
-    color: "#B45309",
-  },
-  lunchChipTextDark: { color: "#FBBF24" },
+  lunchChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12 },
 
   // Free slot ("Hyppytunti")
   freeSlotCard: {
-    backgroundColor: "#fff",
     borderWidth: 1,
     borderLeftWidth: 0,
     borderRightWidth: 0,
     borderStyle: "dashed",
-    borderColor: "#e0e0e0",
   },
-  freeSlotCardDark: { backgroundColor: "#232427", borderColor: "#4A5058" },
-  freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
-  freeSlotTimeTagDark: { backgroundColor: "#2E3034" },
-  freeSlotTimeText: { color: "#888" },
-  freeSlotTimeTextDark: { color: "#AAA" },
-  freeSlotTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontStyle: "italic",
-    fontSize: 15,
-    color: "#888",
-  },
-  freeSlotTitleDark: { color: "#AAA" },
+  freeSlotTimeTag: {},
+  freeSlotTitle: { fontFamily: "Figtree-SemiBold", fontStyle: "italic", fontSize: 15 },
 
-  // Standalone lunch (falls outside every lesson and free slot)
-  lunchOnlyTimeTag: { backgroundColor: "#FEF3C7" },
-  lunchOnlyTimeTagDark: { backgroundColor: "#78350F55" },
-  lunchOnlyTimeText: { color: "#B45309" },
-  lunchOnlyTimeTextDark: { color: "#FBBF24" },
-  lunchOnlyTimeTextSub: { color: "#B4530980" },
-  lunchOnlyTimeTextSubDark: { color: "#FBBF2480" },
   timeTag: {
-    backgroundColor: "#EEF4FF",
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     alignItems: "center",
     minWidth: 50,
   },
-  timeTagStart: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 13,
-    color: "#3478F5",
-  },
-  timeTagEnd: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 11,
-    color: "#3478F570",
-    marginTop: 1,
-  },
-  timeTagCurrent: { backgroundColor: "#16A34A1A" },
-  timeTagCurrentDark: { backgroundColor: "#4ADE8022" },
-  timeTagPast: { backgroundColor: "#F3F4F6" },
-  timeTagPastDark: { backgroundColor: "#2E3034" },
+  timeTagStart: { fontFamily: "Figtree-SemiBold", fontSize: 13 },
+  timeTagEnd: { fontFamily: "Figtree-Regular", fontSize: 11, marginTop: 1 },
   lessonInfo: { flex: 1 },
-  lessonSubject: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  lessonMeta: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#888",
-    marginTop: 2,
-  },
+  lessonSubject: { fontFamily: "Figtree-SemiBold", fontSize: 15 },
+  lessonMeta: { marginTop: 2 },
 
   // Exam card
   examCard: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: "#fff8f0",
     borderRadius: 10,
     borderLeftWidth: 3,
-    borderColor: "#ff9800",
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 8,
   },
-  examTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 14,
-    color: "#222",
-  },
-  examTime: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-
-  // Error
-  errorText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#aaa",
-    textAlign: "center",
-  },
+  examIcon: { marginTop: 2 },
+  examTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14 },
+  examTime: { marginTop: 2 },
 });
