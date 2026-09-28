@@ -1,28 +1,20 @@
+import { AppText, StateView, useNativeHeader, useTheme } from "@/components/ui";
 import { fetchMessage, MessageDetail } from "@/lib/wilma/graphqlClient";
 import { buildMessageThreadHtml, messageReplyCountLabel } from "@/lib/wilma/messageThread";
 import { openExternalUrl } from "@/lib/openExternalUrl";
-import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 export default function MessageScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { id, subject, sender } = useLocalSearchParams<{
     id: string;
     subject?: string;
     sender?: string;
   }>();
-  const isDark = useColorScheme() === "dark";
 
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,13 +32,19 @@ export default function MessageScreen() {
       setLoading(true);
       setError(null);
       fetchMessage(messageId)
-        .then((nextDetail) => { if (active) setDetail(nextDetail); })
+        .then((nextDetail) => {
+          if (active) setDetail(nextDetail);
+        })
         .catch((caught: unknown) => {
           if (active) setError(caught instanceof Error ? caught.message : "Lataus epäonnistui");
         })
-        .finally(() => { if (active) setLoading(false); });
-      return () => { active = false; };
-    }, [id])
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, [id]),
   );
 
   const headerTitle = detail?.subject ?? subject ?? "Viesti";
@@ -54,104 +52,78 @@ export default function MessageScreen() {
   const replyLabel = detail ? messageReplyCountLabel(detail.replies.length) : "";
   const headerSubtitle = [threadSender, replyLabel].filter(Boolean).join(" · ");
 
+  const header = useNativeHeader({
+    title: headerTitle,
+    background: "flat",
+    large: false,
+    action:
+      !loading && !error && id
+        ? {
+            icon: "arrowshape.turn.up.left",
+            accessibilityLabel: "Vastaa viestiketjuun",
+            onPress: () =>
+              router.push({
+                pathname: "/wilma/reply" as never,
+                params: { messageId: id, subject: headerTitle, sender: threadSender },
+              }),
+          }
+        : undefined,
+  });
+
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <View style={[styles.container, isDark && styles.containerDark]}>
-        <Stack.Screen options={{ headerShown: false }} />
-
-        <View style={[styles.header, isDark && styles.headerDark]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-            <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={1}>
-              {headerTitle}
-            </Text>
+    <>
+      <Stack.Screen options={header} />
+      <View style={styles.body}>
+        {loading ? (
+          <StateView loading />
+        ) : error ? (
+          <StateView icon="error-outline" message={error} />
+        ) : detail ? (
+          <>
             {!!headerSubtitle && (
-              <Text style={[styles.headerSender, isDark && styles.mutedDark]} numberOfLines={1}>
-                {headerSubtitle}
-              </Text>
+              // The native bar has room for one line, and the subject already
+              // takes it — the sender and reply count move down here instead
+              // of being dropped.
+              <View
+                style={[
+                  styles.subtitle,
+                  { backgroundColor: theme.card, borderBottomColor: theme.border },
+                ]}
+              >
+                <AppText variant="meta" color="textMuted" numberOfLines={1}>
+                  {headerSubtitle}
+                </AppText>
+              </View>
             )}
-          </View>
-          {!loading && !error && !!id && (
-            <Pressable
-              style={styles.replyButton}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Vastaa viestiketjuun"
-              onPress={() =>
-                router.push({
-                  pathname: "/wilma/reply" as never,
-                  params: {
-                    messageId: id,
-                    subject: headerTitle,
-                    sender: threadSender,
-                  },
-                })
-              }
-            >
-              <MaterialIcons name="reply" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
-            </Pressable>
-          )}
-        </View>
-
-        {loading && (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
-          </View>
-        )}
-
-        {!loading && error && (
-          <View style={styles.centered}>
-            <MaterialIcons name="error-outline" size={48} color={isDark ? "#888" : "#ccc"} />
-            <Text style={[styles.errorText, isDark && styles.mutedDark]}>{error}</Text>
-          </View>
-        )}
-
-        {!loading && !error && detail && (
-          <WebView
-            source={{ html: buildMessageThreadHtml(detail, isDark, sender ?? "") }}
-            javaScriptEnabled={false}
-            domStorageEnabled={false}
-            style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#f5f5f5" }}
-            scrollEnabled
-            showsVerticalScrollIndicator={false}
-            originWhitelist={["*"]}
-            onShouldStartLoadWithRequest={(request) => {
-              if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
-              if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
-                void openExternalUrl(request.url);
-              }
-              return false;
-            }}
-          />
-        )}
+            <WebView
+              source={{ html: buildMessageThreadHtml(detail, theme.isDark, sender ?? "") }}
+              javaScriptEnabled={false}
+              domStorageEnabled={false}
+              style={[styles.web, { backgroundColor: theme.bgFlat }]}
+              scrollEnabled
+              showsVerticalScrollIndicator={false}
+              originWhitelist={["*"]}
+              onShouldStartLoadWithRequest={(request) => {
+                if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
+                if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
+                  void openExternalUrl(request.url);
+                }
+                return false;
+              }}
+            />
+          </>
+        ) : null}
       </View>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#18191B" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff", gap: 12 },
-  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
-  backBtn: { padding: 2 },
-  headerText: { flex: 1 },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 16, color: "#222" },
-  headerSender: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#888", marginTop: 2 },
-  replyButton: { padding: 4 },
-  errorText: { fontFamily: "Figtree-Regular", fontSize: 15, color: "#aaa", textAlign: "center", paddingHorizontal: 32 },
-  textLight: { color: "#fff" },
-  mutedDark: { color: "#aaa" },
+  body: { flex: 1 },
+  subtitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  web: { flex: 1 },
 });

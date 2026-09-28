@@ -1,4 +1,5 @@
 import { Stack, useRouter } from "expo-router";
+import type { SFSymbol } from "expo-symbols";
 import { useMemo, type ComponentProps } from "react";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
 
@@ -26,6 +27,13 @@ type Args = {
    */
   back?: boolean;
   /**
+   * Off for a screen with no scroll view of its own to collapse it against
+   * — a WebView-hosted document, say. Without a tracked scroll view the
+   * large title has nothing to observe and simply stays expanded, eating
+   * space from content that is usually the entire point of the screen.
+   */
+  large?: boolean;
+  /**
    * Adds the system search bar beneath the large title. Flat rather than a
    * nested object so that passing it inline cannot defeat the memoisation
    * below — an options object with a new identity each render makes
@@ -34,6 +42,17 @@ type Args = {
    */
   searchPlaceholder?: string;
   onSearch?: (text: string) => void;
+  /**
+   * A single trailing icon button — reply, send, compose. `disabled` dims
+   * the icon rather than removing it, so the bar doesn't reflow the moment
+   * the action becomes available.
+   */
+  action?: {
+    icon: SFSymbol;
+    onPress: () => void;
+    accessibilityLabel: string;
+    disabled?: boolean;
+  };
 };
 
 /**
@@ -62,8 +81,10 @@ export function useNativeHeader({
   title,
   background = "page",
   back = true,
+  large = true,
   searchPlaceholder,
   onSearch,
+  action,
 }: Args): HeaderOptions {
   const theme = useTheme();
   const router = useRouter();
@@ -72,7 +93,7 @@ export function useNativeHeader({
     () => ({
       headerShown: true,
       title,
-      headerLargeTitle: true,
+      headerLargeTitle: large,
       headerBackButtonDisplayMode: "minimal" as const,
       contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
 
@@ -92,7 +113,7 @@ export function useNativeHeader({
 
       // The system default of 34pt leaves a long Finnish title no margin at
       // all — "Tilojen lukujärjestykset" runs the full width.
-      headerLargeTitleStyle: { fontSize: 30, color: theme.text },
+      ...(large ? { headerLargeTitleStyle: { fontSize: 30, color: theme.text } } : {}),
 
       ...(back
         ? {
@@ -129,7 +150,24 @@ export function useNativeHeader({
             },
           }
         : {}),
+
+      ...(action
+        ? {
+            unstable_headerRightItems: () => [
+              {
+                type: "button" as const,
+                label: "",
+                icon: { type: "sfSymbol" as const, name: action.icon },
+                onPress: action.onPress,
+                tintColor: action.disabled ? theme.textFaint : theme.accent,
+                disabled: action.disabled,
+                accessibilityLabel: action.accessibilityLabel,
+                hidesSharedBackground: true,
+              },
+            ],
+          }
+        : {}),
     }),
-    [title, background, back, searchPlaceholder, onSearch, theme, router],
+    [title, background, back, large, searchPlaceholder, onSearch, action, theme, router],
   );
 }

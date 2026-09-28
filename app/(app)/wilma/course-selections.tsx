@@ -1,4 +1,14 @@
 import {
+  AppText,
+  SegmentedControl,
+  StateView,
+  useNativeHeader,
+  useTheme,
+  type Theme,
+} from "@/components/ui";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { radii } from "@/constants/theme";
+import {
   fetchCourseTray,
   fetchCourseTrays,
   fetchSelectedCourses,
@@ -11,16 +21,26 @@ import {
   groupCoursesByPeriod,
 } from "@/lib/wilma/courseSelectionGrouping";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
 type Tab = "SELECTED" | "TRAYS";
 
+const TABS = [
+  ["SELECTED", "Omat valinnat"],
+  ["TRAYS", "Tarjottimet"],
+] as const;
+
 export default function WilmaCourseSelectionsScreen() {
-  const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
   const [tab, setTab] = useState<Tab>("SELECTED");
   const [selected, setSelected] = useState<WilmaSelectedCourse[]>([]);
   const [trays, setTrays] = useState<WilmaCourseTray[]>([]);
@@ -48,17 +68,21 @@ export default function WilmaCourseSelectionsScreen() {
         setTrayDetails({});
         setTrayDetailError({});
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Kurssivalintojen lataaminen epäonnistui."); }
-    finally { setLoading(false); setRefreshing(false); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Kurssivalintojen lataaminen epäonnistui.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useEffect(() => {
     if (!selectedGroups.length) return;
     setExpandedPeriods((current) =>
-      Object.keys(current).length
-        ? current
-        : { [selectedGroups[0].key]: true }
+      Object.keys(current).length ? current : { [selectedGroups[0].key]: true },
     );
   }, [selectedGroups]);
 
@@ -71,9 +95,7 @@ export default function WilmaCourseSelectionsScreen() {
       setTrays(currentTrays);
       const currentTray = findCurrentCourseTray(tray, currentTrays);
       if (!currentTray) {
-        throw new Error(
-          "Kurssitarjotin ei ole enää saatavilla. Päivitä näkymä ja yritä uudelleen."
-        );
+        throw new Error("Kurssitarjotin ei ole enää saatavilla. Päivitä näkymä ja yritä uudelleen.");
       }
 
       targetId = currentTray.id;
@@ -85,196 +107,314 @@ export default function WilmaCourseSelectionsScreen() {
     } catch (cause) {
       setTrayDetailError((current) => ({
         ...current,
-        [targetId]: cause instanceof Error
-          ? cause.message
-          : "Kurssitarjottimen sisältöä ei voitu ladata.",
+        [targetId]:
+          cause instanceof Error ? cause.message : "Kurssitarjottimen sisältöä ei voitu ladata.",
       }));
     } finally {
       setTrayDetailLoading(null);
     }
   }, []);
 
-  const toggleTray = useCallback(async (tray: WilmaCourseTray) => {
-    if (expandedTrayId === tray.id) {
-      setExpandedTrayId(null);
-      return;
-    }
+  const toggleTray = useCallback(
+    async (tray: WilmaCourseTray) => {
+      if (expandedTrayId === tray.id) {
+        setExpandedTrayId(null);
+        return;
+      }
 
-    setExpandedTrayId(tray.id);
-    if (trayDetails[tray.id] || trayDetailLoading === tray.id) return;
-    await loadTrayDetail(tray);
-  }, [expandedTrayId, loadTrayDetail, trayDetails, trayDetailLoading]);
+      setExpandedTrayId(tray.id);
+      if (trayDetails[tray.id] || trayDetailLoading === tray.id) return;
+      await loadTrayDetail(tray);
+    },
+    [expandedTrayId, loadTrayDetail, trayDetails, trayDetailLoading],
+  );
+
+  // Compact, not large: the tabs sit directly under the bar, which puts a
+  // ScrollView — not this screen — as the root a large title would need to
+  // collapse against.
+  const header = useNativeHeader({ title: "Kurssivalinnat", background: "page", large: false });
 
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
-      <View style={[styles.container, isDark && styles.containerDark]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, isDark && styles.borderDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}><MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} /></Pressable>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]}>Kurssivalinnat</Text>
-      </View>
-      <View style={[styles.tabs, isDark && styles.borderDark]}>
-        {([["SELECTED", "Omat valinnat"], ["TRAYS", "Tarjottimet"]] as const).map(([value, label]) => (
-          <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} style={[styles.tab, tab === value && styles.tabActive]} onPress={() => setTab(value)}>
-            <Text style={[styles.tabText, isDark && styles.textMuted, tab === value && styles.tabTextActive]}>{label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {loading ? <View style={styles.centered}><ActivityIndicator size="large" color="#3478F5" /></View>
-      : error ? <View style={styles.centered}><Text style={styles.empty}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Yritä uudelleen</Text></Pressable></View>
-      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#3478F5" />}>
-          <View style={[styles.notice, isDark && styles.noticeDark]}><MaterialIcons name="lock-outline" size={18} color="#3478F5" /><Text style={[styles.noticeText, isDark && styles.textMuted]}>Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.</Text></View>
-          {tab === "SELECTED" ? (selectedGroups.length ? selectedGroups.map((group) => {
-            const expanded = expandedPeriods[group.key] ?? false;
-            return (
-              <View key={group.key} style={[styles.trayCard, isDark && styles.cardDark]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded }}
-                  style={styles.periodHeader}
-                  onPress={() =>
-                    setExpandedPeriods((current) => ({
-                      ...current,
-                      [group.key]: !expanded,
-                    }))
-                  }
-                >
-                  <View style={styles.periodBadge}>
-                    <Text style={styles.periodBadgeText}>{group.label}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, isDark && styles.textLight]}>
-                      Jakso {group.label}
-                    </Text>
-                    <Text style={styles.meta}>
-                      {group.courses.length} {group.courses.length === 1 ? "valinta" : "valintaa"}
-                    </Text>
-                  </View>
-                  <MaterialIcons
-                    name={expanded ? "expand-less" : "expand-more"}
-                    size={22}
-                    color={isDark ? "#aaa" : "#667085"}
-                  />
-                </Pressable>
-                {expanded && (
-                  <View style={[styles.periodContents, isDark && styles.trayContentsDark]}>
-                    {group.courses.map((course) => (
-                      <View
-                        key={`${course.tray}-${course.period}-${course.groupCode}`}
-                        style={[styles.selectedCourseRow, isDark && styles.courseRowDark]}
+    <>
+      <Stack.Screen options={header} />
+      <View style={styles.screen}>
+        <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+
+        {loading ? (
+          <StateView loading />
+        ) : error ? (
+          <StateView
+            icon="error-outline"
+            message={error}
+            actionLabel="Yritä uudelleen"
+            onAction={() => void load()}
+          />
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.content}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  void load(true);
+                }}
+                tintColor={theme.accent}
+              />
+            }
+          >
+            <View style={[styles.notice, { backgroundColor: theme.accentTint }]}>
+              <PlatformSymbol ios="lock" android="lock" size={16} tintColor={theme.accent} />
+              <AppText variant="bodySmall" color="textSecondary" style={styles.noticeText}>
+                Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.
+              </AppText>
+            </View>
+
+            {tab === "SELECTED" ? (
+              selectedGroups.length ? (
+                selectedGroups.map((group) => {
+                  const expanded = expandedPeriods[group.key] ?? false;
+                  return (
+                    <View key={group.key} style={[styles.card, { backgroundColor: theme.card }]}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded }}
+                        style={styles.cardHeader}
+                        onPress={() =>
+                          setExpandedPeriods((current) => ({ ...current, [group.key]: !expanded }))
+                        }
                       >
-                        <View style={styles.codeChip}>
-                          <Text style={styles.codeText}>{course.groupCode}</Text>
+                        <View style={[styles.periodBadge, { backgroundColor: theme.accent }]}>
+                          <AppText variant="rowTitle" style={styles.periodBadgeText}>
+                            {group.label}
+                          </AppText>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.cardTitle, isDark && styles.textLight]}>
-                            {course.tray}
-                          </Text>
-                          {!!course.bar && <Text style={styles.meta}>Palkki {course.bar}</Text>}
+                        <View style={styles.flex1}>
+                          <AppText variant="bodySmall">Jakso {group.label}</AppText>
+                          <AppText variant="caption" color="textFaint" style={styles.meta}>
+                            {group.courses.length}{" "}
+                            {group.courses.length === 1 ? "valinta" : "valintaa"}
+                          </AppText>
                         </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          }) : <Text style={styles.empty}>Valittuja kursseja ei löytynyt.</Text>)
-          : (trays.length ? trays.map((tray) => {
-            const expanded = expandedTrayId === tray.id;
-            const detail = trayDetails[tray.id];
-            return (
-              <View key={tray.id} style={[styles.trayCard, isDark && styles.cardDark]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded }}
-                  style={styles.trayHeader}
-                  onPress={() => void toggleTray(tray)}
-                >
-                  <MaterialIcons name={tray.closed ? "event-busy" : "view-week"} size={22} color={tray.closed ? "#8a94a6" : "#3478F5"} />
-                  <View style={{ flex: 1 }}><Text style={[styles.cardTitle, isDark && styles.textLight]}>{tray.name}</Text><Text style={styles.meta}>{tray.category} · {tray.status}</Text></View>
-                  <MaterialIcons name={expanded ? "expand-less" : "expand-more"} size={22} color={isDark ? "#aaa" : "#667085"} />
-                </Pressable>
-                {expanded && (
-                  <View style={[styles.trayContents, isDark && styles.trayContentsDark]}>
-                    {trayDetailLoading === tray.id ? (
-                      <ActivityIndicator color="#3478F5" style={styles.detailLoader} />
-                    ) : trayDetailError[tray.id] ? (
-                      <View style={styles.detailError}>
-                        <Text style={styles.empty}>{trayDetailError[tray.id]}</Text>
-                        <Pressable
-                          style={styles.retry}
-                          onPress={() => void loadTrayDetail(tray)}
-                        >
-                          <Text style={styles.retryText}>Yritä uudelleen</Text>
-                        </Pressable>
-                      </View>
-                    ) : detail?.bars.length ? detail.bars.map((bar, barIndex) => (
-                      <View key={`${tray.id}-${bar.name}-${barIndex}`} style={styles.trayBar}>
-                        <Text style={[styles.barTitle, isDark && styles.textLight]}>{bar.name}</Text>
-                        {bar.courses.map((course) => (
-                          <View key={course.id} style={[styles.courseRow, isDark && styles.courseRowDark]}>
-                            <View style={[styles.codeChip, course.selected && styles.selectedCodeChip]}>
-                              <Text style={[styles.codeText, course.selected && styles.selectedCodeText]}>{course.code}</Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.courseName, isDark && styles.textLight]}>{course.name}</Text>
-                              {!!course.teacher && <Text style={styles.meta}>{course.teacher}</Text>}
-                              <View style={styles.courseBadges}>
-                                {course.selected && <Text style={styles.selectedBadge}>Valittu</Text>}
-                                {course.locked && <Text style={styles.mutedBadge}>Lukittu</Text>}
-                                {course.full && <Text style={styles.mutedBadge}>Täynnä</Text>}
-                                {course.completed && <Text style={styles.mutedBadge}>Suoritettu{course.grade ? ` · ${course.grade}` : ""}</Text>}
+                        <Chevron expanded={expanded} theme={theme} />
+                      </Pressable>
+                      {expanded && (
+                        <View style={[styles.cardBody, { borderTopColor: theme.border }]}>
+                          {group.courses.map((course) => (
+                            <View
+                              key={`${course.tray}-${course.period}-${course.groupCode}`}
+                              style={[styles.itemRow, { backgroundColor: theme.bg }]}
+                            >
+                              <CodeChip label={course.groupCode} theme={theme} />
+                              <View style={styles.flex1}>
+                                <AppText variant="bodySmall">{course.tray}</AppText>
+                                {!!course.bar && (
+                                  <AppText variant="caption" color="textFaint" style={styles.meta}>
+                                    Palkki {course.bar}
+                                  </AppText>
+                                )}
                               </View>
                             </View>
-                          </View>
-                        ))}
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <StateView message="Valittuja kursseja ei löytynyt." />
+              )
+            ) : trays.length ? (
+              trays.map((tray) => {
+                const expanded = expandedTrayId === tray.id;
+                const detail = trayDetails[tray.id];
+                return (
+                  <View key={tray.id} style={[styles.card, { backgroundColor: theme.card }]}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded }}
+                      style={styles.cardHeader}
+                      onPress={() => void toggleTray(tray)}
+                    >
+                      <MaterialIcons
+                        name={tray.closed ? "event-busy" : "view-week"}
+                        size={22}
+                        color={tray.closed ? theme.textFaint : theme.accent}
+                      />
+                      <View style={styles.flex1}>
+                        <AppText variant="bodySmall">{tray.name}</AppText>
+                        <AppText variant="caption" color="textFaint" style={styles.meta}>
+                          {tray.category} · {tray.status}
+                        </AppText>
                       </View>
-                    )) : (
-                      <Text style={styles.empty}>Tarjottimelta ei löytynyt kursseja.</Text>
+                      <Chevron expanded={expanded} theme={theme} />
+                    </Pressable>
+                    {expanded && (
+                      <View style={[styles.cardBody, { borderTopColor: theme.border }]}>
+                        {trayDetailLoading === tray.id ? (
+                          <ActivityIndicator color={theme.accent} style={styles.detailLoader} />
+                        ) : trayDetailError[tray.id] ? (
+                          <View style={styles.detailError}>
+                            <AppText variant="bodySmall" color="textMuted" style={styles.centeredText}>
+                              {trayDetailError[tray.id]}
+                            </AppText>
+                            <Pressable
+                              style={[styles.retry, { backgroundColor: theme.accentTint }]}
+                              onPress={() => void loadTrayDetail(tray)}
+                            >
+                              <AppText variant="rowTitle" color="accent">
+                                Yritä uudelleen
+                              </AppText>
+                            </Pressable>
+                          </View>
+                        ) : detail?.bars.length ? (
+                          detail.bars.map((bar, barIndex) => (
+                            <View key={`${tray.id}-${bar.name}-${barIndex}`} style={styles.bar}>
+                              <AppText variant="bodySmall">{bar.name}</AppText>
+                              {bar.courses.map((course) => (
+                                <View
+                                  key={course.id}
+                                  style={[styles.itemRow, { backgroundColor: theme.bg }]}
+                                >
+                                  <CodeChip
+                                    label={course.code}
+                                    theme={theme}
+                                    selected={course.selected}
+                                  />
+                                  <View style={styles.flex1}>
+                                    <AppText variant="bodySmall">{course.name}</AppText>
+                                    {!!course.teacher && (
+                                      <AppText variant="caption" color="textFaint" style={styles.meta}>
+                                        {course.teacher}
+                                      </AppText>
+                                    )}
+                                    {course.selected || course.locked || course.full || course.completed ? (
+                                      <View style={styles.badges}>
+                                        {course.selected && <Badge label="Valittu" accent theme={theme} />}
+                                        {course.locked && <Badge label="Lukittu" theme={theme} />}
+                                        {course.full && <Badge label="Täynnä" theme={theme} />}
+                                        {course.completed && (
+                                          <Badge
+                                            label={`Suoritettu${course.grade ? ` · ${course.grade}` : ""}`}
+                                            theme={theme}
+                                          />
+                                        )}
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                </View>
+                              ))}
+                            </View>
+                          ))
+                        ) : (
+                          <AppText variant="bodySmall" color="textMuted" style={styles.centeredText}>
+                            Tarjottimelta ei löytynyt kursseja.
+                          </AppText>
+                        )}
+                      </View>
                     )}
                   </View>
-                )}
-              </View>
-            );
-          }) : <Text style={styles.empty}>Kurssitarjottimia ei löytynyt.</Text>)}
-        </ScrollView>}
+                );
+              })
+            ) : (
+              <StateView message="Kurssitarjottimia ei löytynyt." />
+            )}
+          </ScrollView>
+        )}
       </View>
-    </SafeAreaView>
+    </>
+  );
+}
+
+function Chevron({ expanded, theme }: { expanded: boolean; theme: Theme }) {
+  return (
+    <MaterialIcons
+      name={expanded ? "expand-less" : "expand-more"}
+      size={22}
+      color={theme.textMuted}
+    />
+  );
+}
+
+function CodeChip({
+  label,
+  theme,
+  selected,
+}: {
+  label: string;
+  theme: Theme;
+  selected?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.codeChip,
+        { backgroundColor: selected ? theme.accent : theme.accentTint },
+      ]}
+    >
+      <AppText
+        variant="micro"
+        color={selected ? "text" : "accent"}
+        style={selected ? styles.codeChipTextSelected : undefined}
+      >
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+function Badge({ label, theme, accent }: { label: string; theme: Theme; accent?: boolean }) {
+  return (
+    <View
+      style={[styles.badge, { backgroundColor: accent ? theme.accentTint : theme.border }]}
+    >
+      <AppText variant="micro" color={accent ? "accent" : "textMuted"}>
+        {label}
+      </AppText>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" }, containerDark: { backgroundColor: "#18191B" }, header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" }, borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" }, tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" }, tabActive: { borderBottomColor: "#3478F5" }, tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" }, tabTextActive: { color: "#3478F5" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 }, content: { padding: 16, gap: 10 }, notice: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#eaf1ff", borderRadius: 12, padding: 12, marginBottom: 4 }, noticeDark: { backgroundColor: "#233047" }, noticeText: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#4b6282" },
-  cardDark: { backgroundColor: "#232427" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#3478F5" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#222" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
-  trayCard: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
-  trayHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  periodHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  periodBadge: { alignItems: "center", backgroundColor: "#3478F5", borderRadius: 9, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 8 },
-  periodBadgeText: { color: "#fff", fontFamily: "Figtree-Bold", fontSize: 14 },
-  periodContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", gap: 8, padding: 10 },
-  selectedCourseRow: { alignItems: "flex-start", backgroundColor: "#f7f9fc", borderRadius: 10, flexDirection: "row", gap: 10, padding: 10 },
-  trayContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", padding: 12, gap: 14 },
-  trayContentsDark: { borderTopColor: "#444" },
-  trayBar: { gap: 7 },
-  barTitle: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#222" },
-  courseRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#f7f9fc", borderRadius: 10, padding: 10 },
-  courseRowDark: { backgroundColor: "#333" },
-  courseName: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#222" },
-  selectedCodeChip: { backgroundColor: "#3478F5" },
-  selectedCodeText: { color: "#fff" },
-  courseBadges: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 5 },
-  selectedBadge: { fontFamily: "Figtree-SemiBold", fontSize: 10, color: "#3478F5", backgroundColor: "#eaf1ff", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  mutedBadge: { fontFamily: "Figtree-Medium", fontSize: 10, color: "#666", backgroundColor: "#e9edf3", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  screen: { flex: 1 },
+  content: { padding: 16, gap: 10 },
+  flex1: { flex: 1 },
+  notice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 4,
+  },
+  noticeText: { flex: 1 },
+  card: { borderRadius: radii.xl, overflow: "hidden" },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  cardBody: { borderTopWidth: StyleSheet.hairlineWidth, gap: 8, padding: 10 },
+  meta: { marginTop: 3 },
+  periodBadge: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9,
+    minHeight: 38,
+    minWidth: 44,
+    paddingHorizontal: 8,
+  },
+  periodBadgeText: { color: "#fff" },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderRadius: 10,
+    padding: 10,
+  },
+  codeChip: { borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 },
+  codeChipTextSelected: { color: "#fff" },
+  bar: { gap: 7 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 5 },
+  badge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   detailLoader: { marginVertical: 18 },
   detailError: { alignItems: "center", gap: 10, paddingVertical: 8 },
-  empty: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" }, retry: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" }, textLight: { color: "#fff" }, textMuted: { color: "#aaa" },
+  centeredText: { textAlign: "center" },
+  retry: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
 });

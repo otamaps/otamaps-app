@@ -5,6 +5,7 @@ export { useNativeHeader } from "./nativeHeader";
 export { Row } from "./Row";
 export { RowIcon } from "./RowIcon";
 export { Screen } from "./Screen";
+export { SegmentedControl } from "./SegmentedControl";
 export { Surface } from "./Surface";
 export { SearchField } from "./SearchField";
 export { StateView } from "./StateView";
