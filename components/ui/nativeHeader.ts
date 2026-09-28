@@ -1,5 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import type { SFSymbol } from "expo-symbols";
+import type { ScrollEdgeEffect } from "react-native-screens";
 import { useMemo, type ComponentProps } from "react";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
 
@@ -53,6 +54,12 @@ type Args = {
     accessibilityLabel: string;
     disabled?: boolean;
   };
+  /**
+   * The bar's material at the top edge once content is underneath it.
+   * Unset (the system default) everywhere else — see the note below on why
+   * `hard` was rejected. A screen can still opt into `soft`'s gentler fade.
+   */
+  edgeEffect?: ScrollEdgeEffect;
 };
 
 /**
@@ -85,6 +92,7 @@ export function useNativeHeader({
   searchPlaceholder,
   onSearch,
   action,
+  edgeEffect,
 }: Args): HeaderOptions {
   const theme = useTheme();
   const router = useRouter();
@@ -102,14 +110,17 @@ export function useNativeHeader({
       headerTintColor: theme.accent,
       headerTitleStyle: { color: theme.text },
 
-      // `scrollEdgeEffects` is deliberately not set. `hard` draws its backdrop
-      // at the top edge whether or not anything is under it, so at rest it read
-      // as a grey bar across the width behind the back chevron, growing into
-      // the whole bar on scroll. It was only ever reached for because the rows
+      // Unset by default rather than `hard`: `hard` draws its backdrop at the
+      // top edge whether or not anything is under it, so at rest it read as a
+      // grey bar across the width behind the back chevron, growing into the
+      // whole bar on scroll. It was only ever reached for because the rows
       // were showing through the bar — which turned out to be the navigation
       // bar not tracking the scroll view at all (see above), not the edge
-      // effect. With that fixed the system default is already right: nothing at
-      // the top, its own material once content is underneath.
+      // effect. With that fixed the system default is already right for most
+      // screens: nothing at the top, its own material once content is
+      // underneath. `edgeEffect` lets one opt into `soft` where that reads
+      // better than the system's choice.
+      ...(edgeEffect ? { scrollEdgeEffects: { top: edgeEffect } } : {}),
 
       // The system default of 34pt leaves a long Finnish title no margin at
       // all — "Tilojen lukujärjestykset" runs the full width.
@@ -168,6 +179,6 @@ export function useNativeHeader({
           }
         : {}),
     }),
-    [title, background, back, large, searchPlaceholder, onSearch, action, theme, router],
+    [title, background, back, large, searchPlaceholder, onSearch, action, edgeEffect, theme, router],
   );
 }

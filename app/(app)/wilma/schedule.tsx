@@ -695,6 +695,7 @@ export default function ScheduleScreen() {
     title: "Lukujärjestys",
     background: "page",
     large: false,
+    edgeEffect: "soft",
   });
 
   return (
