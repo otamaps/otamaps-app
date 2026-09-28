@@ -21,25 +21,20 @@ import {
   updateConsentChoices,
 } from "@/lib/userPreferences";
 import { fetchSchedule } from "@/lib/wilma/graphqlClient";
-import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
+import {
+  AppText,
+  Row,
+  StateView,
+  Surface,
+  useNativeHeader,
+  useTheme,
+} from "@/components/ui";
 import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Switch, View } from "react-native";
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -54,7 +49,6 @@ export default function Settings() {
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [backgroundTracking, setBackgroundTracking] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
-  const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
     let cancelled = false;
@@ -235,138 +229,118 @@ export default function Settings() {
     await AsyncStorage.setItem("isDebugMode", enabled.toString());
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3478F5" />
-      </View>
-    );
-  }
+  const header = useNativeHeader({ title: "Asetukset", background: "page" });
 
-  const surface = isDark ? "#232427" : "#FFFFFF";
-  const background = isDark ? "#18191B" : "#F5F7FA";
-  const titleColor = isDark ? "#FFFFFF" : "#101828";
-  const descriptionColor = isDark ? "#B3B3B3" : "#667085";
-
+  // The scroll view is the screen's root and stays mounted through loading,
+  // so the large title has something to attach to from the first frame.
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
-      <Stack.Screen
-        options={{
-          title: "Asetukset",
-          headerStyle: { backgroundColor: surface },
-          headerTitleStyle: { color: titleColor },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color={titleColor} />
-            </Pressable>
-          ),
-        }}
-      />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>TIETOSUOJA</Text>
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <SettingSwitch
-            title="Sijainti kavereille"
-            description="Näytä sijaintisi vain hyväksytyille kavereillesi."
-            value={friendLocation}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeFriendLocation(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          <SettingSwitch
-            title="Viikkolukujärjestys kavereille"
-            description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
-            value={shareSchedule}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeScheduleSharing(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          <SettingSwitch
-            title="Anonyymit ruuhka-arviot"
-            description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
-            value={anonymousAnalytics}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeAnonymousAnalytics(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          {(Platform.OS === "android" || Platform.OS === "ios") && (
-            <>
-              <Divider isDark={isDark} />
+    <>
+      <Stack.Screen options={header} />
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
+        {loading ? (
+          <StateView loading />
+        ) : (
+          <>
+            <Surface title="Tietosuoja">
               <SettingSwitch
-                title="Taustapaikannus"
-                description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
-                value={backgroundTracking}
-                disabled={
-                  updating !== null || (!friendLocation && !anonymousAnalytics)
+                title="Sijainti kavereille"
+                description="Näytä sijaintisi vain hyväksytyille kavereillesi."
+                value={friendLocation}
+                disabled={updating !== null}
+                onValueChange={(value) => void changeFriendLocation(value)}
+              />
+              <SettingSwitch
+                title="Viikkolukujärjestys kavereille"
+                description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
+                value={shareSchedule}
+                disabled={updating !== null}
+                onValueChange={(value) => void changeScheduleSharing(value)}
+              />
+              <SettingSwitch
+                title="Anonyymit ruuhka-arviot"
+                description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
+                value={anonymousAnalytics}
+                disabled={updating !== null}
+                onValueChange={(value) => void changeAnonymousAnalytics(value)}
+              />
+              {Platform.OS === "android" || Platform.OS === "ios" ? (
+                <SettingSwitch
+                  title="Taustapaikannus"
+                  description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
+                  value={backgroundTracking}
+                  disabled={
+                    updating !== null ||
+                    (!friendLocation && !anonymousAnalytics)
+                  }
+                  onValueChange={(value) => void changeBackgroundTracking(value)}
+                />
+              ) : null}
+            </Surface>
+
+            <Surface title="Sovellus">
+              <SettingSwitch
+                title="Ilmoitukset"
+                description="Wilma-viestit, muutokset ja kaveripyynnöt."
+                value={notificationPermission}
+                onValueChange={(value) => void changeNotifications(value)}
+              />
+              {liveActivitySupported ? (
+                <SettingSwitch
+                  title="Tunti lukitusnäytöllä"
+                  description="Näytä meneillään oleva tunti, sen päättymisaika ja seuraava tunti tai lounas. Päivittyy, kun avaat sovelluksen."
+                  value={liveActivity}
+                  onValueChange={(value) => void changeLiveActivity(value)}
+                />
+              ) : null}
+              <SettingSwitch
+                title="Debug-tila"
+                description="Näytä kehittäjätoiminnot."
+                value={isDebugMode}
+                onValueChange={(value) => void changeDebugMode(value)}
+              />
+            </Surface>
+
+            <Surface>
+              <Row onPress={() => router.push("/welcome/(post)/permissions")}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  Käy onboarding uudelleen
+                </AppText>
+              </Row>
+              <Row
+                onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
+              >
+                <AppText variant="body" style={styles.rowLabel}>
+                  Tietosuoja
+                </AppText>
+              </Row>
+              <Row
+                onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
+              >
+                <AppText variant="body" style={styles.rowLabel}>
+                  Käyttöehdot
+                </AppText>
+              </Row>
+            </Surface>
+
+            <Surface>
+              <Row
+                onPress={() =>
+                  void openExternalUrl("https://otamaps.fi/remove-me")
                 }
-                onValueChange={(value) => void changeBackgroundTracking(value)}
-                colors={{ titleColor, descriptionColor }}
-              />
-            </>
-          )}
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>SOVELLUS</Text>
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <SettingSwitch
-            title="Ilmoitukset"
-            description="Wilma-viestit, muutokset ja kaveripyynnöt."
-            value={notificationPermission}
-            onValueChange={(value) => void changeNotifications(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          {liveActivitySupported && (
-            <>
-              <SettingSwitch
-                title="Tunti lukitusnäytöllä"
-                description="Näytä meneillään oleva tunti, sen päättymisaika ja seuraava tunti tai lounas. Päivittyy, kun avaat sovelluksen."
-                value={liveActivity}
-                onValueChange={(value) => void changeLiveActivity(value)}
-                colors={{ titleColor, descriptionColor }}
-              />
-              <Divider isDark={isDark} />
-            </>
-          )}
-          <SettingSwitch
-            title="Debug-tila"
-            description="Näytä kehittäjätoiminnot."
-            value={isDebugMode}
-            onValueChange={(value) => void changeDebugMode(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-        </View>
-
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <LinkRow
-            title="Käy onboarding uudelleen"
-            onPress={() => router.push("/welcome/(post)/permissions")}
-            color={titleColor}
-          />
-          <Divider isDark={isDark} />
-          <LinkRow
-            title="Tietosuoja"
-            onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
-            color={titleColor}
-          />
-          <Divider isDark={isDark} />
-          <LinkRow
-            title="Käyttöehdot"
-            onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
-            color={titleColor}
-          />
-        </View>
-
-        <Pressable
-          style={styles.deleteButton}
-          onPress={() => void openExternalUrl("https://otamaps.fi/remove-me")}
-        >
-          <Text style={styles.deleteText}>Poista tili</Text>
-        </Pressable>
+                chevron={false}
+              >
+                <AppText variant="body" color="danger">
+                  Poista tili
+                </AppText>
+              </Row>
+            </Surface>
+          </>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -380,89 +354,38 @@ function SettingSwitch({
   value,
   disabled = false,
   onValueChange,
-  colors,
 }: {
   title: string;
   description: string;
   value: boolean;
   disabled?: boolean;
   onValueChange: (value: boolean) => void;
-  colors: { titleColor: string; descriptionColor: string };
 }) {
+  const theme = useTheme();
   return (
-    <View style={[styles.row, disabled && styles.disabled]}>
+    <Row style={disabled ? styles.disabled : undefined}>
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.titleColor }]}>{title}</Text>
-        <Text style={[styles.rowDescription, { color: colors.descriptionColor }]}>
+        <AppText variant="rowTitle">{title}</AppText>
+        <AppText variant="meta" color="textMuted" style={styles.rowDescription}>
           {description}
-        </Text>
+        </AppText>
       </View>
+      {/* The off state is left to the platform, which already draws the grey
+          iOS uses for it; only the "on" tint is ours. */}
       <Switch
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
-        // The thumb stays white in both states — tinting it with the same blue
-        // as the "on" track made the whole control read as one solid blob.
-        ios_backgroundColor="#D0D5DD"
-        trackColor={{ false: "#D0D5DD", true: "#3478F5" }}
-        thumbColor="#FFFFFF"
+        trackColor={{ false: undefined, true: theme.accent }}
       />
-    </View>
-  );
-}
-
-function Divider({ isDark }: { isDark: boolean }) {
-  return <View style={[styles.divider, { backgroundColor: isDark ? "#2E3034" : "#EAECF0" }]} />;
-}
-
-function LinkRow({
-  title,
-  onPress,
-  color,
-}: {
-  title: string;
-  onPress: () => void;
-  color: string;
-}) {
-  return (
-    <Pressable style={styles.linkRow} onPress={onPress}>
-      <Text style={[styles.rowTitle, { color }]}>{title}</Text>
-      <MaterialIcons name="chevron-right" size={22} color="#98A2B3" />
-    </Pressable>
+    </Row>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: 16, paddingBottom: 40 },
-  sectionLabel: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 12,
-    letterSpacing: 0.7,
-    marginBottom: 8,
-    marginLeft: 4,
-    marginTop: 10,
-  },
-  card: { borderRadius: 14, marginBottom: 18, overflow: "hidden" },
-  row: { alignItems: "center", flexDirection: "row", gap: 14, padding: 16 },
+  content: { flexGrow: 1, paddingBottom: 40 },
   rowText: { flex: 1 },
-  rowTitle: { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-  rowDescription: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
+  rowLabel: { flex: 1 },
+  rowDescription: { marginTop: 4 },
   disabled: { opacity: 0.45 },
-  divider: { height: 1, marginLeft: 16 },
-  linkRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 54,
-    paddingHorizontal: 16,
-  },
-  deleteButton: { alignItems: "center", paddingVertical: 16 },
-  deleteText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
 });
