@@ -103,6 +103,11 @@ export function useNativeHeader({
       title,
       headerLargeTitle: large,
       headerBackButtonDisplayMode: "minimal" as const,
+      // The system's 1px hairline under the bar is its own hard edge no
+      // matter how well `contentStyle` matches the content's color — every
+      // screen here wants the header to read as sitting on the content, not
+      // divided from it by a line.
+      headerShadowVisible: false,
       contentStyle: { backgroundColor: theme[BACKGROUND_KEY[background]] },
 
       // Set explicitly rather than derived, so the title cannot pick up the
