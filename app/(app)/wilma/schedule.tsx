@@ -688,14 +688,14 @@ export default function ScheduleScreen() {
     weekOffset,
   ]);
 
-  // Compact, not large: the week nav footer and the gradient overlay make
-  // the ScrollView one layer down from the screen, not its root, so a large
-  // title would have nothing to collapse against.
+  // Compact, not large: the week nav footer and the gradient overlays make
+  // the ScrollView one layer down from the screen, not its root, so neither
+  // a large title nor `edgeEffect` would have anything to track — the top
+  // fade below stands in for it instead.
   const header = useNativeHeader({
     title: "Lukujärjestys",
     background: "page",
     large: false,
-    edgeEffect: "soft",
   });
 
   return (
@@ -864,6 +864,16 @@ export default function ScheduleScreen() {
               pointerEvents="none"
               colors={
                 theme.isDark
+                  ? ["#18191B", "#18191B99", "#18191B4D", "#18191B1A", "#18191B00"]
+                  : ["#F2F2F6", "#F2F2F699", "#F2F2F64D", "#F2F2F61A", "#F2F2F600"]
+              }
+              locations={[0, 0.25, 0.5, 0.75, 1]}
+              style={styles.topFade}
+            />
+            <LinearGradient
+              pointerEvents="none"
+              colors={
+                theme.isDark
                   ? ["#18191B00", "#18191B1A", "#18191B4D", "#18191B99", "#18191B"]
                   : ["#F2F2F600", "#F2F2F61A", "#F2F2F64D", "#F2F2F699", "#F2F2F6"]
               }
@@ -909,7 +919,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 6,
   },
-  navBtn: { padding: 4 },
+  navBtn: { paddingVertical: 4, paddingHorizontal: 12 },
   weekLabelWrap: { alignItems: "center" },
   weekSub: { marginTop: 1, textTransform: "capitalize" },
 
@@ -917,6 +927,18 @@ const styles = StyleSheet.create({
   bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
+  // Fades the scrolling content into the header, standing in for the native
+  // scroll-edge effect: this screen's ScrollView isn't the literal screen
+  // root (the week-nav footer and this pair of gradients sit alongside it),
+  // so the header never tracks it and the system's own top fade never
+  // draws.
+  topFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 24,
+  },
   // Fades the scrolling content out just above the week navigation bar, so
   // it reads as sliding underneath it rather than stopping abruptly.
   bottomFade: {
