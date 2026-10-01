@@ -1,5 +1,7 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { pick, STATUS, timeTagColors } from "@/components/schedule/status";
+import { WeekNav, WeekNavFade } from "@/components/schedule/WeekNav";
 import DayPickerSheet, {
   DayPickerSheetRef,
 } from "@/components/sheets/dayPickerSheet";
@@ -26,7 +28,6 @@ import {
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatLocalISO,
-  getISOWeekNumber,
   getMondayOfWeek,
   getNextSchoolDay,
   getSchoolWeekDays,
@@ -34,53 +35,25 @@ import {
   parseLocalISO,
   shortDateLabel,
   weekdayLabel,
-  weekMonthLabel,
 } from "@/lib/wilma/scheduleDates";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
 
 /** Never highlight the next school day instead of today earlier than this. */
 const NEXT_DAY_SWITCH_EARLIEST = "12:00";
-
-/**
- * States a lesson card's time tag can be in that the shared palette has no
- * role for — "current" and "over" are specific to a live timetable, not text
- * roles a settings row would ever need. Exam orange and lunch amber are
- * genuinely one fixed hue each, light and dark alike; only their fill tints.
- */
-const STATUS = {
-  current: { light: "#16A34A", dark: "#4ADE80" },
-  currentSub: { light: "#16A34A80", dark: "#4ADE8080" },
-  currentTint: { light: "#16A34A1A", dark: "#4ADE8022" },
-  over: { light: "#8A929D", dark: "#9CA3AF" },
-  overSub: { light: "#8A929D80", dark: "#9CA3AF80" },
-  overTint: { light: "#F3F4F6", dark: "#2E3034" },
-  exam: "#ff9800",
-  examTint: { light: "#fff8f0" },
-  lunch: { light: "#B45309", dark: "#FBBF24" },
-  lunchSub: { light: "#B4530980", dark: "#FBBF2480" },
-  lunchTint: { light: "#FEF3C7", dark: "#78350F55" },
-} as const;
-
-function pick<T extends { light: string; dark: string }>(theme: Theme, pair: T): string {
-  return theme.isDark ? pair.dark : pair.light;
-}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -193,18 +166,7 @@ function LessonCard({
   const tallHeight = lessonHeight(
     clockMinutes(lesson.end) - clockMinutes(lesson.start),
   );
-  // A lesson that is over drops its blue accent for a neutral gray, so the
-  // colored badges left on the day are only the ones still ahead.
-  const timeColor = isCurrent
-    ? pick(theme, STATUS.current)
-    : isOver
-      ? pick(theme, STATUS.over)
-      : theme.accent;
-  const timeSubColor = isCurrent
-    ? pick(theme, STATUS.currentSub)
-    : isOver
-      ? pick(theme, STATUS.overSub)
-      : theme.accent + "70";
+  const tag = timeTagColors(theme, { isCurrent, isOver });
 
   return (
     <>
@@ -219,18 +181,11 @@ function LessonCard({
           isPast && styles.pastOpacity,
         ]}
       >
-        <View
-          style={[
-            styles.timeTag,
-            { backgroundColor: theme.accentTint },
-            isOver && { backgroundColor: pick(theme, STATUS.overTint) },
-            isCurrent && { backgroundColor: pick(theme, STATUS.currentTint) },
-          ]}
-        >
-          <Text style={[styles.timeTagStart, { color: timeColor }]}>
+        <View style={[styles.timeTag, { backgroundColor: tag.fill }]}>
+          <Text style={[styles.timeTagStart, { color: tag.start }]}>
             {formatTime(lesson.start)}
           </Text>
-          <Text style={[styles.timeTagEnd, { color: timeSubColor }]}>
+          <Text style={[styles.timeTagEnd, { color: tag.end }]}>
             {formatTime(lesson.end)}
           </Text>
         </View>
@@ -405,7 +360,6 @@ function ExamRow({ exam, theme }: { exam: Exam; theme: Theme }) {
 
 export default function ScheduleScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   // On iOS the scroll view runs up under the bar and UIKit insets it by the
   // bar's height, so its resting offset is negative by that much and a
   // programmatic scroll has to account for it. Android lays it out below.
@@ -469,13 +423,7 @@ export default function ScheduleScreen() {
   // Derived values, memoized so `daySlotsByDay` below gets a stable
   // `weekDays` reference to key off instead of recomputing every render.
   const monday = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
-  const friday = useMemo(() => {
-    const f = new Date(monday);
-    f.setDate(monday.getDate() + 4);
-    return f;
-  }, [monday]);
   const weekDays = useMemo(() => getSchoolWeekDays(monday), [monday]);
-  const weekNum = useMemo(() => getISOWeekNumber(monday), [monday]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -908,33 +856,14 @@ export default function ScheduleScreen() {
               );
             })}
           </ScrollView>
-          <LinearGradient
-            pointerEvents="none"
-            colors={
-              theme.isDark
-                ? ["#18191B00", "#18191B1A", "#18191B4D", "#18191B99", "#18191B"]
-                : ["#F2F2F600", "#F2F2F61A", "#F2F2F64D", "#F2F2F699", "#F2F2F6"]
-            }
-            locations={[0, 0.25, 0.5, 0.75, 1]}
-            style={styles.bottomFade}
-          />
+          <WeekNavFade />
         </View>
 
-        {/* ── Week navigation ── */}
-        <View style={[styles.weekNav, { paddingBottom: 10 + insets.bottom, backgroundColor: theme.bg }]}>
-          <Pressable onPress={() => goToWeek(-1)} style={styles.navBtn} hitSlop={12}>
-            <PlatformSymbol ios="chevron.left" android="chevron_left" size={22} tintColor={theme.accent} />
-          </Pressable>
-          <Pressable style={styles.weekLabelWrap} onPress={() => dayPickerRef.current?.present(formatLocalISO(monday))} hitSlop={8}>
-            <AppText variant="rowTitle">Viikko {weekNum}</AppText>
-            <AppText variant="meta" color="textMuted" style={styles.weekSub}>
-              {weekMonthLabel(monday, friday)}
-            </AppText>
-          </Pressable>
-          <Pressable onPress={() => goToWeek(1)} style={styles.navBtn} hitSlop={12}>
-            <PlatformSymbol ios="chevron.right" android="chevron_right" size={22} tintColor={theme.accent} />
-          </Pressable>
-        </View>
+        <WeekNav
+          monday={monday}
+          onStep={goToWeek}
+          onPressLabel={() => dayPickerRef.current?.present(formatLocalISO(monday))}
+        />
         <BottomSheetModalProvider>
           <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
         </BottomSheetModalProvider>
@@ -950,33 +879,13 @@ const styles = StyleSheet.create({
   pastOpacity: { opacity: 0.5 },
   flex1: { flex: 1 },
 
-  // Week navigation
-  weekNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-  },
-  navBtn: { paddingVertical: 4, paddingHorizontal: 12 },
-  weekLabelWrap: { alignItems: "center" },
-  weekSub: { marginTop: 1, textTransform: "capitalize" },
-
   // Body
   bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
   // Loading and error fill the viewport so StateView can centre itself.
   bodyContentState: { flexGrow: 1 },
-  // Fades the scrolling content out just above the week navigation bar, so
-  // it reads as sliding underneath it rather than stopping abruptly.
-  bottomFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 44,
-  },
+
 
   // Day sections
   daySection: { marginBottom: 22 },
