@@ -5,6 +5,7 @@ import React from "react";
 import { Image, Pressable, ScrollView, StyleSheet } from "react-native";
 
 const SPONSORS = [
+  { name: "Otaniemen lukion vanhempainyhdistys", logo: null },
   {
     name: "Otaniemen lukion opiskelijakunnan hallitus",
     logo: require("@/assets/images/Hallitus_Logo.png"),
@@ -13,7 +14,6 @@ const SPONSORS = [
     name: "Streetsmarts Autokoulu",
     logo: require("@/assets/images/streetsmarts.png"),
   },
-  { name: "Otaniemen lukion vanhempainyhdistys", logo: null },
 ];
 
 export default function About() {
@@ -85,7 +85,7 @@ export default function About() {
               Tekijänoikeus
             </AppText>
             <AppText variant="body" color="textMuted">
-              © 2025 OtaMaps
+              © {new Date().getFullYear()} OtaMaps
             </AppText>
           </Row>
         </Surface>

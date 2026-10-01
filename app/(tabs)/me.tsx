@@ -11,6 +11,7 @@ import { FABLAB_VISIBLE } from "@/constants/features";
 import { DEFAULT_USER_COLOR, colors, radii, tint } from "@/constants/theme";
 import { FONT_FAMILY } from "@/constants/typography";
 import { formatClassLabel } from "@/lib/classLabel";
+import { getReadableLabelColor } from "@/lib/color";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
 import { supabase } from "@/lib/supabase";
@@ -80,6 +81,7 @@ export default function MeScreen() {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [isWilmaProfile, setIsWilmaProfile] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showBackgroundNudge, setShowBackgroundNudge] = useState(false);
   const params = useLocalSearchParams();
 
   useEffect(() => {
@@ -111,6 +113,7 @@ export default function MeScreen() {
 
       const preferences = await getUserPreferences({ forceRefresh: true });
       setIsWilmaProfile(preferences.profile_source === "wilma");
+      setShowBackgroundNudge(!preferences.background_tracking_enabled);
 
       const fromAuth: UserProfile = {
         name:
@@ -217,7 +220,7 @@ export default function MeScreen() {
           <StateView loading />
         ) : (
           <>
-            <Surface>
+            <Surface style={{ borderRadius: radii.xl }}>
               <Row onPress={() => router.push("/me/edit")}>
                 <View
                   style={[
@@ -225,7 +228,14 @@ export default function MeScreen() {
                     { backgroundColor: profile?.color || DEFAULT_USER_COLOR },
                   ]}
                 >
-                  <AppText variant="heading3" style={styles.avatarLetter}>
+                  <AppText
+                    variant="heading3"
+                    style={{
+                      color: getReadableLabelColor(
+                        profile?.color || DEFAULT_USER_COLOR,
+                      ),
+                    }}
+                  >
                     {profile?.name?.charAt(0).toUpperCase() ?? "?"}
                   </AppText>
                 </View>
@@ -266,8 +276,29 @@ export default function MeScreen() {
               </Row>
             </Surface>
 
+            {showBackgroundNudge ? (
+              <Surface style={{ borderRadius: radii.xl }}>
+                <Row onPress={() => router.push("/me/settings")}>
+                  <RowIcon
+                    ios="dot.radiowaves.left.and.right"
+                    android="settings_input_antenna"
+                    color={theme.accent}
+                  />
+                  <View style={styles.identity}>
+                    <AppText variant="body" style={styles.rowLabel}>
+                      Ota taustapaikannus käyttöön
+                    </AppText>
+                    <AppText variant="meta" color="textMuted">
+                      Tunnista koulun majakoita myös silloin, kun OtaMaps ei
+                      ole näkyvissä
+                    </AppText>
+                  </View>
+                </Row>
+              </Surface>
+            ) : null}
+
             {isAdmin ? (
-              <Surface title="Hallinta">
+              <Surface title="Hallinta" style={{ borderRadius: radii.xl }}>
                 <Row onPress={() => router.push("/me/admin/queue")}>
                   <RowIcon
                     ios="checkmark.shield"
@@ -291,7 +322,10 @@ export default function MeScreen() {
               </Surface>
             ) : null}
 
-            <Surface>
+            <Surface
+              style={{ borderRadius: radii.xl }}
+              // title="Asetukset ja ohjeet"
+            >
               <Row onPress={() => router.push("/me/wilma")}>
                 <AppText variant="body" style={styles.rowLabel}>
                   {isWilmaProfile ? "Wilma-tili" : "Yhdistä Wilma-tili"}
@@ -317,14 +351,19 @@ export default function MeScreen() {
                 </AppText>
               </Row>
               <Row onPress={() => router.push("/me/about")}>
-                <AppText variant="body" style={styles.rowLabel}>
+                <AppText
+                  variant="body"
+                  style={{
+                    ...styles.rowLabel,
+                  }}
+                >
                   Tietoja
                 </AppText>
               </Row>
             </Surface>
 
             {isDebugMode ? (
-              <Surface>
+              <Surface style={{ borderRadius: radii.xl }}>
                 <Row onPress={() => router.push("/(app)/debug2/ble")}>
                   <AppText variant="body" style={styles.rowLabel}>
                     Debug
@@ -333,9 +372,9 @@ export default function MeScreen() {
               </Surface>
             ) : null}
 
-            <Surface>
+            <Surface style={{ borderRadius: radii.xl }}>
               <Row onPress={signOut} chevron={false}>
-                <AppText variant="body" color="danger">
+                <AppText variant="body" color="danger" style={styles.rowLabel}>
                   Kirjaudu ulos
                 </AppText>
               </Row>
@@ -356,13 +395,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Always white: it sits on the user's own colour, not on a themed surface.
-  avatarLetter: { color: colors.textOnDark },
   identity: { flex: 1 },
   // The scale tops out at semibold in this size; name the bold face rather
   // than let a numeric weight be synthesised from the regular one.
-  name: { fontFamily: FONT_FAMILY.bold, fontSize: 21 },
-  rowLabel: { flex: 1, fontSize: 15 },
+  name: { fontFamily: FONT_FAMILY.semiBold, fontSize: 21 },
+  rowLabel: { flex: 1, fontSize: 15, fontFamily: FONT_FAMILY.medium },
   rowIcon: {
     width: 29,
     height: 29,

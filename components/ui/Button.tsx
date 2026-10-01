@@ -1,4 +1,3 @@
-import { radii } from "@/constants/theme";
 import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { AppText } from "./AppText";
 import { useTheme } from "./theme";
@@ -51,9 +50,15 @@ const styles = StyleSheet.create({
   button: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.lg,
-    minHeight: 52,
+    height: 50,
+    // Not from the radii scale: 14 is UIKit's own corner radius for a
+    // large filled button, paired with the continuous (squircle) curve
+    // that a plain circular corner doesn't have on any other control here.
+    borderRadius: 14,
+    borderCurve: "continuous",
   },
   label: { color: "#fff" },
-  pressed: { opacity: 0.75 },
+  // Matches the dimmed-not-translucent read of a UIKit highlighted fill
+  // more than a heavier fade would — the label stays legible while pressed.
+  pressed: { opacity: 0.85 },
 });

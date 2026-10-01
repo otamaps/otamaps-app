@@ -7,6 +7,7 @@ import GlobalSearch from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import { sheetPalette } from "@/components/sheets/sheetTheme";
 import { colors, radii } from "@/constants/theme";
+import { getReadableLabelColor } from "@/lib/color";
 import { BlurView } from "expo-blur";
 import Animated, {
   Extrapolation,
@@ -1059,6 +1060,7 @@ export default function HomeScreen() {
             status: friend.status || "at school",
             color: friend.color,
             initial: friend.name.charAt(0).toUpperCase(),
+            textColor: getReadableLabelColor(friend.color || "#2b7fff"),
           },
         });
       } else {
@@ -1082,6 +1084,7 @@ export default function HomeScreen() {
               status: friend.status || "at school",
               color: friend.color,
               initial: friend.name.charAt(0).toUpperCase(),
+              textColor: getReadableLabelColor(friend.color || "#2b7fff"),
             },
           });
         });
@@ -1471,7 +1474,7 @@ export default function HomeScreen() {
                   style={{
                     textField: ["get", "initial"],
                     textSize: 15,
-                    textColor: "white",
+                    textColor: ["get", "textColor"],
                     textAnchor: "center",
                     textHaloColor: ["get", "color"],
                     textHaloWidth: 1,

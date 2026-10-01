@@ -21,6 +21,8 @@ import {
   updateConsentChoices,
 } from "@/lib/userPreferences";
 import { fetchSchedule } from "@/lib/wilma/graphqlClient";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { radii } from "@/constants/theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
@@ -34,7 +36,9 @@ import {
 } from "@/components/ui";
 import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+
+type Banner = { message: string; actionLabel?: string; onAction?: () => void };
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -48,7 +52,18 @@ export default function Settings() {
   const [shareSchedule, setShareSchedule] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [backgroundTracking, setBackgroundTracking] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [banner, setBanner] = useState<Banner | null>(null);
+
+  const showError = (
+    message: string,
+    action?: { label: string; onPress: () => void },
+  ) => setBanner({ message, actionLabel: action?.label, onAction: action?.onPress });
+
+  useEffect(() => {
+    if (!banner) return;
+    const timer = setTimeout(() => setBanner(null), 6000);
+    return () => clearTimeout(timer);
+  }, [banner]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,72 +113,74 @@ export default function Settings() {
     return (await startForegroundTracking()).success;
   };
 
-  const changeFriendLocation = async (enabled: boolean) => {
-    setUpdating("friend");
-    try {
-      const preferences = await updateConsentChoices({
-        friend_location_enabled: enabled,
-      });
-      setFriendLocation(preferences.friend_location_enabled);
-      if (!enabled) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.from("locations").delete().eq("user_id", session.user.id);
+  // Every consent toggle below is optimistic: the switch flips the instant
+  // the user taps it, the Supabase write happens in the background, and only
+  // a failure touches the switch again — snapping it back to the value the
+  // server actually has and surfacing a banner instead of blocking on it.
+  const changeFriendLocation = (enabled: boolean) => {
+    const previous = friendLocation;
+    setFriendLocation(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ friend_location_enabled: enabled });
+        if (!enabled) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session) {
+            await supabase.from("locations").delete().eq("user_id", session.user.id);
+          }
         }
+        if (enabled) await ensureForegroundTracking();
+        if (!enabled && !anonymousAnalytics) await disableAllTracking();
+      } catch (error) {
+        setFriendLocation(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
       }
-      if (enabled) await ensureForegroundTracking();
-      if (!enabled && !anonymousAnalytics) await disableAllTracking();
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
-  const changeAnonymousAnalytics = async (enabled: boolean) => {
-    setUpdating("analytics");
-    try {
-      const preferences = await updateConsentChoices({
-        anonymous_analytics_enabled: enabled,
-      });
-      setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
-      if (enabled) await ensureForegroundTracking();
-      if (!enabled && !friendLocation) await disableAllTracking();
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+  const changeAnonymousAnalytics = (enabled: boolean) => {
+    const previous = anonymousAnalytics;
+    setAnonymousAnalytics(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ anonymous_analytics_enabled: enabled });
+        if (enabled) await ensureForegroundTracking();
+        if (!enabled && !friendLocation) await disableAllTracking();
+      } catch (error) {
+        setAnonymousAnalytics(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
+      }
+    })();
   };
 
-  const changeScheduleSharing = async (enabled: boolean) => {
-    setUpdating("schedule");
-    try {
-      const preferences = await updateConsentChoices({
-        schedule_sharing_enabled: enabled,
-      });
-      setShareSchedule(preferences.schedule_sharing_enabled);
-      if (!enabled) {
-        await clearSharedWeeklySchedules();
-      } else {
-        try {
-          const schedule = await fetchSchedule(undefined, { forceRefresh: true });
-          await syncSharedWeeklySchedule(schedule.schedule);
-        } catch (syncError) {
-          Alert.alert(
-            "Jakaminen on päällä",
-            "Asetus tallennettiin, mutta tämän viikon lukujärjestystä ei saatu vielä ladattua. Avaa Wilma-välilehti ja yritä uudelleen."
-          );
-          console.warn("Shared schedule initial sync failed", syncError);
+  const changeScheduleSharing = (enabled: boolean) => {
+    const previous = shareSchedule;
+    setShareSchedule(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ schedule_sharing_enabled: enabled });
+        if (!enabled) {
+          await clearSharedWeeklySchedules();
+        } else {
+          try {
+            const schedule = await fetchSchedule(undefined, { forceRefresh: true });
+            await syncSharedWeeklySchedule(schedule.schedule);
+          } catch (syncError) {
+            // The consent itself saved fine — only this week's schedule sync
+            // failed, so the switch stays on rather than being reverted.
+            showError(
+              "Jakaminen on päällä, mutta tämän viikon lukujärjestystä ei saatu vielä ladattua. Avaa Wilma-välilehti ja yritä uudelleen."
+            );
+            console.warn("Shared schedule initial sync failed", syncError);
+          }
         }
+      } catch (error) {
+        setShareSchedule(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
       }
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
   const disableAllTracking = async () => {
@@ -173,38 +190,37 @@ export default function Settings() {
     await stopAllTracking(true);
   };
 
-  const changeBackgroundTracking = async (enabled: boolean) => {
+  const changeBackgroundTracking = (enabled: boolean) => {
     if (!friendLocation && !anonymousAnalytics) return;
-    setUpdating("background");
-    try {
-      if (!enabled) {
-        await setBLEBackgroundEnabled(false);
-        await updateConsentChoices({ background_tracking_enabled: false });
-        setBackgroundTracking(false);
-        return;
-      }
-      const result = await setBLEBackgroundEnabled(true);
-      if (!result?.success) {
-        throw new Error(
-          result?.reason === "bluetooth_off"
-            ? "Kytke Bluetooth päälle ja yritä uudelleen."
-            : "Tarkista Bluetooth- ja sijaintioikeudet laitteen asetuksista."
+    const previous = backgroundTracking;
+    setBackgroundTracking(enabled);
+    void (async () => {
+      try {
+        if (!enabled) {
+          await setBLEBackgroundEnabled(false);
+          await updateConsentChoices({ background_tracking_enabled: false });
+          return;
+        }
+        const result = await setBLEBackgroundEnabled(true);
+        if (!result?.success) {
+          throw new Error(
+            result?.reason === "bluetooth_off"
+              ? "Kytke Bluetooth päälle ja yritä uudelleen."
+              : "Tarkista Bluetooth- ja sijaintioikeudet laitteen asetuksista."
+          );
+        }
+        await updateConsentChoices({ background_tracking_enabled: true });
+      } catch (error) {
+        setBackgroundTracking(previous);
+        await updateConsentChoices({ background_tracking_enabled: false }).catch(
+          () => undefined
+        );
+        showError(
+          `Taustapaikannusta ei voitu ottaa käyttöön. ${errorMessage(error)}`,
+          { label: "Avaa asetukset", onPress: () => Linking.openSettings() }
         );
       }
-      await updateConsentChoices({ background_tracking_enabled: true });
-      setBackgroundTracking(true);
-    } catch (error) {
-      setBackgroundTracking(false);
-      await updateConsentChoices({ background_tracking_enabled: false }).catch(
-        () => undefined
-      );
-      Alert.alert("Taustapaikannusta ei voitu ottaa käyttöön", errorMessage(error), [
-        { text: "Avaa asetukset", onPress: () => Linking.openSettings() },
-        { text: "Sulje", style: "cancel" },
-      ]);
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
   const changeNotifications = async (enabled: boolean) => {
@@ -244,38 +260,41 @@ export default function Settings() {
           <StateView loading />
         ) : (
           <>
+            {banner ? (
+              <ErrorBanner
+                message={banner.message}
+                actionLabel={banner.actionLabel}
+                onAction={banner.onAction}
+                onDismiss={() => setBanner(null)}
+              />
+            ) : null}
+
             <Surface title="Tietosuoja">
               <SettingSwitch
                 title="Sijainti kavereille"
                 description="Näytä sijaintisi vain hyväksytyille kavereillesi."
                 value={friendLocation}
-                disabled={updating !== null}
-                onValueChange={(value) => void changeFriendLocation(value)}
+                onValueChange={changeFriendLocation}
               />
               <SettingSwitch
                 title="Viikkolukujärjestys kavereille"
                 description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
                 value={shareSchedule}
-                disabled={updating !== null}
-                onValueChange={(value) => void changeScheduleSharing(value)}
+                onValueChange={changeScheduleSharing}
               />
               <SettingSwitch
                 title="Anonyymit ruuhka-arviot"
                 description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
                 value={anonymousAnalytics}
-                disabled={updating !== null}
-                onValueChange={(value) => void changeAnonymousAnalytics(value)}
+                onValueChange={changeAnonymousAnalytics}
               />
               {Platform.OS === "android" || Platform.OS === "ios" ? (
                 <SettingSwitch
                   title="Taustapaikannus"
                   description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
                   value={backgroundTracking}
-                  disabled={
-                    updating !== null ||
-                    (!friendLocation && !anonymousAnalytics)
-                  }
-                  onValueChange={(value) => void changeBackgroundTracking(value)}
+                  disabled={!friendLocation && !anonymousAnalytics}
+                  onValueChange={changeBackgroundTracking}
                 />
               ) : null}
             </Surface>
@@ -348,6 +367,45 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen.";
 }
 
+function ErrorBanner({
+  message,
+  actionLabel,
+  onAction,
+  onDismiss,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={styles.errorBanner}>
+      <PlatformSymbol
+        ios="exclamationmark.triangle.fill"
+        android="error"
+        size={18}
+        tintColor="#D92D20"
+        style={styles.errorIcon}
+      />
+      <View style={styles.errorTextContainer}>
+        <AppText variant="meta" color="danger">
+          {message}
+        </AppText>
+        {actionLabel && onAction ? (
+          <Pressable onPress={onAction} hitSlop={8}>
+            <AppText variant="rowTitle" color="danger" style={styles.errorAction}>
+              {actionLabel}
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel="Piilota">
+        <PlatformSymbol ios="xmark" android="close" size={16} tintColor="#D92D20" />
+      </Pressable>
+    </View>
+  );
+}
+
 function SettingSwitch({
   title,
   description,
@@ -388,4 +446,19 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1 },
   rowDescription: { marginTop: 4 },
   disabled: { opacity: 0.45 },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FEF3F2",
+    borderColor: "#FEE4E2",
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  errorIcon: { marginTop: 2 },
+  errorTextContainer: { flex: 1, gap: 6 },
+  errorAction: { marginTop: 2 },
 });

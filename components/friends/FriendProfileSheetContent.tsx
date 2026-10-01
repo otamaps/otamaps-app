@@ -3,6 +3,7 @@ import DayScheduleSection, {
   type DayScheduleEntry,
 } from "@/components/schedule/DayScheduleSection";
 import { formatClassLabel } from "@/lib/classLabel";
+import { getReadableLabelColor } from "@/lib/color";
 import { friendLocationSentence } from "@/lib/friendPresentation";
 import type { Friend } from "@/lib/friendsHandler";
 import {
@@ -353,7 +354,14 @@ export default function FriendProfileSheetContent({
         <View
           style={[styles.avatar, { backgroundColor: friend.color || "#3478F5" }]}
         >
-          <Text style={styles.avatarText}>{friend.name.charAt(0).toUpperCase()}</Text>
+          <Text
+            style={[
+              styles.avatarText,
+              { color: getReadableLabelColor(friend.color || "#3478F5") },
+            ]}
+          >
+            {friend.name.charAt(0).toUpperCase()}
+          </Text>
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.name, isDark && styles.textPrimaryDark]}>

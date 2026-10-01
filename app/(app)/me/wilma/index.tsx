@@ -7,6 +7,7 @@ import {
   useNativeHeader,
   useTheme,
 } from "@/components/ui";
+import { typography } from "@/constants/typography";
 import { formatClassLabel } from "@/lib/classLabel";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
@@ -51,7 +52,9 @@ export default function WilmaSettings() {
 
   useEffect(() => {
     void loadStatus()
-      .catch((error) => Alert.alert("Wilma-tilaa ei voitu ladata", message(error)))
+      .catch((error) =>
+        Alert.alert("Wilma-tilaa ei voitu ladata", message(error)),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -66,7 +69,7 @@ export default function WilmaSettings() {
       setPassword("");
       Alert.alert(
         wasConnected ? "Wilma-yhteys päivitetty" : "Wilma-tili yhdistetty",
-        "Wilma-tiedot ja istunto ovat nyt käytettävissä OtaMapsissa."
+        "Wilma-tiedot ja istunto ovat nyt käytettävissä OtaMapsissa.",
       );
     } catch (error) {
       Alert.alert("Wilma-tiliä ei voitu yhdistää", message(error));
@@ -107,7 +110,11 @@ export default function WilmaSettings() {
               <AppText variant="rowTitle">
                 {connected ? "Wilma on yhdistetty" : "Wilmaa ei ole yhdistetty"}
               </AppText>
-              <AppText variant="meta" color="textMuted" style={styles.identityBody}>
+              <AppText
+                variant="meta"
+                color="textMuted"
+                style={styles.identityBody}
+              >
                 {connected
                   ? `${name}${userClass ? ` · ${userClass}` : ""}`
                   : "Yhdistä Wilma saadaksesi lukujärjestyksen, viestit ja vahvistetut profiilitiedot."}
@@ -119,7 +126,11 @@ export default function WilmaSettings() {
         <Surface title={connected ? "Päivitä kirjautuminen" : "Yhdistä tili"}>
           <Row chevron={false} style={styles.fieldRow}>
             <View style={styles.field}>
-              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+              <AppText
+                variant="meta"
+                color="textMuted"
+                style={styles.fieldLabel}
+              >
                 Käyttäjätunnus
               </AppText>
               <TextInput
@@ -129,14 +140,18 @@ export default function WilmaSettings() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!connecting}
-                placeholder="Wilma-käyttäjätunnus"
+                placeholder="etunimi.sukunimi"
                 placeholderTextColor={theme.placeholder}
               />
             </View>
           </Row>
           <Row chevron={false} style={styles.fieldRow}>
             <View style={styles.field}>
-              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+              <AppText
+                variant="meta"
+                color="textMuted"
+                style={styles.fieldLabel}
+              >
                 Salasana
               </AppText>
               <TextInput
@@ -147,7 +162,7 @@ export default function WilmaSettings() {
                 autoCorrect={false}
                 secureTextEntry
                 editable={!connecting}
-                placeholder="Salasana"
+                placeholder="huojuva-vilja-123"
                 placeholderTextColor={theme.placeholder}
                 onSubmitEditing={() => void connect()}
               />
@@ -176,11 +191,14 @@ export default function WilmaSettings() {
 
 function message(error: unknown): string {
   const code = (error as Error & { code?: string })?.code;
-  if (code === "WILMA_AUTH_FAILED") return "Wilma-käyttäjätunnus tai salasana on väärä.";
+  if (code === "WILMA_AUTH_FAILED")
+    return "Wilma-käyttäjätunnus tai salasana on väärä.";
   if (code === "WILMA_IDENTITY_CONFLICT") {
     return "Tämä Wilma-tili on jo yhdistetty toiseen OtaMaps-tiliin.";
   }
-  return error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen.";
+  return error instanceof Error
+    ? error.message
+    : "Yritä hetken kuluttua uudelleen.";
 }
 
 const styles = StyleSheet.create({
@@ -191,7 +209,13 @@ const styles = StyleSheet.create({
   fieldRow: { alignItems: "flex-start" },
   field: { flex: 1 },
   fieldLabel: { marginBottom: 6 },
-  input: { fontFamily: "Figtree-Regular", fontSize: 16, padding: 0 },
+  // Unset lineHeight clips a placeholder's descenders on iOS ("j" in
+  // "huojuva-vilja") even though typed text lays out fine — pair the size
+  // with its typography entry rather than spelling it out by hand. `height`
+  // is explicit too: left to intrinsic sizing, the empty/placeholder state
+  // measures shorter than the typed state, so the row jumped on the first
+  // keystroke.
+  input: { ...typography.input, height: typography.input.lineHeight, padding: 0 },
   footnote: { marginHorizontal: 20, marginTop: 10 },
   buttonWrap: { marginHorizontal: 16, marginTop: 24 },
 });

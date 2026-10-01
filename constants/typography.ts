@@ -85,10 +85,11 @@ export const typography = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
   },
+  /** A filled button's label — the same size UIKit sets its own at. */
   button: {
-    fontFamily: "Figtree-SemiBold",
+    fontFamily: "Figtree-Medium",
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   input: {
     fontFamily: "Figtree-Regular",

@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { getReadableLabelColor } from "@/lib/color";
 import {
   friendLocationListLabel,
   knownFriendLocation,
@@ -87,7 +88,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
       >
         <Text
           style={{
-            color: "#fff",
+            color: getReadableLabelColor(friend.color || "#2b7fff"),
             fontSize: 20,
             fontFamily: "Figtree-SemiBold",
           }}

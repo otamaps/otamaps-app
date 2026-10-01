@@ -94,7 +94,7 @@ export const sheet = {
   textSecondary: "#657080",
   textSecondaryDark: "#AEB4BE",
   /** Corner radius of the sheet itself, not of the cards inside it. */
-  radius: 16,
+  radius: 21,
 } as const;
 
 export const radii = {

@@ -246,16 +246,33 @@ function SectionCard({
   title,
   badge,
   onMore,
+  wholeCardPress = false,
   children,
 }: {
   title: string;
   badge?: number;
   onMore?: () => void;
+  /**
+   * Makes the whole card open `onMore`, not just its header. Rows inside
+   * that have their own action keep it — a nested Pressable claims the touch
+   * first — so only use this where rows are mostly display.
+   */
+  wholeCardPress?: boolean;
   children: React.ReactNode;
 }) {
   const theme = useTheme();
+  const cardPress = wholeCardPress && onMore ? onMore : undefined;
   return (
-    <View style={[styles.card, { backgroundColor: theme.card }]}>
+    <Pressable
+      onPress={cardPress}
+      disabled={!cardPress}
+      accessible={false}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: theme.card },
+        pressed && cardPress ? styles.cardPressed : null,
+      ]}
+    >
       <View style={styles.cardHeader}>
         {/* The title opens the same screen as "Kaikki →" — a heading is a much
             bigger target than the link, and people reach for it first. */}
@@ -289,7 +306,7 @@ function SectionCard({
         ) : null}
       </View>
       {children}
-    </View>
+    </Pressable>
   );
 }
 
@@ -606,6 +623,7 @@ export default function Dashboard({
             {/* Today's lessons (or, once the day is done, the next school day's) */}
             <SectionCard
               title={data?.scheduleDayLabel ?? "Tänään"}
+              wholeCardPress
               onMore={() =>
                 router.push({
                   pathname: "/wilma/schedule",
@@ -1036,6 +1054,7 @@ export default function Dashboard({
             {/* Messages */}
             <SectionCard
               title="Viestit"
+              wholeCardPress
               onMore={() => router.push("/wilma/messages")}
             >
               {!data?.messages.length ? (
@@ -1045,7 +1064,10 @@ export default function Dashboard({
                   <React.Fragment key={msg.id}>
                     {i > 0 && <Divider />}
                     <Pressable
-                      style={styles.msgRow}
+                      style={({ pressed }) => [
+                        styles.msgRow,
+                        pressed && styles.rowPressed,
+                      ]}
                       onPress={() =>
                         router.push({
                           pathname: "/wilma/message",
@@ -1361,6 +1383,9 @@ const styles = StyleSheet.create({
   },
   cardTitlePressed: {
     opacity: 0.6,
+  },
+  cardPressed: {
+    opacity: 0.85,
   },
   spacer: { flex: 1 },
   badge: {

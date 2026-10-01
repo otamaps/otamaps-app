@@ -1,3 +1,4 @@
+import { getReadableLabelColor } from "@/lib/color";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -32,7 +33,7 @@ const FriendBlob: React.FC<FriendBlobProps> = ({
         /> */}
         <Text
           style={{
-            color: "#fff",
+            color: getReadableLabelColor(color || "#2b7fff"),
             fontSize: 20,
             fontFamily: "Figtree-SemiBold",
           }}

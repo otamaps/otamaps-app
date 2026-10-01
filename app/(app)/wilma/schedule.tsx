@@ -39,8 +39,10 @@ import {
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -404,6 +406,12 @@ function ExamRow({ exam, theme }: { exam: Exam; theme: Theme }) {
 export default function ScheduleScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  // On iOS the scroll view runs up under the bar and UIKit insets it by the
+  // bar's height, so its resting offset is negative by that much and a
+  // programmatic scroll has to account for it. Android lays it out below.
+  const headerHeight = useHeaderHeight();
+  const topInset = Platform.OS === "ios" ? headerHeight : 0;
+  const scrollTop = -topInset;
   const today = formatLocalISO(new Date());
   // Opened from the Wilma tab's "Tänään" card: that card may already be
   // showing the next school day (once today's lessons are done), so land on
@@ -446,8 +454,12 @@ export default function ScheduleScreen() {
   }, []);
 
   const scrollRef = useRef<ScrollView>(null);
-  const dayOffsets = useRef<Record<string, number>>({});
-  const pendingScrollDay = useRef<string | null>(null);
+  const dayOffsets = useRef<Record<string, { y: number; height: number }>>({});
+  const pendingScrollDay = useRef<{ day: string; center: boolean } | null>(null);
+  // Needed to centre a day, and to keep that from scrolling past the end:
+  // iOS doesn't clamp a programmatic offset, it just shows blank space.
+  const viewportHeight = useRef(0);
+  const contentHeight = useRef(0);
   const dayPickerRef = useRef<DayPickerSheetRef>(null);
   // Jumping the week forward is a one-time convenience on open. Once it has
   // settled — or the user has picked a week themselves — it must never move
@@ -526,8 +538,8 @@ export default function ScheduleScreen() {
     autoAdvance.current.settled = true;
     pendingScrollDay.current = null;
     setWeekOffset((offset) => offset + delta);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, []);
+    scrollRef.current?.scrollTo({ y: scrollTop, animated: false });
+  }, [scrollTop]);
 
   // Lessons and exams bucketed by calendar date for the whole week.
   const lessonsByDay = useMemo(() => {
@@ -605,25 +617,42 @@ export default function ScheduleScreen() {
     return byDay;
   }, [weekDays, lessonsByDay, lunchRows]);
 
-  const scrollToDay = useCallback((day: string) => {
-    const y = dayOffsets.current[day];
-    // The section may not be measured yet; the next onLayout finishes the job.
-    if (y === undefined) {
-      pendingScrollDay.current = day;
-      return;
-    }
-    pendingScrollDay.current = null;
-    // Wait a frame so the ScrollView has taken the new content height; without
-    // it a jump to the last day of the week gets clamped back to the top.
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 4), animated: false });
-    });
-  }, []);
+  // `center` puts the day in the middle of the space below the header — how
+  // the screen opens — falling back to its top edge when the day is taller
+  // than that space. Otherwise the day lands just under the header.
+  const scrollToDay = useCallback(
+    (day: string, center = false) => {
+      const layout = dayOffsets.current[day];
+      // The section may not be measured yet; the next onLayout finishes the job.
+      if (layout === undefined) {
+        pendingScrollDay.current = { day, center };
+        return;
+      }
+      pendingScrollDay.current = null;
+      // Wait a frame so the ScrollView has taken the new content height; without
+      // it a jump to the last day of the week gets clamped back to the top.
+      requestAnimationFrame(() => {
+        const visible = viewportHeight.current - topInset;
+        const topAligned = layout.y - 4 - topInset;
+        const target =
+          center && layout.height < visible
+            ? layout.y - topInset - (visible - layout.height) / 2
+            : topAligned;
+        const maxOffset = Math.max(scrollTop, contentHeight.current - viewportHeight.current);
+        scrollRef.current?.scrollTo({
+          y: Math.min(maxOffset, Math.max(scrollTop, target)),
+          animated: false,
+        });
+      });
+    },
+    [topInset, scrollTop],
+  );
 
   const handleDayLayout = useCallback(
-    (day: string, y: number) => {
-      dayOffsets.current[day] = y;
-      if (pendingScrollDay.current === day) scrollToDay(day);
+    (day: string, y: number, height: number) => {
+      dayOffsets.current[day] = { y, height };
+      const pending = pendingScrollDay.current;
+      if (pending?.day === day) scrollToDay(day, pending.center);
     },
     [scrollToDay],
   );
@@ -652,7 +681,7 @@ export default function ScheduleScreen() {
       // `weekOffset` was already initialized to targetDay's own week, so it
       // belongs in `weekDays` as soon as that week has loaded.
       autoAdvance.current.settled = true;
-      if (weekDays.includes(targetDay)) scrollToDay(targetDay);
+      if (weekDays.includes(targetDay)) scrollToDay(targetDay, true);
       return;
     }
 
@@ -664,7 +693,7 @@ export default function ScheduleScreen() {
     );
     if (target) {
       autoAdvance.current.settled = true;
-      scrollToDay(target);
+      scrollToDay(target, true);
       return;
     }
     if (autoAdvance.current.weeksTried >= MAX_AUTO_ADVANCE_WEEKS) {
@@ -688,200 +717,208 @@ export default function ScheduleScreen() {
     weekOffset,
   ]);
 
-  // Compact, not large: the week nav footer and the gradient overlays make
-  // the ScrollView one layer down from the screen, not its root, so neither
-  // a large title nor `edgeEffect` would have anything to track — the top
-  // fade below stands in for it instead.
+  // The native soft edge attaches to the scroll view found by following each
+  // view's FIRST child down from the screen, and only when the screen is
+  // pushed. So the ScrollView stays mounted through loading and errors
+  // (those render inside it), and the sheet provider — which puts its own
+  // hosting view ahead of its children — sits after it rather than around
+  // it. Get either wrong and the effect silently never draws.
   const header = useNativeHeader({
     title: "Lukujärjestys",
     background: "page",
     large: false,
+    edgeEffect: "soft",
   });
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Stack.Screen options={header} />
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        {loading ? (
-          <StateView loading />
-        ) : error ? (
-          <StateView icon="error-outline" message={error} />
-        ) : (
-          <View style={styles.bodyWrap}>
-            <ScrollView
-              ref={scrollRef}
-              style={styles.body}
-              contentContainerStyle={styles.bodyContent}
-              refreshControl={
+        <View style={styles.bodyWrap}>
+          <ScrollView
+            ref={scrollRef}
+            contentInsetAdjustmentBehavior="automatic"
+            onLayout={(event) => {
+              viewportHeight.current = event.nativeEvent.layout.height;
+            }}
+            onContentSizeChange={(_, height) => {
+              contentHeight.current = height;
+            }}
+            style={styles.body}
+            contentContainerStyle={[
+              styles.bodyContent,
+              (loading || !!error) && styles.bodyContentState,
+            ]}
+            scrollEnabled={!loading && !error}
+            refreshControl={
+              loading || error ? undefined : (
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
-              }
-            >
-              {weekDays.map((day) => {
-                const daySlots = daySlotsByDay[day] ?? [];
-                const exams = examsByDay[day] ?? [];
-                const heading = dayHeading(day);
-                const isToday = day === today;
-                // Once the highlight has moved on to the next school day
-                // (today's last lesson is long over), today itself is done
-                // too and should dim along with the actually-past days.
-                const isPastDay = day < highlightedDay;
-                const isHighlighted = day === highlightedDay;
+              )
+            }
+          >
+            {loading ? (
+              <StateView loading />
+            ) : error ? (
+              <StateView icon="error-outline" message={error} />
+            ) : weekDays.map((day) => {
+              const daySlots = daySlotsByDay[day] ?? [];
+              const exams = examsByDay[day] ?? [];
+              const heading = dayHeading(day);
+              const isToday = day === today;
+              // Once the highlight has moved on to the next school day
+              // (today's last lesson is long over), today itself is done
+              // too and should dim along with the actually-past days.
+              const isPastDay = day < highlightedDay;
+              const isHighlighted = day === highlightedDay;
 
-                return (
-                  <View
-                    key={day}
-                    style={[styles.daySection, isPastDay && styles.pastOpacity]}
-                    onLayout={(event) =>
-                      handleDayLayout(day, event.nativeEvent.layout.y)
-                    }
-                  >
-                    <View style={styles.dayHeader}>
-                      <AppText
-                        variant="rowTitle"
-                        color={isHighlighted ? "accent" : "text"}
-                      >
-                        {heading.name}
-                      </AppText>
-                      <AppText variant="meta" color="textMuted">
-                        {heading.date}
-                      </AppText>
-                      <View style={styles.flex1} />
-                      {isHighlighted && (
-                        <View style={[styles.todayPill, { backgroundColor: theme.accentTint, borderColor: theme.accent + "49" }]}>
-                          <AppText variant="micro" color="accent">
-                            {isToday ? "Tänään" : "Huomenna"}
-                          </AppText>
-                        </View>
-                      )}
-                    </View>
+              return (
+                <View
+                  key={day}
+                  style={[styles.daySection, isPastDay && styles.pastOpacity]}
+                  onLayout={(event) =>
+                    handleDayLayout(
+                      day,
+                      event.nativeEvent.layout.y,
+                      event.nativeEvent.layout.height,
+                    )
+                  }
+                >
+                  <View style={styles.dayHeader}>
+                    <AppText
+                      variant="rowTitle"
+                      color={isHighlighted ? "accent" : "text"}
+                    >
+                      {heading.name}
+                    </AppText>
+                    <AppText variant="meta" color="textMuted">
+                      {heading.date}
+                    </AppText>
+                    <View style={styles.flex1} />
+                    {isHighlighted && (
+                      <View style={[styles.todayPill, { backgroundColor: theme.accentTint, borderColor: theme.accent + "49" }]}>
+                        <AppText variant="micro" color="accent">
+                          {isToday ? "Tänään" : "Huomenna"}
+                        </AppText>
+                      </View>
+                    )}
+                  </View>
 
-                    {exams.map((exam) => (
-                      <ExamRow key={exam.examId} exam={exam} theme={theme} />
-                    ))}
+                  {exams.map((exam) => (
+                    <ExamRow key={exam.examId} exam={exam} theme={theme} />
+                  ))}
 
-                    {daySlots.length > 0 ? (
-                      <View>
-                        {daySlots.map((slot, i) => {
-                          // Free slots and the odd standalone lunch sit in the
-                          // same continuous, rounded card group as the day's
-                          // lessons rather than breaking out into their own box.
-                          const isFirst = i === 0;
-                          const isLast = i === daySlots.length - 1;
-                          // A free slot already reads as a break via its own
-                          // dashed border, so a divider right next to it would
-                          // just double up on that same visual cue.
-                          const next = daySlots[i + 1];
-                          const showDivider =
-                            !isLast &&
-                            slot.kind !== "freeslot" &&
-                            next?.kind !== "freeslot";
-                          // When today itself has already dimmed as a whole
-                          // (the highlight moved on to tomorrow), skip the
-                          // per-row dim too — stacking both would make today's
-                          // lessons darker than an actually past day's.
-                          const isPast =
-                            !isPastDay && isToday && slot.end <= nowClock;
-                          // Unlike the dim, the gray badge also applies on a
-                          // day that has wholly passed — stacking a color with
-                          // the day's opacity reads fine, a second dim does not.
-                          const isOver =
-                            isPastDay || (isToday && slot.end <= nowClock);
-                          const isCurrent =
-                            isToday &&
-                            slot.start <= nowClock &&
-                            nowClock < slot.end;
+                  {daySlots.length > 0 ? (
+                    <View>
+                      {daySlots.map((slot, i) => {
+                        // Free slots and the odd standalone lunch sit in the
+                        // same continuous, rounded card group as the day's
+                        // lessons rather than breaking out into their own box.
+                        const isFirst = i === 0;
+                        const isLast = i === daySlots.length - 1;
+                        // A free slot already reads as a break via its own
+                        // dashed border, so a divider right next to it would
+                        // just double up on that same visual cue.
+                        const next = daySlots[i + 1];
+                        const showDivider =
+                          !isLast &&
+                          slot.kind !== "freeslot" &&
+                          next?.kind !== "freeslot";
+                        // When today itself has already dimmed as a whole
+                        // (the highlight moved on to tomorrow), skip the
+                        // per-row dim too — stacking both would make today's
+                        // lessons darker than an actually past day's.
+                        const isPast =
+                          !isPastDay && isToday && slot.end <= nowClock;
+                        // Unlike the dim, the gray badge also applies on a
+                        // day that has wholly passed — stacking a color with
+                        // the day's opacity reads fine, a second dim does not.
+                        const isOver =
+                          isPastDay || (isToday && slot.end <= nowClock);
+                        const isCurrent =
+                          isToday &&
+                          slot.start <= nowClock &&
+                          nowClock < slot.end;
 
-                          if (slot.kind === "lesson") {
-                            return (
-                              <LessonCard
-                                key={`lesson-${slot.lesson.reservationId}`}
-                                lesson={slot.lesson}
-                                theme={theme}
-                                isFirst={isFirst}
-                                isLast={isLast}
-                                showDivider={showDivider}
-                                lunch={slot.lunch}
-                                isPast={isPast}
-                                isOver={isOver}
-                                isCurrent={isCurrent}
-                              />
-                            );
-                          }
-                          if (slot.kind === "freeslot") {
-                            return (
-                              <FreeSlotCard
-                                key={slot.key}
-                                start={slot.start}
-                                end={slot.end}
-                                lunch={slot.lunch}
-                                theme={theme}
-                                isFirst={isFirst}
-                                isLast={isLast}
-                                showDivider={showDivider}
-                                isPast={isPast}
-                                isCurrent={isCurrent}
-                              />
-                            );
-                          }
+                        if (slot.kind === "lesson") {
                           return (
-                            <LunchOnlyCard
-                              key={`lunch-${slot.start}`}
+                            <LessonCard
+                              key={`lesson-${slot.lesson.reservationId}`}
+                              lesson={slot.lesson}
+                              theme={theme}
+                              isFirst={isFirst}
+                              isLast={isLast}
+                              showDivider={showDivider}
+                              lunch={slot.lunch}
+                              isPast={isPast}
+                              isOver={isOver}
+                              isCurrent={isCurrent}
+                            />
+                          );
+                        }
+                        if (slot.kind === "freeslot") {
+                          return (
+                            <FreeSlotCard
+                              key={slot.key}
                               start={slot.start}
                               end={slot.end}
+                              lunch={slot.lunch}
                               theme={theme}
                               isFirst={isFirst}
                               isLast={isLast}
                               showDivider={showDivider}
                               isPast={isPast}
+                              isCurrent={isCurrent}
                             />
                           );
-                        })}
-                      </View>
-                    ) : exams.length === 0 ? (
-                      <View
-                        style={[
-                          styles.emptyDay,
-                          {
-                            borderColor: theme.border,
-                            // `theme.card` is the 3-digit `#fff` shorthand in
-                            // light mode, which an appended alpha pair turns
-                            // into an invalid 5-digit string — spelled out in
-                            // full here instead of reusing the token.
-                            backgroundColor: theme.isDark ? "#23242780" : "#ffffff80",
-                          },
-                        ]}
-                      >
-                        <AppText variant="bodySmall" color="textFaint">
-                          Ei tunteja
-                        </AppText>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </ScrollView>
-            <LinearGradient
-              pointerEvents="none"
-              colors={
-                theme.isDark
-                  ? ["#18191B", "#18191B99", "#18191B4D", "#18191B1A", "#18191B00"]
-                  : ["#F2F2F6", "#F2F2F699", "#F2F2F64D", "#F2F2F61A", "#F2F2F600"]
-              }
-              locations={[0, 0.25, 0.5, 0.75, 1]}
-              style={styles.topFade}
-            />
-            <LinearGradient
-              pointerEvents="none"
-              colors={
-                theme.isDark
-                  ? ["#18191B00", "#18191B1A", "#18191B4D", "#18191B99", "#18191B"]
-                  : ["#F2F2F600", "#F2F2F61A", "#F2F2F64D", "#F2F2F699", "#F2F2F6"]
-              }
-              locations={[0, 0.25, 0.5, 0.75, 1]}
-              style={styles.bottomFade}
-            />
-          </View>
-        )}
+                        }
+                        return (
+                          <LunchOnlyCard
+                            key={`lunch-${slot.start}`}
+                            start={slot.start}
+                            end={slot.end}
+                            theme={theme}
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            showDivider={showDivider}
+                            isPast={isPast}
+                          />
+                        );
+                      })}
+                    </View>
+                  ) : exams.length === 0 ? (
+                    <View
+                      style={[
+                        styles.emptyDay,
+                        {
+                          borderColor: theme.border,
+                          // `theme.card` is the 3-digit `#fff` shorthand in
+                          // light mode, which an appended alpha pair turns
+                          // into an invalid 5-digit string — spelled out in
+                          // full here instead of reusing the token.
+                          backgroundColor: theme.isDark ? "#23242780" : "#ffffff80",
+                        },
+                      ]}
+                    >
+                      <AppText variant="bodySmall" color="textFaint">
+                        Ei tunteja
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </ScrollView>
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              theme.isDark
+                ? ["#18191B00", "#18191B1A", "#18191B4D", "#18191B99", "#18191B"]
+                : ["#F2F2F600", "#F2F2F61A", "#F2F2F64D", "#F2F2F699", "#F2F2F6"]
+            }
+            locations={[0, 0.25, 0.5, 0.75, 1]}
+            style={styles.bottomFade}
+          />
+        </View>
 
         {/* ── Week navigation ── */}
         <View style={[styles.weekNav, { paddingBottom: 10 + insets.bottom, backgroundColor: theme.bg }]}>
@@ -898,9 +935,11 @@ export default function ScheduleScreen() {
             <PlatformSymbol ios="chevron.right" android="chevron_right" size={22} tintColor={theme.accent} />
           </Pressable>
         </View>
+        <BottomSheetModalProvider>
+          <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
+        </BottomSheetModalProvider>
       </View>
-      <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
-    </BottomSheetModalProvider>
+    </>
   );
 }
 
@@ -927,18 +966,8 @@ const styles = StyleSheet.create({
   bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
-  // Fades the scrolling content into the header, standing in for the native
-  // scroll-edge effect: this screen's ScrollView isn't the literal screen
-  // root (the week-nav footer and this pair of gradients sit alongside it),
-  // so the header never tracks it and the system's own top fade never
-  // draws.
-  topFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 24,
-  },
+  // Loading and error fill the viewport so StateView can centre itself.
+  bodyContentState: { flexGrow: 1 },
   // Fades the scrolling content out just above the week navigation bar, so
   // it reads as sliding underneath it rather than stopping abruptly.
   bottomFade: {
