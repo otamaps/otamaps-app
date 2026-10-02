@@ -67,7 +67,8 @@
           "image": "./assets/images/otamaps-logo.png",
           "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#ffffff",
+          "android": { "imageWidth": 170 }
         }
       ],
       "@rnmapbox/maps",
