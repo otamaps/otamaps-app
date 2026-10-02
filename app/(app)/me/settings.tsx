@@ -429,12 +429,19 @@ function SettingSwitch({
         </AppText>
       </View>
       {/* The off state is left to the platform, which already draws the grey
-          iOS uses for it; only the "on" tint is ours. */}
+          iOS uses for it; only the "on" tint is ours. On Android a solid blue
+          track made the thumb sit badly on it, so the thumb takes the accent
+          and the track a tint of it — the whole switch reads blue, with the
+          thumb still visible. */}
       <Switch
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
-        trackColor={{ false: undefined, true: theme.accent }}
+        trackColor={{
+          false: undefined,
+          true: Platform.OS === "ios" ? theme.accent : theme.accentTint,
+        }}
+        thumbColor={Platform.OS === "android" && value ? theme.accent : undefined}
       />
     </Row>
   );
