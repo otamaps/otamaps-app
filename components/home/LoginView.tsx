@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 
 export default function LoginView({
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     color: "#cc2222",
     lineHeight: 18,
@@ -220,13 +221,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     backgroundColor: "#fff",
     color: "#222",
   },
   inputGroup: { marginBottom: 16 },
   inputLabel: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
     color: "#333",
     marginBottom: 8,
@@ -240,13 +241,13 @@ const styles = StyleSheet.create({
   },
   loginBtnText: {
     color: "#fff",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
   loginContent: { padding: 20, paddingTop: 40, flexGrow: 1 },
   loginHeader: { alignItems: "center", marginBottom: 28 },
   loginSubtitle: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 15,
     color: "#666",
     textAlign: "center",
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   loginTitle: {
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     fontSize: 32,
     color: "#222",
     marginTop: 12,
@@ -270,7 +271,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flex: 1,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     color: "#666",
     lineHeight: 18,

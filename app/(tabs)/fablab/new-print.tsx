@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fonts } from "@/constants/typography";
 
 const GREEN = '#87b72f';
 
@@ -70,7 +71,7 @@ const stepStyles = StyleSheet.create({
   },
   circleActive: { borderColor: GREEN, backgroundColor: GREEN + '22' },
   circleDone: { borderColor: GREEN, backgroundColor: GREEN },
-  num: { fontSize: 13, fontFamily: 'Figtree-SemiBold', color: '#888' },
+  num: { fontSize: 13, ...fonts.semiBold, color: '#888' },
   numActive: { color: GREEN },
   line: { width: 48, height: 2, backgroundColor: '#333', marginHorizontal: 4 },
   lineDone: { backgroundColor: GREEN },
@@ -517,11 +518,11 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { padding: 8, width: 40 },
-  screenTitle: { fontSize: 18, fontFamily: 'Figtree-SemiBold' },
+  screenTitle: { fontSize: 18, ...fonts.semiBold },
   content: { flex: 1, paddingHorizontal: 20, paddingBottom: 24 },
-  stepTitle: { fontSize: 22, fontFamily: 'Figtree-Bold', marginBottom: 6 },
-  stepSub: { fontSize: 14, fontFamily: 'Figtree-Regular', marginBottom: 20 },
-  sectionLabel: { fontSize: 13, fontFamily: 'Figtree-SemiBold', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  stepTitle: { fontSize: 22, ...fonts.bold, marginBottom: 6 },
+  stepSub: { fontSize: 14, ...fonts.regular, marginBottom: 20 },
+  sectionLabel: { fontSize: 13, ...fonts.semiBold, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   pickZone: {
     flex: 1,
     borderWidth: 2,
@@ -534,9 +535,9 @@ const s = StyleSheet.create({
     marginBottom: 24,
     minHeight: 180,
   },
-  fileName: { fontSize: 15, fontFamily: 'Figtree-SemiBold', textAlign: 'center' },
-  fileMeta: { fontSize: 13, fontFamily: 'Figtree-Regular' },
-  pickHint: { fontSize: 14, fontFamily: 'Figtree-Regular' },
+  fileName: { fontSize: 15, ...fonts.semiBold, textAlign: 'center' },
+  fileMeta: { fontSize: 13, ...fonts.regular },
+  pickHint: { fontSize: 14, ...fonts.regular },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -547,12 +548,12 @@ const s = StyleSheet.create({
   },
   colorSwatch: { width: 32, height: 32, borderRadius: 16 },
   colorDot: { width: 12, height: 12, borderRadius: 6 },
-  optionName: { fontSize: 15, fontFamily: 'Figtree-SemiBold' },
-  optionMeta: { fontSize: 13, fontFamily: 'Figtree-Regular', marginTop: 2 },
+  optionName: { fontSize: 15, ...fonts.semiBold },
+  optionMeta: { fontSize: 13, ...fonts.regular, marginTop: 2 },
   summaryCard: { borderRadius: 16, padding: 16, gap: 10, marginBottom: 20 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { fontSize: 14, fontFamily: 'Figtree-Regular' },
-  rowValue: { fontSize: 14, fontFamily: 'Figtree-SemiBold', maxWidth: '65%', textAlign: 'right' },
+  rowLabel: { fontSize: 14, ...fonts.regular },
+  rowValue: { fontSize: 14, ...fonts.semiBold, maxWidth: '65%', textAlign: 'right' },
   divider: { height: 1, backgroundColor: '#232427', marginVertical: 4 },
   navRow: { flexDirection: 'row', alignItems: 'center', marginTop: 'auto', paddingTop: 16 },
   primaryBtn: {
@@ -565,7 +566,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Figtree-SemiBold' },
+  primaryBtnText: { color: '#fff', fontSize: 15, ...fonts.semiBold },
   secondaryBtn: {
     flexDirection: 'row',
     borderWidth: 1.5,
@@ -576,9 +577,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  secondaryBtnText: { color: GREEN, fontSize: 15, fontFamily: 'Figtree-SemiBold' },
+  secondaryBtnText: { color: GREEN, fontSize: 15, ...fonts.semiBold },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  errText: { color: '#ef4444', fontSize: 14, fontFamily: 'Figtree-Regular', textAlign: 'center' },
+  errText: { color: '#ef4444', fontSize: 14, ...fonts.regular, textAlign: 'center' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 
 type SessionState = "checking" | "loggedOut" | "loggedIn";
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingLabel: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     color: "#aaa",
     marginTop: 4,

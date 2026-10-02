@@ -9,7 +9,7 @@ import {
 } from "@/components/ui";
 import { FABLAB_VISIBLE } from "@/constants/features";
 import { DEFAULT_USER_COLOR, colors, radii, tint } from "@/constants/theme";
-import { FONT_FAMILY } from "@/constants/typography";
+import {fonts } from "@/constants/typography";
 import { formatClassLabel } from "@/lib/classLabel";
 import { getReadableLabelColor } from "@/lib/color";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
@@ -398,8 +398,8 @@ const styles = StyleSheet.create({
   identity: { flex: 1 },
   // The scale tops out at semibold in this size; name the bold face rather
   // than let a numeric weight be synthesised from the regular one.
-  name: { fontFamily: FONT_FAMILY.semiBold, fontSize: 21 },
-  rowLabel: { flex: 1, fontSize: 15, fontFamily: FONT_FAMILY.medium },
+  name: { ...fonts.semiBold, fontSize: 21 },
+  rowLabel: { flex: 1, fontSize: 15, ...fonts.medium },
   rowIcon: {
     width: 29,
     height: 29,

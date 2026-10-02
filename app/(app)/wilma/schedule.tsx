@@ -48,6 +48,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
@@ -931,7 +932,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 6,
   },
-  lunchChipText: { fontFamily: "Figtree-SemiBold", fontSize: 12 },
+  lunchChipText: { ...fonts.semiBold, fontSize: 12 },
 
   // Free slot ("Hyppytunti")
   freeSlotCard: {
@@ -941,7 +942,7 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   freeSlotTimeTag: {},
-  freeSlotTitle: { fontFamily: "Figtree-SemiBold", fontStyle: "italic", fontSize: 15 },
+  freeSlotTitle: { ...fonts.semiBold, fontStyle: "italic", fontSize: 15 },
 
   timeTag: {
     borderRadius: 8,
@@ -950,10 +951,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: 50,
   },
-  timeTagStart: { fontFamily: "Figtree-SemiBold", fontSize: 13 },
-  timeTagEnd: { fontFamily: "Figtree-Regular", fontSize: 11, marginTop: 1 },
+  timeTagStart: { ...fonts.semiBold, fontSize: 13 },
+  timeTagEnd: { ...fonts.regular, fontSize: 11, marginTop: 1 },
   lessonInfo: { flex: 1 },
-  lessonSubject: { fontFamily: "Figtree-SemiBold", fontSize: 15 },
+  lessonSubject: { ...fonts.semiBold, fontSize: 15 },
   lessonMeta: { marginTop: 2 },
 
   // Exam card
@@ -968,6 +969,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   examIcon: { marginTop: 2 },
-  examTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14 },
+  examTitle: { ...fonts.semiBold, fontSize: 14 },
   examTime: { marginTop: 2 },
 });

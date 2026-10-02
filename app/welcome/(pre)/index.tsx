@@ -32,6 +32,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -329,7 +330,7 @@ const styles = StyleSheet.create({
   heroContent: { alignItems: "center" },
   welcome: {
     color: "#475467",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 18,
     letterSpacing: 0.2,
   },
@@ -344,13 +345,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#101828",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 25,
     textAlign: "center",
   },
   subtitle: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 5,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: "#222",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
     marginBottom: 7,
   },
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     color: "#101828",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 16,
     marginBottom: 16,
     minHeight: 50,
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: "#B42318",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
   dividerRow: {
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
   divider: { backgroundColor: "#EAECF0", flex: 1, height: 1 },
   dividerText: {
     color: "#98A2B3",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     marginHorizontal: 12,
   },
@@ -420,19 +421,19 @@ const styles = StyleSheet.create({
   secondaryButtonPressed: { backgroundColor: "#F9FAFB" },
   secondaryButtonText: {
     color: "#222",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
   },
   emailButton: { alignItems: "center", paddingVertical: 15 },
   emailButtonPressed: { opacity: 0.6 },
   emailButtonText: {
     color: "#3478F5",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
   },
   credentialNotice: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 8,
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
   },
   legal: {
     color: "#98A2B3",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 14,

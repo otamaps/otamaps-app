@@ -18,6 +18,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 function formatTime(value: number | null): string {
   return value ? new Date(value).toLocaleString() : "—";
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f3f4f6" },
   content: { padding: 16, gap: 12 },
   card: { backgroundColor: "white", borderRadius: 14, padding: 16, gap: 10 },
-  title: { fontSize: 17, fontFamily: "Figtree-SemiBold", color: "#111827" },
+  title: { fontSize: 17, ...fonts.semiBold, color: "#111827" },
   description: { fontSize: 14, color: "#6b7280", lineHeight: 20 },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   toggleCopy: { flex: 1, gap: 4 },
@@ -202,12 +203,12 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: "center",
   },
-  primaryButtonText: { color: "white", fontFamily: "Figtree-SemiBold" },
+  primaryButtonText: { color: "white", ...fonts.semiBold },
   secondaryButton: {
     backgroundColor: "white",
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
   },
-  secondaryButtonText: { color: "#2563eb", fontFamily: "Figtree-SemiBold" },
+  secondaryButtonText: { color: "#2563eb", ...fonts.semiBold },
 });

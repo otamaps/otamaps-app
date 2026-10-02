@@ -2,7 +2,7 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { AppText, Screen, StateView, useTheme } from "@/components/ui";
 import { colors } from "@/constants/theme";
-import { FONT_FAMILY } from "@/constants/typography";
+import {fonts } from "@/constants/typography";
 import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
 import {
   addMinutesClock,
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   badgeText: { color: colors.textOnDark },
-  moreLink: { fontFamily: FONT_FAMILY.medium },
+  moreLink: { ...fonts.medium },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 10 },
   emptyText: { textAlign: "center", paddingVertical: 8 },
   lessonRow: {
@@ -1426,7 +1426,7 @@ const styles = StyleSheet.create({
   freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
   freeSlotTimeTagDark: { backgroundColor: "#3A3F46" },
   freeSlotTitle: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontStyle: "italic",
     fontSize: 15,
     color: "#888",
@@ -1445,24 +1445,24 @@ const styles = StyleSheet.create({
   timeTagPast: { backgroundColor: "#F3F4F6" },
   timeTagPastDark: { backgroundColor: "#2E3034" },
   timeTagText: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 13,
     color: "#3478F5",
   },
   timeTagSub: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 11,
     color: "#3478F580",
     marginTop: 1,
   },
   lessonInfo: { flex: 1 },
   lessonSubject: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
     color: "#222",
   },
   lessonMeta: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     color: "#888",
     marginTop: 2,
@@ -1480,7 +1480,7 @@ const styles = StyleSheet.create({
   },
   lunchChipDark: { backgroundColor: "#78350F55" },
   lunchChipText: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 12,
     color: "#B45309",
   },
@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  examCourse: { fontFamily: FONT_FAMILY.semiBold, fontSize: 15 },
+  examCourse: { ...fonts.semiBold, fontSize: 15 },
   examName: { marginTop: 2 },
   examMeta: { marginTop: 2 },
   examDateBox: { alignItems: "flex-end" },
@@ -1514,6 +1514,6 @@ const styles = StyleSheet.create({
   },
   attRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   attDate: { width: 52 },
-  attCourse: { fontFamily: FONT_FAMILY.medium, flex: 1 },
+  attCourse: { ...fonts.medium, flex: 1 },
   attChip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
 });

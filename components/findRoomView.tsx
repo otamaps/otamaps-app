@@ -2,6 +2,7 @@ import { isFeatureEnabled } from '@/lib/featureFlagService';
 import { Entypo, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fonts } from "@/constants/typography";
 
 type Room = {
   id: string;
@@ -46,8 +47,8 @@ const FindRoomView = ({ room = {}, onBook }: FindRoomViewProps) => {
     ]}>
       <View style={styles.leftContainer}>
         <View style={{ flexDirection: 'row', }}>
-          <Text style={{ color: 'black', fontSize: 20, fontFamily: 'Figtree-Bold' }}>{room.room_number || '2025'} </Text>
-          <Text style={{ color: 'black', fontSize: 20, fontFamily: 'Figtree-Bold' }}>{room.title || 'Room Name'}</Text>
+          <Text style={{ color: 'black', fontSize: 20, ...fonts.bold }}>{room.room_number || '2025'} </Text>
+          <Text style={{ color: 'black', fontSize: 20, ...fonts.bold }}>{room.title || 'Room Name'}</Text>
         </View>
         <Text style={{ padding: 6, paddingLeft: 0, fontSize: 16, }}>{room.seats || '15'} seats</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   bookText: {
     color: '#fff',
     fontSize: 18,
-    fontFamily: 'Figtree-Bold',
+    ...fonts.bold,
   }
 });
 

@@ -1,11 +1,14 @@
+import { fonts } from "@/constants/typography";
 import DayScheduleSection, {
   type DayScheduleEntry,
 } from "@/components/schedule/DayScheduleSection";
+import { GlassSurface, HAS_LIQUID_GLASS } from "@/components/map/GlassSurface";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import {
-  sheetChrome,
-  sheetPalette,
-  sheetShadow,
+  glassSheetChrome,
+  nativeListColors,
 } from "@/components/sheets/sheetTheme";
+import { colors } from "@/constants/theme";
 import { Room, useRoomStore } from "@/lib/roomService";
 import {
   fetchWilmaRoomSchedule,
@@ -19,10 +22,8 @@ import {
   getMondayOfWeek,
   schoolDayLabel,
 } from "@/lib/wilma/scheduleDates";
-import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { LinearGradient } from "expo-linear-gradient";
-import {
+import React, {
   forwardRef,
   useCallback,
   useEffect,
@@ -61,15 +62,20 @@ const equipmentLabels: Record<string, string> = {
   hearing_loop: "Induktiosilmukka",
 };
 
-const equipmentIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  projector: "videocam",
-  screen: "tv",
-  whiteboard: "dashboard",
-  computer: "computer",
-  microphone: "mic",
-  speakers: "speaker",
-  document_camera: "camera-alt",
-  hearing_loop: "hearing",
+type Glyph = {
+  ios: React.ComponentProps<typeof PlatformSymbol>["ios"];
+  android: React.ComponentProps<typeof PlatformSymbol>["android"];
+};
+
+const equipmentIcons: Record<string, Glyph> = {
+  projector: { ios: "videoprojector", android: "videocam" },
+  screen: { ios: "tv", android: "tv" },
+  whiteboard: { ios: "rectangle.and.pencil.and.ellipsis", android: "dashboard" },
+  computer: { ios: "desktopcomputer", android: "computer" },
+  microphone: { ios: "mic", android: "mic" },
+  speakers: { ios: "hifispeaker", android: "speaker" },
+  document_camera: { ios: "web.camera", android: "photo_camera" },
+  hearing_loop: { ios: "ear", android: "hearing" },
 };
 
 function formatEquipment(equipment: Room["equipment"]): string[] {
@@ -112,9 +118,9 @@ function getRoomType(type: string | null): string {
     : "Tila";
 }
 
-function equipmentIcon(item: string): keyof typeof MaterialIcons.glyphMap {
+function equipmentIcon(item: string): Glyph {
   const normalized = item.toLowerCase().replaceAll(" ", "_");
-  return equipmentIcons[normalized] ?? "check-circle";
+  return equipmentIcons[normalized] ?? { ios: "checkmark.circle", android: "check_circle" };
 }
 
 /** Rooms without a Wilma id (library, offices) have no bookable lessons. */
@@ -147,8 +153,9 @@ function dayScheduleEntries(
           id: `${key}-${groupIndex}`,
           start: lesson.start,
           end: lesson.end,
-          title: title || "Varattu",
-          code: code || undefined,
+          // The course code alone, as the friend profile's schedule shows it;
+          // the course's title only stands in when there is no code.
+          title: code || title || "Varattu",
           detail: teachers || undefined,
         };
       });
@@ -291,13 +298,27 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
       () => formatEquipment(room?.equipment ?? null),
       [room?.equipment],
     );
-    const {
-      card,
-      text: primaryText,
-      textSecondary: secondaryText,
-      accent,
-    } = sheetPalette(isDark);
+    const list = nativeListColors(isDark);
+    const accent = isDark ? colors.accentDark : colors.accent;
+    const sheetLook = glassSheetChrome(isDark);
     const hasImage = Boolean(room?.image_url) && !imageFailed;
+    const subtitle = room
+      ? [
+          room.title && room.title !== room.room_number ? room.title : null,
+          getRoomType(room.type),
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
+    // The room's facts as Settings shows values: label left, value right.
+    const facts = room
+      ? [
+          { label: "Kerros", value: getFloor(room) },
+          { label: "Paikkoja", value: room.seats != null ? String(room.seats) : "–" },
+          { label: "Varaus", value: room.bookable ? "Varattavissa" : "Ei varattavissa" },
+        ]
+      : [];
 
     return (
       <BottomSheetModal
@@ -310,88 +331,92 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
           setLoading(false);
           onDismiss?.();
         }}
-        style={sheetShadow}
-        {...sheetChrome(isDark)}
+        style={sheetLook.style}
+        {...sheetLook.chrome}
       >
         <BottomSheetScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.topBar}>
-            <Text style={[styles.sheetTitle, { color: primaryText }]}>
-              Tilan tiedot
-            </Text>
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={[styles.title, { color: list.label }]} numberOfLines={2}>
+                {room ? room.room_number || room.title || "Tila" : "Tila"}
+              </Text>
+              {subtitle ? (
+                <Text style={[styles.subtitle, { color: list.secondaryLabel }]}>
+                  {subtitle}
+                </Text>
+              ) : null}
+            </View>
+            {/* iOS 26's close control in a sheet: a glass circle with an ✕. */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Sulje"
-              hitSlop={10}
+              hitSlop={8}
               onPress={close}
-              style={[styles.closeButton, { backgroundColor: card }]}
+              style={({ pressed }) => [!HAS_LIQUID_GLASS && pressed && styles.pressed]}
             >
-              <MaterialIcons name="close" size={22} color={primaryText} />
+              <GlassSurface radius={18} interactive style={styles.closeButton}>
+                <PlatformSymbol
+                  ios="xmark"
+                  android="close"
+                  size={14}
+                  weight="semibold"
+                  tintColor={list.secondaryLabel}
+                />
+              </GlassSurface>
             </Pressable>
           </View>
 
           {loading && !room ? (
-            <View style={styles.stateContainer}>
-              <ActivityIndicator size="large" color={accent} />
-              <Text style={[styles.stateTitle, { color: primaryText }]}>
+            <View style={styles.state}>
+              <ActivityIndicator color={accent} />
+              <Text style={[styles.stateText, { color: list.secondaryLabel }]}>
                 Ladataan tilaa…
               </Text>
             </View>
           ) : error && !room ? (
-            <View style={[styles.stateCard, { backgroundColor: card }]}>
-              <View style={styles.errorIcon}>
-                <MaterialIcons name="error-outline" size={28} color="#D84C4C" />
-              </View>
-              <Text style={[styles.stateTitle, { color: primaryText }]}>
+            <View style={styles.state}>
+              <Text style={[styles.stateTitle, { color: list.label }]}>
                 Tietojen lataus epäonnistui
               </Text>
-              <Text style={[styles.stateBody, { color: secondaryText }]}>
+              <Text style={[styles.stateText, { color: list.secondaryLabel }]}>
                 {error}
               </Text>
               <Pressable
-                style={[styles.retryButton, { backgroundColor: accent }]}
+                accessibilityRole="button"
+                hitSlop={8}
                 onPress={() => roomId && void fetchRoomDetails(roomId)}
+                style={({ pressed }) => [pressed && styles.pressed]}
               >
-                <Text style={styles.retryText}>Yritä uudelleen</Text>
+                <Text style={[styles.retryText, { color: accent }]}>Yritä uudelleen</Text>
               </Pressable>
             </View>
           ) : room ? (
             <>
-              <View
-                style={[
-                  styles.hero,
-                  { backgroundColor: isDark ? "#202B3D" : "#DFEAFB" },
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    isDark ? ["#253552", "#172034"] : ["#EDF4FF", "#C8DBF8"]
-                  }
-                  style={styles.fill}
-                />
-                <View style={styles.heroFallback}>
-                  <View
-                    style={[
-                      styles.roomIcon,
-                      { backgroundColor: isDark ? "#334766" : "#FFFFFFB8" },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="meeting-room"
-                      size={44}
-                      color={accent}
+              {/* The frame is always there: a quiet placeholder when the room
+                  has no photo, and underneath a real one while it loads. */}
+              <View style={[styles.photo, { backgroundColor: list.fill }]}>
+                {!hasImage || !imageLoaded ? (
+                  <View style={styles.photoPlaceholder}>
+                    <PlatformSymbol
+                      ios="photo"
+                      android="image"
+                      size={34}
+                      tintColor={list.tertiaryLabel}
                     />
+                    {!hasImage ? (
+                      <Text style={[styles.photoCaption, { color: list.secondaryLabel }]}>
+                        Ei kuvaa
+                      </Text>
+                    ) : null}
                   </View>
-                </View>
+                ) : null}
                 {hasImage ? (
                   <Image
                     source={{ uri: room.image_url! }}
-                    style={[
-                      styles.roomImage,
-                      !imageLoaded && styles.hiddenImage,
-                    ]}
+                    style={[styles.photoImage, !imageLoaded && styles.hidden]}
                     resizeMode="cover"
                     onLoad={() => setImageLoaded(true)}
                     onError={() => {
@@ -400,130 +425,33 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                     }}
                   />
                 ) : null}
-                {hasImage && imageLoaded ? (
-                  <LinearGradient
-                    colors={["transparent", "rgba(7, 15, 28, 0.5)"]}
-                    style={styles.fill}
-                  />
-                ) : null}
-                {!hasImage ? (
-                  <View
-                    style={[
-                      styles.photoStatus,
-                      { backgroundColor: isDark ? "#111722CC" : "#FFFFFFD9" },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="image-not-supported"
-                      size={15}
-                      color={secondaryText}
-                    />
-                    <Text
-                      style={[styles.photoStatusText, { color: secondaryText }]}
-                    >
-                      Kuva ei saatavilla
-                    </Text>
-                  </View>
-                ) : null}
               </View>
 
-              <View style={styles.identityRow}>
-                <View style={styles.identityText}>
-                  <Text style={[styles.roomNumber, { color: primaryText }]}>
-                    {room.room_number || room.title || "Tila"}
-                  </Text>
-                  {room.title && room.title !== room.room_number ? (
-                    <Text style={[styles.roomName, { color: secondaryText }]}>
-                      {room.title}
-                    </Text>
-                  ) : null}
-                </View>
-                <View
-                  style={[
-                    styles.typeBadge,
-                    { backgroundColor: isDark ? "#263958" : "#E8F0FD" },
-                  ]}
-                >
-                  <Text style={[styles.typeText, { color: accent }]}>
-                    {getRoomType(room.type)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoGrid}>
-                <View style={[styles.infoCard, { backgroundColor: card }]}>
-                  <View
-                    style={[
-                      styles.infoIcon,
-                      { backgroundColor: isDark ? "#263958" : "#E8F0FD" },
-                    ]}
-                  >
-                    <MaterialIcons name="layers" size={22} color={accent} />
-                  </View>
-                  <Text style={[styles.infoLabel, { color: secondaryText }]}>
-                    Kerros
-                  </Text>
-                  <Text style={[styles.infoValue, { color: primaryText }]}>
-                    {getFloor(room)}
-                  </Text>
-                </View>
-                <View style={[styles.infoCard, { backgroundColor: card }]}>
-                  <View
-                    style={[
-                      styles.infoIcon,
-                      { backgroundColor: isDark ? "#263958" : "#E8F0FD" },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="people-outline"
-                      size={22}
-                      color={accent}
-                    />
-                  </View>
-                  <Text style={[styles.infoLabel, { color: secondaryText }]}>
-                    Paikkoja
-                  </Text>
-                  <Text style={[styles.infoValue, { color: primaryText }]}>
-                    {room.seats ?? "–"}
-                  </Text>
-                </View>
-                <View style={[styles.infoCard, { backgroundColor: card }]}>
-                  <View
-                    style={[
-                      styles.infoIcon,
-                      { backgroundColor: isDark ? "#263958" : "#E8F0FD" },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="event-available"
-                      size={22}
-                      color={accent}
-                    />
-                  </View>
-                  <Text style={[styles.infoLabel, { color: secondaryText }]}>
-                    Varaus
-                  </Text>
-                  <Text
-                    style={[
-                      styles.infoValue,
-                      styles.compactValue,
-                      { color: primaryText },
-                    ]}
-                  >
-                    {room.bookable ? "Varattavissa" : "Ei varattavissa"}
-                  </Text>
-                </View>
+              <View style={[styles.group, { backgroundColor: list.fill }]}>
+                {facts.map((fact, index) => (
+                  <React.Fragment key={fact.label}>
+                    {index > 0 && (
+                      <View style={[styles.separator, { backgroundColor: list.separator }]} />
+                    )}
+                    <View style={styles.factRow}>
+                      <Text style={[styles.cellText, { color: list.label }]}>{fact.label}</Text>
+                      <Text style={[styles.cellText, { color: list.secondaryLabel }]}>
+                        {fact.value}
+                      </Text>
+                    </View>
+                  </React.Fragment>
+                ))}
               </View>
 
               {room.description?.trim() ? (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: primaryText }]}>
-                    Tietoja tilasta
-                  </Text>
-                  <Text style={[styles.description, { color: secondaryText }]}>
-                    {room.description.trim()}
-                  </Text>
-                </View>
+                <>
+                  <SectionHeader color={list.secondaryLabel}>Tietoja tilasta</SectionHeader>
+                  <View style={[styles.group, styles.textCell, { backgroundColor: list.fill }]}>
+                    <Text style={[styles.description, { color: list.label }]}>
+                      {room.description.trim()}
+                    </Text>
+                  </View>
+                </>
               ) : null}
 
               {wilmaId !== null ? (
@@ -540,48 +468,43 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
                 />
               ) : null}
 
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: primaryText }]}>
-                  Varustelu
+              <SectionHeader color={list.secondaryLabel}>Varustelu</SectionHeader>
+              {equipment.length ? (
+                <View style={[styles.group, { backgroundColor: list.fill }]}>
+                  {equipment.map((item, index) => {
+                    const glyph = equipmentIcon(item);
+                    return (
+                      <React.Fragment key={item}>
+                        {index > 0 && (
+                          <View
+                            style={[
+                              styles.separator,
+                              styles.separatorPastIcon,
+                              { backgroundColor: list.separator },
+                            ]}
+                          />
+                        )}
+                        <View style={styles.equipmentRow}>
+                          <PlatformSymbol
+                            ios={glyph.ios}
+                            android={glyph.android}
+                            size={18}
+                            tintColor={accent}
+                            style={styles.equipmentIcon}
+                          />
+                          <Text style={[styles.cellText, styles.flex, { color: list.label }]}>
+                            {item}
+                          </Text>
+                        </View>
+                      </React.Fragment>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={[styles.footerText, { color: list.secondaryLabel }]}>
+                  Varustelutietoja ei ole saatavilla.
                 </Text>
-                {equipment.length ? (
-                  <View style={styles.chips}>
-                    {equipment.map((item) => (
-                      <View
-                        key={item}
-                        style={[styles.chip, { backgroundColor: card }]}
-                      >
-                        <MaterialIcons
-                          name={equipmentIcon(item)}
-                          size={18}
-                          color={accent}
-                        />
-                        <Text style={[styles.chipText, { color: primaryText }]}>
-                          {item}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View
-                    style={[styles.emptyEquipment, { backgroundColor: card }]}
-                  >
-                    <MaterialIcons
-                      name="info-outline"
-                      size={20}
-                      color={secondaryText}
-                    />
-                    <Text
-                      style={[
-                        styles.emptyEquipmentText,
-                        { color: secondaryText },
-                      ]}
-                    >
-                      Varustelutietoja ei ole saatavilla.
-                    </Text>
-                  </View>
-                )}
-              </View>
+              )}
             </>
           ) : null}
         </BottomSheetScrollView>
@@ -590,155 +513,60 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
   },
 );
 
+/** UIKit's grouped section header: small, uppercase, secondary. */
+function SectionHeader({ children, color }: { children: string; color: string }) {
+  return (
+    <Text accessibilityRole="header" style={[styles.sectionHeader, { color }]}>
+      {children.toLocaleUpperCase("fi-FI")}
+    </Text>
+  );
+}
+
+// The system font and UIKit's own colours throughout, as the friend profile
+// and the map's sheet: no fontFamily anywhere below.
 const styles = StyleSheet.create({
-  scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 56 },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-  sheetTitle: { fontSize: 25, fontFamily: "Figtree-Bold", letterSpacing: -0.5 },
-  closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stateContainer: {
-    minHeight: 260,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-  },
-  stateCard: {
-    minHeight: 260,
-    borderRadius: 24,
-    padding: 28,
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 48 },
+  header: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 20 },
+  headerText: { flex: 1 },
+  // UIKit's title2.
+  title: { ...fonts.bold, fontSize: 22 },
+  subtitle: { ...fonts.regular, fontSize: 15, marginTop: 2 },
+  closeButton: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  pressed: { opacity: 0.6 },
+  state: { minHeight: 200, alignItems: "center", justifyContent: "center", gap: 8 },
+  stateTitle: { ...fonts.semiBold, fontSize: 17, textAlign: "center" },
+  stateText: { ...fonts.regular, fontSize: 15, textAlign: "center" },
+  retryText: { ...fonts.regular, fontSize: 17, marginTop: 6 },
+  photo: { height: 200, borderRadius: 14, borderCurve: "continuous", overflow: "hidden", marginBottom: 20 },
+  photoImage: { ...StyleSheet.absoluteFill },
+  photoPlaceholder: {
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
-  },
-  errorIcon: { marginBottom: 12 },
-  stateTitle: { fontSize: 18, fontFamily: "Figtree-Bold", textAlign: "center" },
-  stateBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-    marginTop: 6,
-  },
-  retryButton: {
-    borderRadius: 14,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    marginTop: 18,
-  },
-  retryText: { color: "#FFFFFF", fontSize: 15, fontFamily: "Figtree-Bold" },
-  hero: {
-    height: 220,
-    borderRadius: 26,
-    overflow: "hidden",
-    position: "relative",
-  },
-  fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  heroFallback: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roomIcon: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roomImage: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-  },
-  hiddenImage: { opacity: 0 },
-  photoStatus: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 6,
   },
-  photoStatusText: { fontSize: 12, fontFamily: "Figtree-SemiBold" },
-  identityRow: {
+  photoCaption: { ...fonts.regular, fontSize: 13 },
+  hidden: { opacity: 0 },
+  // An inset grouped section, as in Settings.
+  group: { borderRadius: 14, borderCurve: "continuous", overflow: "hidden" },
+  factRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginTop: 20,
-    gap: 12,
-  },
-  identityText: { flex: 1 },
-  roomNumber: {
-    fontSize: 29,
-    lineHeight: 34,
-    fontFamily: "Figtree-Bold",
-    letterSpacing: -0.7,
-  },
-  roomName: { fontSize: 15, lineHeight: 21, marginTop: 3 },
-  typeBadge: {
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 14,
-    maxWidth: "42%",
-  },
-  typeText: {
-    fontSize: 12,
-    fontFamily: "Figtree-Bold",
-    textTransform: "capitalize",
-  },
-  infoGrid: { flexDirection: "row", gap: 10, marginTop: 20 },
-  infoCard: { flex: 1, minHeight: 124, borderRadius: 20, padding: 13 },
-  infoIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 11,
+    minHeight: 46,
+    paddingHorizontal: 16,
   },
-  infoLabel: { fontSize: 11, fontFamily: "Figtree-SemiBold", marginBottom: 3 },
-  infoValue: { fontSize: 20, fontFamily: "Figtree-Bold" },
-  compactValue: { fontSize: 13, lineHeight: 17 },
-  section: { marginTop: 28 },
-  sectionTitle: { fontSize: 18, fontFamily: "Figtree-Bold", marginBottom: 12 },
-  description: { fontSize: 15, lineHeight: 23 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 16,
-  },
-  chipText: { fontSize: 13, fontFamily: "Figtree-SemiBold" },
-  emptyEquipment: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 15,
-    borderRadius: 17,
-  },
-  emptyEquipmentText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  cellText: { ...fonts.regular, fontSize: 17 },
+  flex: { flex: 1 },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },
+  // Past the glyph, under the text.
+  separatorPastIcon: { marginLeft: 16 + 26 + 12 },
+  textCell: { paddingHorizontal: 16, paddingVertical: 12 },
+  description: { ...fonts.regular, fontSize: 15, lineHeight: 21 },
+  sectionHeader: { ...fonts.regular, fontSize: 13, marginTop: 28, marginBottom: 6, paddingHorizontal: 16 },
+  equipmentRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 46, paddingHorizontal: 16 },
+  equipmentIcon: { width: 26 },
+  footerText: { ...fonts.regular, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 },
 });
 
 RoomModalSheet.displayName = "RoomModalSheet";

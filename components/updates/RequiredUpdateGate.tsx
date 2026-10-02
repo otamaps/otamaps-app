@@ -14,6 +14,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const UPDATE_CHECK_MIN_INTERVAL_MS = 15 * 60_000;
 
@@ -198,14 +199,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#101828",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 23,
     textAlign: "center",
   },
   textLight: { color: "#FFFFFF" },
   description: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
   featureText: {
     color: "#475467",
     flex: 1,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
     lineHeight: 19,
   },
@@ -241,12 +242,12 @@ const styles = StyleSheet.create({
   progressCopy: { flex: 1 },
   progressTitle: {
     color: "#182230",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
   },
   progressDescription: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 3,
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
   updateButtonDisabled: { opacity: 0.72 },
   updateButtonText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
 });

@@ -26,6 +26,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 const LEVELS: QueueLevel[] = [1, 2, 3, 4, 5];
 
@@ -304,26 +305,26 @@ const styles = StyleSheet.create({
   centeredText: { marginTop: 10, textAlign: "center", fontSize: 15, lineHeight: 22 },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
   card: { borderRadius: 14, padding: 18 },
-  eyebrow: { fontSize: 12, fontFamily: "Figtree-SemiBold", letterSpacing: 1.1 },
-  title: { fontSize: 20, fontFamily: "Figtree-SemiBold" },
+  eyebrow: { fontSize: 12, ...fonts.semiBold, letterSpacing: 1.1 },
+  title: { fontSize: 20, ...fonts.semiBold },
   description: { marginTop: 6, fontSize: 14, lineHeight: 20 },
   statusRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   statusDot: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
-  statusText: { fontSize: 24, fontFamily: "Figtree-SemiBold" },
+  statusText: { fontSize: 24, ...fonts.semiBold },
   meta: { marginTop: 3, fontSize: 13 },
   activityBox: { marginTop: 16, paddingTop: 14, borderTopWidth: 1 },
-  activityValue: { fontSize: 26, fontFamily: "Figtree-SemiBold" },
+  activityValue: { fontSize: 26, ...fonts.semiBold },
   activityLabel: { marginTop: 2, fontSize: 13, lineHeight: 18 },
   levelList: { marginTop: 14, gap: 8 },
   levelButton: { minHeight: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, flexDirection: "row", alignItems: "center" },
   levelDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
   levelNumber: { width: 22, fontSize: 14 },
-  levelText: { fontSize: 16, fontFamily: "Figtree-Medium" },
+  levelText: { fontSize: 16, ...fonts.medium },
   submitButton: { height: 50, marginTop: 14, borderRadius: 10, backgroundColor: "#3478F5", alignItems: "center", justifyContent: "center" },
-  submitText: { color: "#FFFFFF", fontSize: 16, fontFamily: "Figtree-SemiBold" },
+  submitText: { color: "#FFFFFF", fontSize: 16, ...fonts.semiBold },
   disabled: { opacity: 0.4 },
   historyRow: { borderTopWidth: 1, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   historyMain: { flexDirection: "row", alignItems: "center" },
-  historyLabel: { fontSize: 15, fontFamily: "Figtree-Medium" },
+  historyLabel: { fontSize: 15, ...fonts.medium },
   sampleCount: { fontSize: 12 },
 });

@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 export default function EmailLogin() {
   const [email, setEmail] = useState("");
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: "#222",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
   },
   form: {
@@ -152,13 +153,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#101828",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 25,
     textAlign: "center",
   },
   subtitle: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 28,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: "#222",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
     marginBottom: 7,
   },
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     color: "#101828",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 16,
     marginBottom: 16,
     minHeight: 50,
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   buttonText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
 });

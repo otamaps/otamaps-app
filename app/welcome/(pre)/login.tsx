@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: "#222",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
   },
   content: {
@@ -148,14 +149,14 @@ const styles = StyleSheet.create({
   logo: { alignSelf: "center", height: 76, width: 220 },
   title: {
     color: "#101828",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 25,
     marginTop: 18,
     textAlign: "center",
   },
   subtitle: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 28,
@@ -176,12 +177,12 @@ const styles = StyleSheet.create({
   optionButtonPressed: { backgroundColor: "#F9FAFB" },
   optionButtonText: {
     color: "#222",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
   },
   legal: {
     color: "#98A2B3",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     lineHeight: 18,
     paddingBottom: 8,

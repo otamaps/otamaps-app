@@ -3,7 +3,7 @@ import { timeTagColors } from "@/components/schedule/status";
 import { WeekNav, WeekNavFade } from "@/components/schedule/WeekNav";
 import { AppText, StateView, useNativeHeader, useTheme, type Theme } from "@/components/ui";
 import { radii } from "@/constants/theme";
-import { typography } from "@/constants/typography";
+import {fonts, typography } from "@/constants/typography";
 import { addMinutesClock, clockValue } from "@/lib/lunchShiftCore";
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: 50,
   },
-  timeTagStart: { fontFamily: "Figtree-SemiBold", fontSize: 13, lineHeight: 17 },
-  timeTagEnd: { fontFamily: "Figtree-Regular", fontSize: 11, lineHeight: 14, marginTop: 1 },
+  timeTagStart: { ...fonts.semiBold, fontSize: 13, lineHeight: 17 },
+  timeTagEnd: { ...fonts.regular, fontSize: 11, lineHeight: 14, marginTop: 1 },
   detail: { marginTop: 2 },
 });

@@ -1,4 +1,4 @@
-import { FONT_FAMILY } from "@/constants/typography";
+import {fonts } from "@/constants/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "./theme";
 
@@ -61,5 +61,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  label: { fontFamily: FONT_FAMILY.medium, fontSize: 13 },
+  label: { ...fonts.medium, fontSize: 13 },
 });

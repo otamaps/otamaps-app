@@ -2,6 +2,7 @@ import useBLEScanner from '@/components/functions/bleScanner';
 import { BLELocationService, type LocationHistoryItem } from '@/lib/bleLocationService';
 import React, { useEffect, useState } from 'react';
 import { Button, FlatList, StyleSheet, Text, View } from 'react-native';
+import { fonts } from "@/constants/typography";
 
 interface BeaconData {
   id: string;
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontFamily: 'Figtree-Bold',
+    ...fonts.bold,
     marginBottom: 8,
   },
   currentRoom: {
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Figtree-Bold',
+    ...fonts.bold,
     marginBottom: 12,
   },
   list: {
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   },
   beaconId: {
     fontSize: 14,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     color: '#333',
   },
   beaconRssi: {
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   },
   historyRoom: {
     fontSize: 14,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     color: '#333',
   },
   historyBeacon: {

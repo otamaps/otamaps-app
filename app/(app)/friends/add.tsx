@@ -16,6 +16,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 type FriendUser = {
   id: string;
@@ -351,7 +352,7 @@ const AddFriendScreen = () => {
                 <Text
                   style={[
                     styles.resultText,
-                    { fontSize: 24, fontFamily: "Figtree-SemiBold" },
+                    { fontSize: 24, ...fonts.semiBold },
                     isDark && { color: "#fff" },
                   ]}
                 >
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#222",
     marginBottom: 8,
     textAlign: "center",
@@ -502,7 +503,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 24,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     backgroundColor: "#f8f9fa",
     textAlign: "center",
     letterSpacing: 3,
@@ -513,7 +514,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     fontSize: 18,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginTop: 16,
     textAlign: "center",
@@ -539,7 +540,7 @@ const styles = StyleSheet.create({
   },
   addFriendText: {
     fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#fff",
     textAlign: "center",
   },
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
   },
   requestName: {
     fontSize: 20,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginBottom: 4,
   },
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
   },
   noRequestsText: {
     fontSize: 22,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#444",
     marginBottom: 12,
   },

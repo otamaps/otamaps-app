@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import React, {
   forwardRef,
@@ -22,11 +21,23 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassSurface } from "@/components/map/GlassSurface";
+import { nativeListColors } from "@/components/sheets/sheetTheme";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { useTheme } from "@/components/ui";
+import { fonts } from "@/constants/typography";
 
 interface RoomModalRef {
   open: (roomId: string) => void;
   close: () => void;
 }
+
+/** The search field's height; the map lines its recenter button up to it. */
+export const SEARCH_HEIGHT = 48;
+/** The accessory — the recenter button — and the 12pt gap before it. */
+const ACCESSORY_SLOT = SEARCH_HEIGHT + 12;
+/** The results panel's corners: rounder than a card, to sit under the capsule. */
+const RESULTS_RADIUS = 22;
 
 interface GlobalSearchProps {
   roomModalRef: React.RefObject<RoomModalRef>;
@@ -35,6 +46,13 @@ interface GlobalSearchProps {
   selectedFloor?: number;
   onFloorChange?: (floor: number) => void;
   onRoomSelect?: (roomId: string) => void;
+  /** A control beside the search field — the map's recenter button. */
+  /**
+   * A control beside the field — the map's recenter button — told whether
+   * it is showing, so glass in it can hide itself natively (see
+   * `GlassSurface`). It is hidden while the field is in use.
+   */
+  accessory?: (visible: boolean) => React.ReactNode;
 }
 
 export interface GlobalSearchMethods {
@@ -46,6 +64,8 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   ref: React.Ref<GlobalSearchMethods>
 ) {
   const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
+  const list = nativeListColors(isDark);
   const {
     roomModalRef,
     selectedFloor: propSelectedFloor,
@@ -65,11 +85,12 @@ const GlobalSearch = forwardRef(function GlobalSearch(
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState(query);
 
-  // Feature flag for floors - now always enabled
-  const isFloorsEnabled = true;
   const searchResultsHeight = useRef(new Animated.Value(0)).current;
-  const controlsWidth = useRef(new Animated.Value(52)).current;
-  const searchMarginRight = useRef(new Animated.Value(12)).current;
+  // The accessory's slot — the button and the gap before it. It closes
+  // while the field has focus, so the field widens into that space rather
+  // than into the button.
+  const controlsWidth = useRef(new Animated.Value(ACCESSORY_SLOT)).current;
+  const [accessoryVisible, setAccessoryVisible] = useState(true);
   const inputRef = useRef<TextInput>(null);
 
   useImperativeHandle(ref, () => ({
@@ -127,11 +148,6 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     });
   }, []);
 
-  const handleFloorPress = (floor: number) => {
-    setSelectedFloor(floor);
-    onFloorChange?.(floor);
-  };
-
   const handleSearchChange = (text: string) => {
     console.log("Search text changed:", text);
     setSearchQuery(text);
@@ -142,13 +158,9 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 
   const handleFocus = () => {
     setIsFocused(true);
+    setAccessoryVisible(false);
     Animated.parallel([
       Animated.timing(controlsWidth, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      Animated.timing(searchMarginRight, {
         toValue: 0,
         duration: 200,
         useNativeDriver: false,
@@ -162,14 +174,10 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 
   const handleBlur = () => {
     if (searchQuery.length === 0) {
+      setAccessoryVisible(true);
       Animated.parallel([
         Animated.timing(controlsWidth, {
-          toValue: 52,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(searchMarginRight, {
-          toValue: 12,
+          toValue: ACCESSORY_SLOT,
           duration: 200,
           useNativeDriver: false,
         }),
@@ -230,78 +238,39 @@ const GlobalSearch = forwardRef(function GlobalSearch(
     }
   };
 
+  // Algolia wraps matches in <mark>; the rows show plain text.
+  const plain = (value?: string) => (value ?? "").replace(/<\/?mark>/g, "");
+
+  // One result as a native list row, matching the friends list in the
+  // sheet: the room number as the title, and its name and description as
+  // one secondary line beneath.
   const renderSearchResult = ({ item }: { item: any }) => {
-    console.log("Rendering search result item:", item);
-
-    // Extract the display values, falling back to empty strings if not found
-    const roomNumber = item.room_number?.value || "";
-    const description = item.description?.value || "";
-    const type = item.type || "room"; // Default to 'room' if type not specified
-    const title = item.title || "";
-
-    // all actual data is in _highlightResult
-    const roomNumberHighlight = item._highlightResult.room_number?.value || "";
-    const descriptionHighlight = item._highlightResult.description?.value || "";
-    const typeHighlight = item._highlightResult.type?.value || "";
-    const titleHighlight = item._highlightResult.title?.value || "";
+    const highlight = item._highlightResult ?? {};
+    const title = plain(highlight.room_number?.value) || item.title || "";
+    const subtitle = [plain(highlight.title?.value), plain(highlight.description?.value)]
+      .filter((part) => part && part !== title)
+      .join(" · ");
 
     return (
       <Pressable
-        style={[
-          styles.resultItem,
-          isDark && {
-            backgroundColor: "#18191B",
-            borderBottomColor: "#232427",
-          },
+        accessibilityRole="button"
+        accessibilityLabel={[title, subtitle].filter(Boolean).join(", ")}
+        style={({ pressed }) => [
+          styles.resultRow,
+          pressed && { backgroundColor: list.highlight },
         ]}
         onPress={() => handleResultPress(item)}
       >
-        <View style={styles.resultIcon}>
-          {type === "room" ? (
-            <MaterialIcons
-              name="meeting-room"
-              size={20}
-              color={isDark ? "#e5e5e5" : "#666"}
-            />
-          ) : (
-            <MaterialIcons
-              name="person"
-              size={20}
-              color={isDark ? "#e5e5e5" : "#666"}
-            />
-          )}
-          <Text
-            style={[
-              styles.resultText,
-              { fontFamily: "Figtree-SemiBold", marginLeft: 8 },
-              isDark && { color: "#fff" },
-            ]}
-            numberOfLines={1}
-          >
-            {roomNumberHighlight.replace(/<mark>|<\/mark>/g, "") || title}
+        <View style={styles.resultText}>
+          <Text style={[styles.resultTitle, { color: list.label }]} numberOfLines={1}>
+            {title}
           </Text>
-        </View>
-        <View style={styles.resultContent}>
-          <Text
-            style={[
-              styles.resultText,
-              { fontFamily: "Figtree-Regular", marginTop: 4 },
-              isDark && { color: "#d4d4d4" },
-            ]}
-            numberOfLines={1}
-          >
-            {titleHighlight.replace(/<mark>|<\/mark>/g, "")}
-          </Text>
-          {descriptionHighlight ? (
+          {subtitle ? (
             <Text
-              style={[
-                styles.resultSubtext,
-                { fontFamily: "Figtree-Regular", marginTop: 4 },
-                isDark && { color: "#d4d4d4" },
-              ]}
+              style={[styles.resultSubtitle, { color: list.secondaryLabel }]}
               numberOfLines={1}
             >
-              {descriptionHighlight.replace(/<mark>|<\/mark>/g, "")}
+              {subtitle}
             </Text>
           ) : null}
         </View>
@@ -349,182 +318,85 @@ const GlobalSearch = forwardRef(function GlobalSearch(
         pointerEvents="box-none"
       >
         <Animated.View
-          style={[
-            styles.searchContainer,
-            {
-              marginRight: searchMarginRight,
-            },
-            isDark && { backgroundColor: "#18191B" },
-          ]}
+          style={styles.searchSlot}
         >
-          <MaterialCommunityIcons
-            name="magnify"
-            size={28}
-            color={isDark ? "#737373" : "#666"}
-          />
-          <TextInput
-            style={[
-              styles.textInput,
-              { fontFamily: "Figtree-Medium" },
-              isDark && { color: "#fff" },
-            ]}
-            placeholder="Hae huoneita..."
-            placeholderTextColor="#AAA"
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            ref={inputRef}
-          />
+          {/* A glass capsule in the system font, as the search field in
+              Apple Maps is, with the native clear button while there is
+              something to clear. */}
+          <GlassSurface radius={SEARCH_HEIGHT / 2} style={styles.searchField}>
+            <PlatformSymbol
+              ios="magnifyingglass"
+              android="search"
+              size={17}
+              weight="medium"
+              tintColor={theme.textMuted}
+            />
+            <TextInput
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="Hae huoneita"
+              placeholderTextColor={theme.textMuted}
+              selectionColor={theme.accent}
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              returnKeyType="search"
+              clearButtonMode="never"
+              ref={inputRef}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable
+                onPress={() => handleSearchChange("")}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Tyhjennä haku"
+              >
+                <PlatformSymbol
+                  ios="xmark.circle.fill"
+                  android="cancel"
+                  size={17}
+                  tintColor={theme.textFaint}
+                />
+              </Pressable>
+            )}
+          </GlassSurface>
         </Animated.View>
 
-        {/* Floor switcher and location button - always visible on right side */}
-        <View
-          style={[
-            styles.centerContainer,
-            isDark && { backgroundColor: "#18191B" },
-          ]}
-        >
-          <Pressable style={styles.button}>
-            <MaterialIcons
-              name="my-location"
-              size={24}
-              color={isDark ? "#f5f5f5" : "#000"}
-            />
-          </Pressable>
-          {isFloorsEnabled && (
-            <>
-              <View
-                style={[
-                  styles.spacer,
-                  isDark && { backgroundColor: "#262626" },
-                ]}
-              />
-              <Pressable
-                style={
-                  selectedFloor === 4 ? styles.buttonSelected : styles.button
-                }
-                onPress={() => handleFloorPress(4)}
-              >
-                <Text
-                  style={[
-                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-                    selectedFloor === 4
-                      ? { color: "#fff" }
-                      : { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  4
-                </Text>
-              </Pressable>
-              <View
-                style={[
-                  styles.spacer,
-                  isDark && { backgroundColor: "#262626" },
-                ]}
-              />
-              <Pressable
-                style={
-                  selectedFloor === 3 ? styles.buttonSelected : styles.button
-                }
-                onPress={() => handleFloorPress(3)}
-              >
-                <Text
-                  style={[
-                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-                    selectedFloor === 3
-                      ? { color: "#fff" }
-                      : { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  3
-                </Text>
-              </Pressable>
-              <View
-                style={[
-                  styles.spacer,
-                  isDark && { backgroundColor: "#262626" },
-                ]}
-              />
-              <Pressable
-                style={
-                  selectedFloor === 2 ? styles.buttonSelected : styles.button
-                }
-                onPress={() => handleFloorPress(2)}
-              >
-                <Text
-                  style={[
-                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-                    selectedFloor === 2
-                      ? { color: "#fff" }
-                      : { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  2
-                </Text>
-              </Pressable>
-              <View
-                style={[
-                  styles.spacer,
-                  isDark && { backgroundColor: "#262626" },
-                ]}
-              />
-              <Pressable
-                style={[
-                  selectedFloor === 1 ? styles.buttonSelected : styles.button,
-                ]}
-                onPress={() => handleFloorPress(1)}
-              >
-                <Text
-                  style={[
-                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-                    selectedFloor === 1
-                      ? { color: "#fff" }
-                      : { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  1
-                </Text>
-              </Pressable>
-              <View
-                style={[
-                  styles.spacer,
-                  isDark && { backgroundColor: "#262626" },
-                ]}
-              />
-              <Pressable
-                style={[
-                  selectedFloor === 0 ? styles.buttonSelected : styles.button,
-                  { borderBottomEndRadius: 10, borderBottomStartRadius: 10 },
-                ]}
-                onPress={() => handleFloorPress(0)}
-              >
-                <Text
-                  style={[
-                    { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-                    selectedFloor === 0
-                      ? { color: "#fff" }
-                      : { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  0
-                </Text>
-              </Pressable>
-            </>
-          )}
-        </View>
+        {props.accessory ? (
+          <Animated.View
+            style={[
+              styles.accessorySlot,
+              // No opacity here: fading an ancestor of glass stops it drawing.
+              { width: controlsWidth },
+            ]}
+          >
+            {/* Slides right by as much as the slot has narrowed, so it
+                always sits a gap clear of the widening field and needs no
+                clipping — which would cut off the glass, since interactive
+                Liquid Glass swells past its bounds under a touch. */}
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    translateX: controlsWidth.interpolate({
+                      inputRange: [0, ACCESSORY_SLOT],
+                      outputRange: [ACCESSORY_SLOT, 0],
+                    }),
+                  },
+                ],
+              }}
+            >
+              {props.accessory(accessoryVisible)}
+            </Animated.View>
+          </Animated.View>
+        ) : null}
 
         {(isFocused || searchQuery.length > 0) && (
           <Animated.View
             style={[
-              styles.resultsContainer,
-              isDark && { backgroundColor: "#18191B", borderColor: "#232427" },
+              styles.resultsSlot,
+              // A slide only — fading an ancestor of glass stops it drawing.
               {
-                maxHeight: 300,
-                opacity: searchResultsHeight.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                }),
                 transform: [
                   {
                     translateY: searchResultsHeight.interpolate({
@@ -536,18 +408,39 @@ const GlobalSearch = forwardRef(function GlobalSearch(
               },
             ]}
           >
-            {hits.length > 0 ? (
-              <FlatList
-                data={hits}
-                renderItem={renderSearchResult}
-                keyExtractor={(item) => item.objectID}
-                keyboardShouldPersistTaps="handled"
-              />
-            ) : searchQuery.length > 0 ? (
-              <View style={styles.noResults}>
-                <Text style={styles.noResultsText}>Ei tuloksia</Text>
-              </View>
-            ) : null}
+            {/* The same glass as the field above it, so the two read as
+                one control rather than a field and a pop-up. */}
+            <GlassSurface radius={RESULTS_RADIUS} style={styles.resultsPanel}>
+              {hits.length > 0 && searchQuery.length > 0 ? (
+                <FlatList
+                  data={hits}
+                  renderItem={renderSearchResult}
+                  keyExtractor={(item) => item.objectID}
+                  keyboardShouldPersistTaps="handled"
+                  ItemSeparatorComponent={() => (
+                    <View
+                      style={[
+                        styles.resultSeparator,
+                        { backgroundColor: list.separator },
+                      ]}
+                    />
+                  )}
+                />
+              ) : (
+                // Plain small text, centred — a note about the field, not a
+                // second field: no glyph, and shorter than the capsule.
+                <View style={styles.hint}>
+                  <Text
+                    style={[styles.hintText, { color: list.secondaryLabel }]}
+                    numberOfLines={2}
+                  >
+                    {searchQuery
+                      ? `Ei tuloksia haulle ”${searchQuery}”`
+                      : "Hae tilaa numerolla tai nimellä"}
+                  </Text>
+                </View>
+              )}
+            </GlassSurface>
           </Animated.View>
         )}
       </View>
@@ -558,39 +451,32 @@ const GlobalSearch = forwardRef(function GlobalSearch(
 export default React.memo(GlobalSearch);
 
 const styles = StyleSheet.create({
-  resultItem: {
+  // Results as a native list, sized as the friends list rows are.
+  resultsSlot: {
+    position: "absolute",
+    top: SEARCH_HEIGHT + 8,
+    left: 10,
+    right: 10,
+  },
+  resultsPanel: { maxHeight: 320, overflow: "hidden" },
+  resultRow: {
     flexDirection: "row",
-    padding: 12,
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
-  resultIcon: {
-    marginRight: 12,
-    flexDirection: "row",
+  resultText: { flex: 1 },
+  // Type set through `fonts`, so it follows `IOS_TYPEFACE` with the rest of the app.
+  resultTitle: { ...fonts.regular, fontSize: 17 },
+  resultSubtitle: { ...fonts.regular, fontSize: 14, marginTop: 2 },
+  resultSeparator: {
+    height: StyleSheet.hairlineWidth,
+    // Under the text, as UIKit insets a separator to the content.
+    marginLeft: 14,
   },
-  resultContent: {
-    flex: 1,
-  },
-  resultText: {
-    fontSize: 16,
-    color: "#333",
-    fontFamily: "Figtree-Regular",
-  },
-  resultSubtext: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 2,
-    fontFamily: "Figtree-Regular",
-  },
-  noResults: {
-    padding: 20,
-    alignItems: "center",
-  },
-  noResultsText: {
-    color: "#666",
-    fontFamily: "Figtree-Regular",
-  },
+  hint: { paddingHorizontal: 16, paddingVertical: 10 },
+  hintText: { ...fonts.regular, fontSize: 13, textAlign: "center" },
   keyboardDismissArea: {
     position: "absolute",
     top: 0,
@@ -607,72 +493,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start", // Changed from "center" to "flex-start" to align at top
   },
-  searchContainer: {
-    flex: 1,
-    marginRight: 12,
-    backgroundColor: "#fff",
-    // height: 58,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+  searchSlot: { flex: 1 },
+  // Pinned to the right edge; never clipped (see the slide in the JSX).
+  accessorySlot: { alignItems: "flex-end" },
+  searchField: {
+    height: SEARCH_HEIGHT,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
+  // Type set through `fonts`, so it follows `IOS_TYPEFACE` with the rest of the app.
   textInput: {
-    fontSize: 16,
-    color: "#000",
+    ...fonts.regular,
     flex: 1,
-    fontFamily: "Figtree-Regular",
+    fontSize: 17,
     paddingVertical: 0,
-    paddingHorizontal: 6,
-  },
-  resultsContainer: {
-    position: "absolute",
-    top: 60, // Position below the search bar
-    left: 10,
-    right: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    maxHeight: 300,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    zIndex: 1000,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  centerContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: 52,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-  },
-  button: {
-    padding: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-    height: 48,
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonSelected: {
-    padding: 8,
-    // borderRadius: 10,
-    height: 48,
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#2b7fff", // Changed to blue for better visibility
-    width: 52,
-  },
-  spacer: {
-    height: 1,
-    width: "100%",
-    backgroundColor: "#E7E7E7",
   },
 });

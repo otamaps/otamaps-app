@@ -2,7 +2,7 @@
  * Used in:
  * - app/(tabs)/index.tsx - Main map screen
  */
-import { sheetChrome, sheetShadow } from "@/components/sheets/sheetTheme";
+import { glassSheetChrome } from "@/components/sheets/sheetTheme";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React, {
   forwardRef,
@@ -72,6 +72,7 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
     ref
   ) => {
     const isDark = useColorScheme() === "dark";
+    const sheetLook = glassSheetChrome(isDark);
     const [currentSnapIndex, setCurrentSnapIndex] = useState<number>(() => {
       switch (initialSnap) {
         case "max":
@@ -131,8 +132,8 @@ const MapBottomSheet = forwardRef<BottomSheetMethods, BottomSheetProps>(
         enablePanDownToClose={false}
         enableContentPanningGesture={currentSnapIndex !== 2}
         enableHandlePanningGesture={true}
-        style={[sheetShadow, styles.container]}
-        {...sheetChrome(isDark)}
+        style={[sheetLook.style, styles.container]}
+        {...sheetLook.chrome}
         keyboardBehavior="extend"
         enableDynamicSizing={false}
         onChange={(index) => {

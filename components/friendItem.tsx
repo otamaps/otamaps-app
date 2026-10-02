@@ -1,4 +1,6 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { fonts } from "@/constants/typography";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { nativeListColors } from "@/components/sheets/sheetTheme";
 import { getReadableLabelColor } from "@/lib/color";
 import {
   friendLocationListLabel,
@@ -25,7 +27,33 @@ interface FriendItemProps {
   onPress?: () => void;
 }
 
-export const formatLastSeen = (lastSeen?: string | number | null): string => {
+/** Finnish month names in the partitive, as a date is written: "17. syyskuuta". */
+const MONTHS_PARTITIVE = [
+  "tammikuuta",
+  "helmikuuta",
+  "maaliskuuta",
+  "huhtikuuta",
+  "toukokuuta",
+  "kesäkuuta",
+  "heinäkuuta",
+  "elokuuta",
+  "syyskuuta",
+  "lokakuuta",
+  "marraskuuta",
+  "joulukuuta",
+];
+
+/**
+ * When a friend was last seen. Older than a week, the friends list wants
+ * the date as Finnish writes it in prose — "17. syyskuuta", with the year
+ * only when it is not this one — while the profile sheet keeps its full
+ * numeric date and time. Spelled out here rather than left to
+ * `toLocaleDateString`, whose month names vary with the device's Intl data.
+ */
+export const formatLastSeen = (
+  lastSeen?: string | number | null,
+  { longDate = false }: { longDate?: boolean } = {}
+): string => {
   if (!lastSeen) return "";
 
   let date: Date;
@@ -57,6 +85,12 @@ export const formatLastSeen = (lastSeen?: string | number | null): string => {
   }
 
   // For older dates, show the actual date
+  if (longDate) {
+    const dayMonth = `${date.getDate()}. ${MONTHS_PARTITIVE[date.getMonth()]}`;
+    return date.getFullYear() === now.getFullYear()
+      ? dayMonth
+      : `${dayMonth} ${date.getFullYear()}`;
+  }
   return date.toLocaleDateString("fi-FI", {
     year: "numeric",
     month: "short",
@@ -66,93 +100,75 @@ export const formatLastSeen = (lastSeen?: string | number | null): string => {
   });
 };
 
+/**
+ * One friend in the map sheet's list, laid out as a native list row: a round
+ * avatar, the name in the system font, where they are and when in secondary
+ * text beneath, and the system chevron. Separators come from the list.
+ */
 const FriendItem: React.FC<FriendItemProps> = ({ friend, onPress }) => {
   const isDark = useColorScheme() === "dark";
+  const list = nativeListColors(isDark);
   const statusLabel = friendLocationListLabel(friend.status);
+  const lastSeen = friend.lastSeen
+    ? formatLastSeen(friend.lastSeen, { longDate: true })
+    : "";
+  const avatar = friend.color || "#2b7fff";
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${friend.name}, ${statusLabel}`}
+      accessibilityLabel={[friend.name, statusLabel, lastSeen].filter(Boolean).join(", ")}
       style={({ pressed }) => [
-        styles.container,
-        pressed && styles.pressed,
-        isDark && pressed && { backgroundColor: "#51A2FF14" },
+        styles.row,
+        // A UIKit cell highlights by filling, not by fading.
+        pressed && { backgroundColor: list.highlight },
       ]}
       onPress={onPress}
     >
-      <View
-        style={[
-          styles.iconContainer,
-          { backgroundColor: friend.color || "#2b7fff" },
-        ]}
-      >
-        <Text
-          style={{
-            color: getReadableLabelColor(friend.color || "#2b7fff"),
-            fontSize: 20,
-            fontFamily: "Figtree-SemiBold",
-          }}
-        >
+      <View style={[styles.avatar, { backgroundColor: avatar }]}>
+        <Text style={[styles.initial, { color: getReadableLabelColor(avatar) }]}>
           {friend.name.charAt(0).toUpperCase()}
         </Text>
-        {/* <Image
-          source={{
-            uri: `https://api.dicebear.com/9.x/initials/webp?seed=${encodeURIComponent(
-              friend.name
-            )}&scale=90`,
-          }}
-          style={[styles.profilePicture]}
-        /> */}
       </View>
-      <View style={styles.detailsContainer}>
-        <Text
-          style={[styles.friendName, isDark && { color: "#fff" }]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
+      <View style={styles.text}>
+        <Text style={[styles.name, { color: list.label }]} numberOfLines={1}>
           {friend.name}
         </Text>
-        <View style={styles.metaContainer}>
-          {friend.status && (
-            <View style={styles.metaItem}>
-              <View
-                style={[
-                  styles.statusIndicator,
-                  {
-                    backgroundColor: getStatusColor(
-                      statusLabel,
-                      friend.lastSeen
-                    ),
-                  },
-                ]}
-              />
-              <Text style={[styles.metaText, isDark && { color: "#d4d4d4" }]}>
-                {statusLabel}
-              </Text>
-            </View>
-          )}
-          {friend.lastSeen && (
-            <View style={styles.metaItem}>
-              <MaterialIcons
-                name="schedule"
-                size={14}
-                color={isDark ? "#d4d4d4" : "#666"}
-              />
-              <Text style={[styles.metaText, isDark && { color: "#d4d4d4" }]}>
-                {formatLastSeen(friend.lastSeen)}
-              </Text>
-            </View>
-          )}
+        <View style={styles.subtitleLine}>
+          <View
+            style={[
+              styles.statusDot,
+              {
+                backgroundColor: getStatusColor(
+                  // The raw value, not the label: the label of an unknown
+                  // location is "Ei sijaintia vielä", which reads as known.
+                  friend.status,
+                  friend.lastSeen
+                ),
+              },
+            ]}
+          />
+          <Text
+            style={[styles.subtitle, { color: list.secondaryLabel }]}
+            numberOfLines={1}
+          >
+            {lastSeen ? `${statusLabel} · ${lastSeen}` : statusLabel}
+          </Text>
         </View>
       </View>
-      <MaterialIcons
-        name="chevron-right"
-        size={24}
-        color={isDark ? "#B5B5B5" : "#B5B5B5"}
+      <PlatformSymbol
+        ios="chevron.right"
+        android="chevron_right"
+        size={13}
+        weight="semibold"
+        tintColor={list.tertiaryLabel}
       />
     </Pressable>
   );
 };
+
+/** Where a row's separator starts: past the avatar, under the text. */
+export const FRIEND_ROW_SEPARATOR_INSET = 16 + 40 + 12;
 
 const getStatusColor = (
   status?: string,
@@ -189,65 +205,28 @@ const getStatusColor = (
   return "#9E9E9E";
 };
 
+// Type set through `fonts`, so it follows `IOS_TYPEFACE` with the rest of the app.
 const styles = StyleSheet.create({
-  container: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 6,
-    borderRadius: 16,
-    marginVertical: 6,
-    marginHorizontal: 16,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  pressed: {
-    opacity: 0.8,
-    backgroundColor: "#f8f8f8",
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#EFF4FF",
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
   },
-  detailsContainer: {
-    flex: 1,
-    marginRight: 8,
-  },
-  friendName: {
-    fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
-    color: "#333",
-    marginBottom: 4,
-  },
-  metaContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  metaText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
-    fontFamily: "Figtree-Regular",
-  },
-  profilePicture: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-  },
-  statusIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 6,
-    marginRight: 4,
-  },
+  initial: { ...fonts.semiBold, fontSize: 17 },
+  text: { flex: 1 },
+  name: { ...fonts.regular, fontSize: 17 },
+  subtitleLine: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
+  subtitle: { ...fonts.regular, fontSize: 13, flexShrink: 1 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
 });
 
 export default FriendItem;

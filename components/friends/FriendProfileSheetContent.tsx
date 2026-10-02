@@ -1,7 +1,11 @@
+import { fonts } from "@/constants/typography";
+import { GlassSurface, HAS_LIQUID_GLASS } from "@/components/map/GlassSurface";
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import DayScheduleSection, {
   type DayScheduleEntry,
 } from "@/components/schedule/DayScheduleSection";
+import { nativeListColors } from "@/components/sheets/sheetTheme";
+import { colors } from "@/constants/theme";
 import { formatClassLabel } from "@/lib/classLabel";
 import { getReadableLabelColor } from "@/lib/color";
 import { friendLocationSentence } from "@/lib/friendPresentation";
@@ -33,6 +37,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Modal,
   Pressable,
   StyleSheet,
@@ -59,7 +64,7 @@ function dayLabel(date: string): string {
 function nestedLunchFor(
   start: string,
   end: string,
-  lunch: LunchMatch | null
+  lunch: LunchMatch | null,
 ): { start: string; end: string } | undefined {
   const split = lunch ? lunchSplit(start, end, lunch) : null;
   return split && lunch
@@ -74,9 +79,11 @@ type ScheduleSlot =
 
 function scheduleEntries(
   lessons: SharedScheduleLesson[],
-  lunch: LunchMatch | null
+  lunch: LunchMatch | null,
 ): DayScheduleEntry[] {
-  const sortedLessons = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
+  const sortedLessons = [...lessons].sort((a, b) =>
+    a.start.localeCompare(b.start),
+  );
 
   // Lessons and the gap(s) after each — a real gap is either genuine free
   // time or, between two three-hour blocks, the day's lunch break; see
@@ -96,7 +103,7 @@ function scheduleEntries(
       slots.push(
         piece.kind === "lunch"
           ? { kind: "lunch", id, start: piece.start, end: piece.end }
-          : { kind: "freeslot", id, start: piece.start, end: piece.end }
+          : { kind: "freeslot", id, start: piece.start, end: piece.end },
       );
     });
   });
@@ -105,8 +112,12 @@ function scheduleEntries(
   // ending right where the next one starts, or a lesson and its free slot)
   // would otherwise get nested — and shown — in both. Keep it only on the
   // last slot of each run that overlaps it.
-  const rawLunch = slots.map((slot) => nestedLunchFor(slot.start, slot.end, lunch));
-  const dedupedLunch = rawLunch.map((entry, i) => (rawLunch[i + 1] ? undefined : entry));
+  const rawLunch = slots.map((slot) =>
+    nestedLunchFor(slot.start, slot.end, lunch),
+  );
+  const dedupedLunch = rawLunch.map((entry, i) =>
+    rawLunch[i + 1] ? undefined : entry,
+  );
 
   // Lunch sits inside the long midday block, so rather than splitting the
   // lesson into a "before"/"after" pair of entries, the lesson stays a
@@ -118,8 +129,10 @@ function scheduleEntries(
         id: slot.lesson.id,
         start: slot.start,
         end: slot.end,
-        title: slot.lesson.subject,
-        code: slot.lesson.code || undefined,
+        // The course code alone, never the course's title: it is what a
+        // classmate recognises and how lessons are named on the timetable
+        // board. The subject only stands in for a lesson without a code.
+        title: slot.lesson.code || slot.lesson.subject,
         subtitle: slot.lesson.room || undefined,
         lunch: dedupedLunch[i],
       };
@@ -164,10 +177,12 @@ export default function FriendProfileSheetContent({
   onReport,
 }: Props) {
   const isDark = useColorScheme() === "dark";
+  const list = nativeListColors(isDark);
+  const accent = isDark ? colors.accentDark : colors.accent;
   const [lessons, setLessons] = useState<SharedScheduleLesson[]>([]);
   const [lunch, setLunch] = useState<LunchMatch | null>(null);
   const [scheduleDay, setScheduleDay] = useState(() =>
-    formatLocalISO(getActiveSchoolDay())
+    formatLocalISO(getActiveSchoolDay()),
   );
   const [scheduleIsToday, setScheduleIsToday] = useState(true);
   const [scheduleIsStale, setScheduleIsStale] = useState(false);
@@ -188,7 +203,7 @@ export default function FriendProfileSheetContent({
     try {
       const schedule = await fetchFriendSharedSchedule(friend.id, activeDay);
       const todaysLessons = (schedule?.lessons ?? []).filter(
-        (lesson) => lesson.date === activeDayISO
+        (lesson) => lesson.date === activeDayISO,
       );
 
       // Once the friend's day is over (30 min past their last shared
@@ -196,7 +211,7 @@ export default function FriendProfileSheetContent({
       const lastLessonEnd = todaysLessons.reduce(
         (latest, lesson) =>
           clockValue(lesson.end) > latest ? clockValue(lesson.end) : latest,
-        ""
+        "",
       );
       const nowClockValue = clockValue(new Date().toTimeString());
       const showNextDay =
@@ -217,16 +232,16 @@ export default function FriendProfileSheetContent({
 
         if (sameWeek) {
           dayLessons = (schedule?.lessons ?? []).filter(
-            (lesson) => lesson.date === targetDayISO
+            (lesson) => lesson.date === targetDayISO,
           );
         } else {
           const nextWeekSchedule = await fetchFriendSharedSchedule(
             friend.id,
-            targetDay
+            targetDay,
           );
           weekMissing = !nextWeekSchedule;
           dayLessons = (nextWeekSchedule?.lessons ?? []).filter(
-            (lesson) => lesson.date === targetDayISO
+            (lesson) => lesson.date === targetDayISO,
           );
         }
       }
@@ -289,13 +304,13 @@ export default function FriendProfileSheetContent({
 
   const scheduleEntryList = useMemo(
     () => scheduleEntries(lessons, lunch),
-    [lessons, lunch]
+    [lessons, lunch],
   );
 
   if (!friend) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>
+        <Text style={[styles.emptyText, { color: list.secondaryLabel }]}>
           Kaverin tietoja ei löytynyt.
         </Text>
       </View>
@@ -305,7 +320,7 @@ export default function FriendProfileSheetContent({
   const runDestructiveAction = (
     title: string,
     message: string,
-    action: () => Promise<void>
+    action: () => Promise<void>,
   ) => {
     Alert.alert(title, message, [
       { text: "Peruuta", style: "cancel" },
@@ -348,66 +363,97 @@ export default function FriendProfileSheetContent({
   const locationText = friendLocationSentence(friend.user_friendly_location);
   const lastSeenText = formatLastSeen(friend.lastSeen ?? undefined);
 
+  const hasLocation = locationText !== "Ei sijaintia vielä";
+  const avatarColor = friend.color || "#3478F5";
+
+  // The three ways out of a friendship, as the destructive section that
+  // closes an iOS contact card: one inset group of red rows.
+  const destructiveActions = [
+    {
+      label: "Poista kaveri",
+      onPress: () =>
+        runDestructiveAction(
+          `Poista ${friend.name}`,
+          "Haluatko varmasti poistaa tämän kaverin?",
+          () => onRemove(friend.id),
+        ),
+    },
+    {
+      label: "Estä käyttäjä",
+      onPress: () =>
+        runDestructiveAction(
+          `Estä ${friend.name}`,
+          "Estetty käyttäjä ei enää näe sijaintiasi tai jakamaasi lukujärjestystä.",
+          () => onBlock(friend.id),
+        ),
+    },
+    { label: "Ilmoita käyttäjästä", onPress: () => setReportVisible(true) },
+  ];
+
   return (
     <>
       <View style={styles.header}>
-        <View
-          style={[styles.avatar, { backgroundColor: friend.color || "#3478F5" }]}
-        >
+        <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
           <Text
             style={[
               styles.avatarText,
-              { color: getReadableLabelColor(friend.color || "#3478F5") },
+              { color: getReadableLabelColor(avatarColor) },
             ]}
           >
             {friend.name.charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.headerText}>
-          <Text style={[styles.name, isDark && styles.textPrimaryDark]}>
+          <Text style={[styles.name, { color: list.label }]} numberOfLines={2}>
             {friend.name}
           </Text>
           {!!friend.class && (
-            <Text style={[styles.className, isDark && styles.textMutedDark]}>
+            <Text style={[styles.className, { color: list.secondaryLabel }]}>
               {formatClassLabel(friend.class)}
             </Text>
           )}
         </View>
+        {/* iOS 26's close control in a sheet: a glass circle with an ✕. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sulje kaverin tiedot"
-          hitSlop={12}
+          hitSlop={8}
           onPress={onClose}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            !HAS_LIQUID_GLASS && pressed && styles.pressed,
+          ]}
         >
-          <PlatformSymbol
-            ios="xmark"
-            android="close"
-            size={22}
-            tintColor={isDark ? "#D2D7DF" : "#56606D"}
-          />
+          <GlassSurface radius={18} interactive style={styles.closeButton}>
+            <PlatformSymbol
+              ios="xmark"
+              android="close"
+              size={14}
+              weight="semibold"
+              tintColor={list.secondaryLabel}
+            />
+          </GlassSurface>
         </Pressable>
       </View>
 
       <View
         style={[
-          styles.locationCard,
-          isDark && styles.surfaceDark,
-          isDark && styles.borderDark,
+          styles.group,
+          styles.locationCell,
+          { backgroundColor: list.fill },
         ]}
       >
         <PlatformSymbol
-          ios="location.fill"
-          android="location_on"
-          size={22}
-          tintColor={locationText === "Ei sijaintia vielä" ? "#8C939E" : "#3478F5"}
+          ios={hasLocation ? "location.fill" : "location.slash"}
+          android={hasLocation ? "near_me" : "location_disabled"}
+          size={18}
+          tintColor={hasLocation ? accent : list.secondaryLabel}
         />
         <View style={styles.locationText}>
-          <Text style={[styles.locationTitle, isDark && styles.textPrimaryDark]}>
+          <Text style={[styles.cellTitle, { color: list.label }]}>
             {locationText}
           </Text>
           {!!lastSeenText && (
-            <Text style={[styles.locationUpdated, isDark && styles.textMutedDark]}>
+            <Text style={[styles.cellSubtitle, { color: list.secondaryLabel }]}>
               Päivitetty {lastSeenText.toLowerCase()}
             </Text>
           )}
@@ -421,11 +467,6 @@ export default function FriendProfileSheetContent({
         entries={scheduleEntryList}
         loading={scheduleLoading}
         isToday={scheduleIsToday}
-        noticeText={
-          scheduleIsStale
-            ? "Tämän viikon järjestys ei ole saatavilla. Alla oleva lukujärjestys voi olla vanhentunut."
-            : null
-        }
         errorText={
           scheduleError
             ? "Lukujärjestystä ei voitu ladata. Napauta ja yritä uudelleen."
@@ -436,41 +477,52 @@ export default function FriendProfileSheetContent({
         isDark={isDark}
       />
 
-      <View style={[styles.divider, isDark && styles.dividerDark]} />
-      <View style={styles.actions}>
-        <Pressable
-          disabled={actionPending}
-          onPress={() =>
-            runDestructiveAction(
-              `Poista ${friend.name}`,
-              "Haluatko varmasti poistaa tämän kaverin?",
-              () => onRemove(friend.id)
-            )
-          }
-          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.actionText}>Poista kaveri</Text>
-        </Pressable>
-        <Pressable
-          disabled={actionPending}
-          onPress={() =>
-            runDestructiveAction(
-              `Estä ${friend.name}`,
-              "Estetty käyttäjä ei enää näe sijaintiasi tai jakamaasi lukujärjestystä.",
-              () => onBlock(friend.id)
-            )
-          }
-          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.actionText}>Estä käyttäjä</Text>
-        </Pressable>
-        <Pressable
-          disabled={actionPending}
-          onPress={() => setReportVisible(true)}
-          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.actionText}>Ilmoita käyttäjästä</Text>
-        </Pressable>
+      {/* Said as iOS says it, in a section footer: small grey text under
+          the schedule, not a coloured banner competing with it. */}
+      {scheduleIsStale && (
+        <View style={styles.footer}>
+          <PlatformSymbol
+            ios="clock.arrow.circlepath"
+            android="history"
+            size={13}
+            tintColor={list.secondaryLabel}
+          />
+          <Text style={[styles.footerText, { color: list.secondaryLabel }]}>
+            Tämän viikon lukujärjestys ei ole saatavilla, joten yllä oleva voi
+            olla vanhentunut.
+          </Text>
+        </View>
+      )}
+
+      <View
+        style={[
+          styles.group,
+          styles.actionsGroup,
+          // A step lighter than the system fill in light mode, where the
+          // full fill read heavy under three red labels. Dark keeps it.
+          { backgroundColor: isDark ? list.fill : "rgba(118,118,128,0.07)" },
+        ]}
+      >
+        {destructiveActions.map((action, index) => (
+          <React.Fragment key={action.label}>
+            {index > 0 && (
+              <View
+                style={[styles.separator, { backgroundColor: list.separator }]}
+              />
+            )}
+            <Pressable
+              accessibilityRole="button"
+              disabled={actionPending}
+              onPress={action.onPress}
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && { backgroundColor: list.highlight },
+              ]}
+            >
+              <Text style={styles.actionText}>{action.label}</Text>
+            </Pressable>
+          </React.Fragment>
+        ))}
       </View>
 
       <Modal
@@ -480,11 +532,18 @@ export default function FriendProfileSheetContent({
         onRequestClose={() => !actionPending && setReportVisible(false)}
       >
         <View style={styles.reportBackdrop}>
-          <View style={[styles.reportDialog, isDark && styles.dialogDark]}>
-            <Text style={[styles.reportTitle, isDark && styles.textPrimaryDark]}>
+          <View
+            style={[
+              styles.reportDialog,
+              { backgroundColor: isDark ? "#2C2C2E" : "#FFFFFF" },
+            ]}
+          >
+            <Text style={[styles.reportTitle, { color: list.label }]}>
               Ilmoita käyttäjästä
             </Text>
-            <Text style={[styles.reportDescription, isDark && styles.textMutedDark]}>
+            <Text
+              style={[styles.reportDescription, { color: list.secondaryLabel }]}
+            >
               Kerro lyhyesti, miksi ilmoitat käyttäjästä {friend.name}.
             </Text>
             <TextInput
@@ -494,11 +553,11 @@ export default function FriendProfileSheetContent({
               maxLength={500}
               onChangeText={setReportReason}
               placeholder="Ilmoituksen syy"
-              placeholderTextColor={isDark ? "#7E8794" : "#8A929D"}
+              placeholderTextColor={list.tertiaryLabel}
+              selectionColor={accent}
               style={[
                 styles.reportInput,
-                isDark && styles.reportInputDark,
-                isDark && styles.textPrimaryDark,
+                { backgroundColor: list.fill, color: list.label },
               ]}
               value={reportReason}
             />
@@ -506,24 +565,33 @@ export default function FriendProfileSheetContent({
               <Pressable
                 disabled={actionPending}
                 onPress={() => setReportVisible(false)}
-                style={styles.dialogButton}
+                style={({ pressed }) => [
+                  styles.dialogButton,
+                  { backgroundColor: list.fill },
+                  pressed && styles.pressed,
+                ]}
               >
-                <Text style={[styles.cancelText, isDark && styles.textPrimaryDark]}>
+                <Text style={[styles.dialogButtonText, { color: list.label }]}>
                   Peruuta
                 </Text>
               </Pressable>
               <Pressable
                 disabled={!reportReason.trim() || actionPending}
                 onPress={() => void submitReport()}
-                style={[
-                  styles.submitButton,
-                  (!reportReason.trim() || actionPending) && styles.submitDisabled,
+                style={({ pressed }) => [
+                  styles.dialogButton,
+                  { backgroundColor: accent },
+                  (!reportReason.trim() || actionPending) &&
+                    styles.submitDisabled,
+                  pressed && styles.pressed,
                 ]}
               >
                 {actionPending ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitText}>Lähetä</Text>
+                  <Text style={[styles.dialogButtonText, styles.submitText]}>
+                    Lähetä
+                  </Text>
                 )}
               </Pressable>
             </View>
@@ -534,41 +602,106 @@ export default function FriendProfileSheetContent({
   );
 }
 
+// The system font and UIKit's own colours throughout, as the map's sheet
+// and controls: no fontFamily anywhere below.
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
-  avatar: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 22 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { ...fonts.semiBold, fontSize: 24 },
   headerText: { flex: 1 },
-  name: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 22 },
-  className: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 14, marginTop: 2 },
-  closeButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  locationCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#F5F7FA", borderColor: "#E1E6ED", borderWidth: 1, borderRadius: 16, padding: 14 },
+  // UIKit's title2.
+  name: { ...fonts.bold, fontSize: 22 },
+  className: { ...fonts.regular, fontSize: 15, marginTop: 2 },
+  closeButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // An inset grouped section, as in Settings or a contact card.
+  group: { borderRadius: 14, borderCurve: "continuous", overflow: "hidden" },
+  locationCell: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
   locationText: { flex: 1 },
-  locationTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 16 },
-  locationUpdated: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 13, marginTop: 2 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: "#DEE3E9", marginVertical: 22 },
-  dividerDark: { backgroundColor: "#3A3D42" },
-  actions: { gap: 4 },
-  actionButton: { minHeight: 46, justifyContent: "center", borderRadius: 12, paddingHorizontal: 12 },
-  actionText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
-  pressed: { opacity: 0.65 },
-  emptyContainer: { minHeight: 160, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 15 },
-  textPrimaryDark: { color: "#F5F7FA" },
-  textMutedDark: { color: "#AAA" },
-  surfaceDark: { backgroundColor: "#232427" },
-  borderDark: { borderColor: "#3A3D42" },
-  reportBackdrop: { flex: 1, backgroundColor: "#00000080", justifyContent: "center", padding: 24 },
-  reportDialog: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 20 },
-  dialogDark: { backgroundColor: "#202226" },
-  reportTitle: { color: "#222", fontFamily: "Figtree-SemiBold", fontSize: 20 },
-  reportDescription: { color: "#666", fontFamily: "Figtree-Regular", fontSize: 14, lineHeight: 20, marginTop: 6 },
-  reportInput: { minHeight: 110, marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: "#D9DEE5", padding: 12, color: "#222", fontFamily: "Figtree-Regular", fontSize: 15, textAlignVertical: "top" },
-  reportInputDark: { backgroundColor: "#2B2F35", borderColor: "#3A3D42" },
-  reportActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 16 },
-  dialogButton: { minWidth: 84, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
-  cancelText: { color: "#3E4854", fontFamily: "Figtree-SemiBold", fontSize: 15 },
-  submitButton: { minWidth: 96, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#3478F5" },
-  submitDisabled: { opacity: 0.45 },
-  submitText: { color: "#FFFFFF", fontFamily: "Figtree-SemiBold", fontSize: 15 },
+  cellTitle: { ...fonts.regular, fontSize: 17 },
+  cellSubtitle: { ...fonts.regular, fontSize: 14, marginTop: 2 },
+  // Well below the fold, so removing, blocking or reporting a friend takes
+  // a deliberate scroll rather than sitting under a thumb on open.
+  actionsGroup: {
+    marginTop: Math.round(Dimensions.get("window").height * 0.45),
+    // Room after the last row, so it clears the home indicator and the
+    // sheet's bottom edge comfortably instead of ending flush with them.
+    marginBottom: 67,
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    paddingHorizontal: 4,
+    marginTop: 8,
+  },
+  footerText: { ...fonts.regular, flex: 1, fontSize: 13, lineHeight: 18 },
+  actionRow: { minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  // systemRed: the destructive role's own colour.
+  actionText: { ...fonts.regular, color: "#FF3B30", fontSize: 17 },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },
+  pressed: { opacity: 0.6 },
+  emptyContainer: {
+    minHeight: 160,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: { ...fonts.regular, fontSize: 15 },
+  reportBackdrop: {
+    flex: 1,
+    backgroundColor: "#00000066",
+    justifyContent: "center",
+    padding: 24,
+  },
+  reportDialog: { borderRadius: 26, borderCurve: "continuous", padding: 20 },
+  reportTitle: { ...fonts.semiBold, fontSize: 17, textAlign: "center" },
+  reportDescription: {
+    ...fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  reportInput: {
+    ...fonts.regular,
+    minHeight: 100,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 17,
+    textAlignVertical: "top",
+  },
+  reportActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  // Equal-width capsules, as iOS 26 sets an alert's two actions.
+  dialogButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dialogButtonText: { ...fonts.semiBold, fontSize: 17 },
+  submitDisabled: { opacity: 0.4 },
+  submitText: { color: "#FFFFFF" },
 });

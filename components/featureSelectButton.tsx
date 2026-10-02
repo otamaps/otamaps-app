@@ -1,6 +1,7 @@
 import { Entypo, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const FeatureSelectButton = ({
   feature,
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     color: "#333",
     paddingLeft: 8,
   },

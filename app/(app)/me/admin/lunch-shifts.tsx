@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 const EXTRACTION_PROMPT = `You are extracting structured data from a Finnish upper-secondary school's "ruokailuvuorot" (lunch shift) schedule. This document is a grid of weekday x time slot x lunch shift (vuoro), where each cell lists the Wilma course codes of the courses whose students eat lunch during that slot.
 
@@ -300,10 +301,10 @@ const styles = StyleSheet.create({
   centeredText: { marginTop: 10, textAlign: "center", fontSize: 15, lineHeight: 22 },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
   card: { borderRadius: 14, padding: 18 },
-  eyebrow: { fontSize: 12, fontFamily: "Figtree-SemiBold", letterSpacing: 1.1 },
-  title: { fontSize: 20, fontFamily: "Figtree-SemiBold" },
+  eyebrow: { fontSize: 12, ...fonts.semiBold, letterSpacing: 1.1 },
+  title: { fontSize: 20, ...fonts.semiBold },
   description: { marginTop: 6, fontSize: 14, lineHeight: 20 },
-  statusText: { marginTop: 10, fontSize: 22, fontFamily: "Figtree-SemiBold" },
+  statusText: { marginTop: 10, fontSize: 22, ...fonts.semiBold },
   meta: { marginTop: 3, fontSize: 13 },
   jsonInput: {
     marginTop: 12,
@@ -325,6 +326,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  submitText: { color: "#FFFFFF", fontSize: 16, fontFamily: "Figtree-SemiBold" },
+  submitText: { color: "#FFFFFF", fontSize: 16, ...fonts.semiBold },
   disabled: { opacity: 0.4 },
 });

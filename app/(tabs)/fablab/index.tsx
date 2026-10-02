@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fonts } from "@/constants/typography";
 
 const GREEN = '#87b72f';
 
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Figtree-Bold',
+    ...fonts.bold,
   },
   list: {
     paddingHorizontal: 16,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   filename: {
     fontSize: 15,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     flex: 1,
   },
   badge: {
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
   },
   row: {
     flexDirection: 'row',
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 13,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -258,11 +259,11 @@ const styles = StyleSheet.create({
   },
   cost: {
     fontSize: 15,
-    fontFamily: 'Figtree-Bold',
+    ...fonts.bold,
   },
   timestamp: {
     fontSize: 12,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
   },
   center: {
     flex: 1,
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ef4444',
     fontSize: 14,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
     textAlign: 'center',
   },
   retryBtn: {
@@ -286,17 +287,17 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#fff',
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     fontSize: 14,
   },
   emptyTitle: {
     fontSize: 17,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     marginTop: 8,
   },
   emptySub: {
     fontSize: 14,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
   },
   fab: {
     position: 'absolute',

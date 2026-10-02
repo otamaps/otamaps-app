@@ -36,6 +36,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const COLORS = [
   "#fb2c36",
@@ -661,7 +662,7 @@ const styles = StyleSheet.create({
   progressDot: { height: 4, borderRadius: 2 },
   progressDotActive: { backgroundColor: "#3478F5" },
   stepLabel: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 12,
     paddingHorizontal: 27,
     paddingTop: 10,
@@ -676,26 +677,26 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 27,
     marginTop: 18,
   },
   description: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 28,
     marginTop: 8,
   },
   label: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 14,
     marginBottom: 7,
   },
   input: {
     borderRadius: 12,
     borderWidth: 1,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 16,
     marginBottom: 16,
     minHeight: 50,
@@ -709,7 +710,7 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   verifiedText: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 13,
   },
   colors: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
@@ -733,18 +734,18 @@ const styles = StyleSheet.create({
   choiceDisabled: { opacity: 0.5 },
   choiceText: { flex: 1 },
   choiceTitle: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
   choiceDescription: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 5,
   },
   infoBox: { borderRadius: 12, padding: 16 },
   infoText: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -757,7 +758,7 @@ const styles = StyleSheet.create({
   },
   permissionButtonText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
   footer: {
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: "#475467",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
   },
   disabledText: { opacity: 0.3 },
@@ -789,7 +790,7 @@ const styles = StyleSheet.create({
   },
   nextText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
   },
   disabledButton: { opacity: 0.55 },
