@@ -1,4 +1,6 @@
-const { withAndroidManifest } = require('@expo/config-plugins');
+const { withAndroidManifest, withProjectBuildGradle } = require('@expo/config-plugins');
+
+const NOTIFEE_REPO = `maven { url "$rootDir/../node_modules/@notifee/react-native/android/libs" }`;
 
 /**
  * Adds the Notifee ForegroundService declaration and required permissions to AndroidManifest.xml.
@@ -11,6 +13,17 @@ const { withAndroidManifest } = require('@expo/config-plugins');
  * - ACCESS_BACKGROUND_LOCATION for background BLE scanning
  */
 const withNotifeeAndroid = (config) => {
+  // Notifee ships app.notifee:core as a local maven repo inside node_modules; Gradle can't resolve it otherwise.
+  config = withProjectBuildGradle(config, (config) => {
+    if (!config.modResults.contents.includes('@notifee/react-native/android/libs')) {
+      config.modResults.contents = config.modResults.contents.replace(
+        /allprojects\s*\{\s*repositories\s*\{/,
+        (match) => `${match}\n    ${NOTIFEE_REPO}`
+      );
+    }
+    return config;
+  });
+
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
     const mainApp = manifest.manifest.application[0];
