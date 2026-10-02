@@ -2263,7 +2263,8 @@ const styles = StyleSheet.create({
   friendsListHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    // Small, because the button's box already pads its glyph by 9pt.
+    gap: 6,
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 12,
@@ -2280,12 +2281,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   friendSearchInput: { ...fonts.regular, flex: 1, fontSize: 17, paddingVertical: 0 },
-  addFriendIconButton: { paddingVertical: 4 },
+  // The search field's own height, with the glyph centred in it, so the
+  // two share a centre line rather than the glyph riding on its padding.
+  addFriendIconButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   // iOS's own badge: systemRed, a capsule that grows with the count.
+  // Placed against the 22pt glyph centred in the 40pt button.
   friendRequestBadge: {
     position: "absolute",
-    top: -4,
-    right: -9,
+    top: 1,
+    right: 0,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
