@@ -1,6 +1,7 @@
 export { AppHeader } from "./AppHeader";
 export { AppText } from "./AppText";
 export { Button } from "./Button";
+export { GlassSegmentedControl } from "./GlassSegmentedControl";
 export { useNativeHeader } from "./nativeHeader";
 export { Row } from "./Row";
 export { RowIcon } from "./RowIcon";

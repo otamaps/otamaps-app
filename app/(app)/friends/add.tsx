@@ -1,7 +1,8 @@
+import { GlassSegmentedControl, useNativeHeader } from "@/components/ui";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -43,7 +44,6 @@ const AddFriendScreen = () => {
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
 
   const isDark = useColorScheme() === "dark";
-  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -195,75 +195,48 @@ const AddFriendScreen = () => {
       );
   };
 
+  // Compact, not large: there is no scroll view at the root for a large
+  // title to collapse against. "flat" is the white/near-black this page
+  // already uses, so the bar blends into it.
+  const header = useNativeHeader({
+    title: "Kaverit",
+    background: "flat",
+    large: false,
+  });
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
-      <Stack.Screen
-        options={{
-          title: "Kaverit",
-          headerStyle: { backgroundColor: isDark ? "#18191B" : "#fff" },
-          headerTitleStyle: { color: isDark ? "#fff" : "#000" },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                style={{ marginRight: 8 }}
-                color={isDark ? "#fff" : "#000"}
-              />
-            </Pressable>
-          ),
-        }}
+      <Stack.Screen options={header} />
+
+      {/* Floats over the content on iOS, so it is first in the tree with a
+          zIndex rather than last; on Android it is the in-flow tab bar. */}
+      <GlassSegmentedControl
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          ["add", "Lisää kaveri"],
+          [
+            "requests",
+            requesters.length > 0
+              ? `Kaveripyynnöt (${requesters.length})`
+              : "Kaveripyynnöt",
+          ],
+        ]}
+        style={styles.floatingTabs}
       />
 
-      <View
-        style={[
-          styles.tabBar,
-          isDark && { borderBottomColor: "#404040", backgroundColor: "#18191B" },
-        ]}
-      >
-        <Pressable
-          style={[styles.tab, activeTab === "add" && styles.activeTab]}
-          onPress={() => setActiveTab("add")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              isDark && { color: "#AAA" },
-              activeTab === "add" && styles.activeTabText,
-            ]}
-          >
-            Lisää kaveri
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === "requests" && styles.activeTab]}
-          onPress={() => setActiveTab("requests")}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text
-              style={[
-                styles.tabText,
-                isDark && { color: "#AAA" },
-                activeTab === "requests" && styles.activeTabText,
-              ]}
-            >
-              Kaveripyynnöt
-            </Text>
-            {requesters.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{requesters.length}</Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
-      </View>
-
       {activeTab === "add" && (
-        <View style={[styles.content, isDark && { backgroundColor: "#18191B" }]}>
+        <View
+          style={[
+            styles.content,
+            Platform.OS === "ios" && styles.belowFloatingTabs,
+            isDark && { backgroundColor: "#18191B" },
+          ]}
+        >
           <Text style={[styles.title, isDark && { color: "#fff" }]}>
             Anna kaverisi koodi
           </Text>
@@ -393,6 +366,7 @@ const AddFriendScreen = () => {
         <View
           style={[
             styles.requestsContent,
+            Platform.OS === "ios" && styles.belowFloatingTabs,
             isDark && { backgroundColor: "#18191B" },
           ]}
         >
@@ -482,44 +456,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  tabBar: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
+  floatingTabs: {
+    position: "absolute",
+    top: 12,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#3478F5",
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: "Figtree-Medium",
-    color: "#666",
-  },
-  activeTabText: {
-    color: "#3478F5",
-    fontFamily: "Figtree-SemiBold",
-  },
-  badge: {
-    backgroundColor: "red",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6,
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: "Figtree-SemiBold",
-  },
+  // Clears the floating selector: its 12pt inset plus the capsule's height.
+  belowFloatingTabs: { paddingTop: 72 },
   content: {
     flex: 1,
     padding: 24,

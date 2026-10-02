@@ -59,6 +59,7 @@
       "./plugins/withNotifeeAndroid",
       "./plugins/withIosGoogleModularHeaders",
       "./plugins/withIosForceQuitNotification",
+      "./plugins/withIosSegmentedControlFont",
       "@bacons/apple-targets",
       [
         "expo-splash-screen",
