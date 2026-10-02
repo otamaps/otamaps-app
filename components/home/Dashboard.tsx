@@ -1,7 +1,16 @@
-import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
-import { AppText, Screen, StateView, useTheme } from "@/components/ui";
-import { colors } from "@/constants/theme";
+import { LunchPill } from "@/components/schedule/LunchPill";
+import { timeTagColors } from "@/components/schedule/status";
+import {
+  AppText,
+  Row,
+  RowIcon,
+  Screen,
+  StateView,
+  Surface,
+  useTheme,
+} from "@/components/ui";
+import { colors, radii } from "@/constants/theme";
 import {fonts } from "@/constants/typography";
 import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
 import {
@@ -31,6 +40,12 @@ import {
   WilmaMessage,
   WilmaStudentProfile,
 } from "@/lib/wilma/graphqlClient";
+import {
+  attendanceType,
+  formatMarkDate,
+  markWithinDays,
+  sortMarks,
+} from "@/lib/wilma/attendance";
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatLocalISO,
@@ -209,39 +224,81 @@ function formatDateFI(d: string): string {
   return d;
 }
 
-/** The year a mark falls in, whichever of the two shapes the API used. */
-function markYear(d: string): string {
-  return formatDateFI(d).split(".")[2] ?? "";
-}
-
-/**
- * An attendance date with the year left off when it is the current one — the
- * card only ever covers the last four weeks, so "3.10." is unambiguous. Marks
- * from an earlier year are dropped before they reach here; the full date is
- * kept as a fallback rather than silently printing a bare day and month for
- * one that somehow gets through.
- */
-function formatMarkDate(d: string): string {
-  const [day, month, year] = formatDateFI(d).split(".");
-  return year === String(new Date().getFullYear())
-    ? `${day}.${month}.`
-    : `${day}.${month}.${year}`;
-}
-
 function finnishToISO(d: string): string {
   const [day, month, year] = d.split(".");
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
-const ATTENDANCE_COLORS: Record<number, { bg: string; label: string }> = {
-  10: { bg: "#ff6b6b", label: "Poissaolo" },
-  16: { bg: "#a0522d", label: "Terveys" },
-  31: { bg: "#4caf50", label: "Koulutoiminta" },
-  32: { bg: "#ff9800", label: "Muu lupa" },
-};
+/**
+ * The rest of Wilma, each in one of iOS's system colours so the tiles tell
+ * the rows apart at a glance, as Settings' do.
+ */
+const MORE_WILMA: {
+  path: string;
+  title: string;
+  subtitle: string;
+  ios: React.ComponentProps<typeof RowIcon>["ios"];
+  android: React.ComponentProps<typeof RowIcon>["android"];
+  color: string;
+}[] = [
+  {
+    path: "/wilma/coursework",
+    title: "Kurssit ja tehtävät",
+    subtitle: "Kotitehtävät, tuntipäiväkirja ja kurssikokeet",
+    ios: "doc.text.fill",
+    android: "assignment",
+    color: "#007AFF",
+  },
+  {
+    path: "/wilma/course-selections",
+    title: "Kurssivalinnat",
+    subtitle: "Omat valinnat ja tarjottimet vain luku -tilassa",
+    ios: "rectangle.grid.1x2.fill",
+    android: "view_week",
+    color: "#5856D6",
+  },
+  {
+    path: "/wilma/rooms",
+    title: "Tilojen lukujärjestykset",
+    subtitle: "Katso milloin luokkahuone on käytössä",
+    ios: "door.left.hand.open",
+    android: "meeting_room",
+    color: "#FF9500",
+  },
+  {
+    path: "/wilma/teachers",
+    title: "Opettajat ja henkilökunta",
+    subtitle: "Opettajien lukujärjestykset ja viestit",
+    ios: "person.2.fill",
+    android: "group",
+    color: "#34C759",
+  },
+  {
+    path: "/wilma/news",
+    title: "Tiedotteet",
+    subtitle: "Koulun ajankohtaiset tiedotteet",
+    ios: "megaphone.fill",
+    android: "campaign",
+    color: "#FF3B30",
+  },
+  {
+    path: "/wilma/grades",
+    title: "Arvosanat",
+    subtitle: "Kurssisuoritukset, kokeet ja yo-tulokset",
+    ios: "checkmark.seal.fill",
+    android: "fact_check",
+    color: "#AF52DE",
+  },
+];
 
 // ── Shared sub-components ──────────────────────────────────────────────────────
 
+/**
+ * One section of the dashboard, set as the Me tab sets its groups: the
+ * heading above the card in small capitals, and the card itself the same
+ * radius and inset. Where the section has more behind it, "Kaikki" sits at
+ * the heading's far end, as iOS puts "See All".
+ */
 function SectionCard({
   title,
   badge,
@@ -253,7 +310,7 @@ function SectionCard({
   badge?: number;
   onMore?: () => void;
   /**
-   * Makes the whole card open `onMore`, not just its header. Rows inside
+   * Makes the whole card open `onMore`, not just its heading. Rows inside
    * that have their own action keep it — a nested Pressable claims the touch
    * first — so only use this where rows are mostly display.
    */
@@ -263,18 +320,9 @@ function SectionCard({
   const theme = useTheme();
   const cardPress = wholeCardPress && onMore ? onMore : undefined;
   return (
-    <Pressable
-      onPress={cardPress}
-      disabled={!cardPress}
-      accessible={false}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: theme.card },
-        pressed && cardPress ? styles.cardPressed : null,
-      ]}
-    >
-      <View style={styles.cardHeader}>
-        {/* The title opens the same screen as "Kaikki →" — a heading is a much
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        {/* The heading opens the same screen as "Kaikki" — a heading is a
             bigger target than the link, and people reach for it first. */}
         <Pressable
           onPress={onMore}
@@ -283,11 +331,13 @@ function SectionCard({
           accessibilityRole={onMore ? "button" : "header"}
           accessibilityLabel={onMore ? `${title} – avaa kaikki` : title}
           style={({ pressed }) => [
-            styles.cardTitleGroup,
-            pressed && onMore ? styles.cardTitlePressed : null,
+            styles.sectionTitleGroup,
+            pressed && onMore ? styles.pressed : null,
           ]}
         >
-          <AppText variant="navTitle">{title}</AppText>
+          <AppText variant="micro" color="textMuted">
+            {title.toLocaleUpperCase("fi-FI")}
+          </AppText>
           {badge !== undefined && badge > 0 ? (
             <View style={[styles.badge, { backgroundColor: theme.accent }]}>
               <AppText variant="micro" style={styles.badgeText}>
@@ -298,15 +348,30 @@ function SectionCard({
         </Pressable>
         <View style={styles.spacer} />
         {onMore ? (
-          <Pressable onPress={onMore} hitSlop={8}>
+          <Pressable
+            onPress={onMore}
+            hitSlop={8}
+            style={({ pressed }) => [pressed ? styles.pressed : null]}
+          >
             <AppText variant="meta" color="accent" style={styles.moreLink}>
-              Kaikki →
+              Kaikki
             </AppText>
           </Pressable>
         ) : null}
       </View>
-      {children}
-    </Pressable>
+      <Pressable
+        onPress={cardPress}
+        disabled={!cardPress}
+        accessible={false}
+        style={({ pressed }) => [
+          styles.card,
+          { backgroundColor: theme.card },
+          pressed && cardPress ? styles.cardPressed : null,
+        ]}
+      >
+        {children}
+      </Pressable>
+    </View>
   );
 }
 
@@ -459,17 +524,12 @@ export default function Dashboard({
           )
           .slice(0, 3);
 
-        // The four-week window reaches back into the previous year every
-        // January. Those marks are dropped outright rather than shown with a
-        // year hanging off them; filtering before the slice keeps the list at
-        // eight entries instead of eight-minus-the-dropped-ones.
-        const thisYear = String(new Date().getFullYear());
-        const sortedAtt = [...att]
-          .filter((a) => markYear(a.date) === thisYear)
-          .sort((a, b) =>
-            finnishToISO(b.date).localeCompare(finnishToISO(a.date)),
-          )
-          .slice(0, 8);
+        // The card shows the last seven days; the full list has its own
+        // page. A week can never straddle more than the turn of one year, and
+        // `formatMarkDate` prints the year for the few marks that do.
+        const sortedAtt = sortMarks(
+          att.filter((a) => markWithinDays(a.date, 7)),
+        );
 
         void syncSharedWeeklySchedule(scheduleData.schedule).catch((error) => {
           if (!isTransientNetworkError(error)) {
@@ -669,43 +729,26 @@ export default function Dashboard({
                       isShowingToday &&
                       row.start <= nowClock &&
                       nowClock < row.end;
-                    // A lesson that is over drops its blue accent for a neutral
-                    // gray, so the colored badges left on the card are only the
-                    // ones still ahead.
-                    const timeColor = isCurrent
-                      ? isDark
-                        ? "#4ADE80"
-                        : "#16A34A"
-                      : isPast
-                        ? isDark
-                          ? "#9CA3AF"
-                          : "#8A929D"
-                        : isDark
-                          ? "#51a2ff"
-                          : "#3478F5";
-                    const timeSubColor = isCurrent
-                      ? isDark
-                        ? "#4ADE8080"
-                        : "#16A34A80"
-                      : isPast
-                        ? isDark
-                          ? "#9CA3AF80"
-                          : "#8A929D80"
-                        : isDark
-                          ? "#51a2ff70"
-                          : "#3478F580";
+                    // Green while on, grey once over, the accent otherwise —
+                    // the same tag colours every timetable in the app uses.
+                    const tag = timeTagColors(theme, {
+                      isCurrent,
+                      isOver: isPast,
+                    });
+                    const timeColor = tag.start;
+                    const timeSubColor = tag.end;
 
                     if (row.kind === "lunch") {
                       const lunchOnlyTimeColor = isCurrent
                         ? timeColor
                         : isDark
-                          ? "#FBBF24"
-                          : "#B45309";
+                          ? "#FFD60A"
+                          : "#8A6100";
                       const lunchOnlyTimeSubColor = isCurrent
                         ? timeSubColor
                         : isDark
-                          ? "#FBBF2480"
-                          : "#B4530980";
+                          ? "#FFD60A80"
+                          : "#8A610080";
                       return (
                         <React.Fragment key={row.key}>
                           {showDivider && <Divider />}
@@ -721,9 +764,10 @@ export default function Dashboard({
                               style={[
                                 styles.timeTag,
                                 {
+                                  // systemYellow, as the lunch pill is.
                                   backgroundColor: isDark
-                                    ? "#78350F55"
-                                    : "#FEF3C7",
+                                    ? "rgba(255,214,10,0.2)"
+                                    : "rgba(255,204,0,0.22)",
                                 },
                                 isCurrent && styles.timeTagCurrent,
                                 isCurrent &&
@@ -846,27 +890,11 @@ export default function Dashboard({
                                 }
                               />
                               {!!row.lunch && (
-                                <View
-                                  style={[
-                                    styles.lunchChip,
-                                    isDark && styles.lunchChipDark,
-                                  ]}
-                                >
-                                  <PlatformSymbol
-                                    ios="fork.knife"
-                                    android="restaurant"
-                                    size={11}
-                                    tintColor={isDark ? "#FBBF24" : "#B45309"}
-                                  />
-                                  <Text
-                                    style={[
-                                      styles.lunchChipText,
-                                      isDark && styles.lunchChipTextDark,
-                                    ]}
-                                  >
-                                    Lounas {row.lunch.start}–{row.lunch.end}
-                                  </Text>
-                                </View>
+                                <LunchPill
+                                  start={row.lunch.start}
+                                  end={row.lunch.end}
+                                  isDark={isDark}
+                                />
                               )}
                             </View>
                           </View>
@@ -913,11 +941,7 @@ export default function Dashboard({
                           <View
                             style={[
                               styles.timeTag,
-                              isDark && { backgroundColor: "#51A2FF1F" },
-                              isPast && styles.timeTagPast,
-                              isPast && isDark && styles.timeTagPastDark,
-                              isCurrent && styles.timeTagCurrent,
-                              isCurrent && isDark && styles.timeTagCurrentDark,
+                              { backgroundColor: tag.fill },
                             ]}
                           >
                             <Text
@@ -955,27 +979,11 @@ export default function Dashboard({
                               {[room, teacher].filter(Boolean).join(" · ")}
                             </Text>
                             {!!row.lunch && (
-                              <View
-                                style={[
-                                  styles.lunchChip,
-                                  isDark && styles.lunchChipDark,
-                                ]}
-                              >
-                                <PlatformSymbol
-                                  ios="fork.knife"
-                                  android="restaurant"
-                                  size={11}
-                                  tintColor={isDark ? "#FBBF24" : "#B45309"}
-                                />
-                                <Text
-                                  style={[
-                                    styles.lunchChipText,
-                                    isDark && styles.lunchChipTextDark,
-                                  ]}
-                                >
-                                  Lounas {row.lunch.start}–{row.lunch.end}
-                                </Text>
-                              </View>
+                              <LunchPill
+                                start={row.lunch.start}
+                                end={row.lunch.end}
+                                isDark={isDark}
+                              />
                             )}
                           </View>
                         </Pressable>
@@ -1121,15 +1129,17 @@ export default function Dashboard({
             </SectionCard>
 
             {/* Attendance */}
-            <SectionCard title="Merkinnät (4 vko)">
+            {/* The last week only; everything Wilma returns is a tap away. */}
+            <SectionCard
+              title="Merkinnät"
+              wholeCardPress
+              onMore={() => router.push("/wilma/attendance" as never)}
+            >
               {!data?.attendance.length ? (
-                <EmptyRow label="Ei merkintöjä" />
+                <EmptyRow label="Ei merkintöjä viimeisen viikon aikana" />
               ) : (
                 data.attendance.map((entry, i) => {
-                  const info = ATTENDANCE_COLORS[entry.typeCode] ?? {
-                    bg: "#aaa",
-                    label: entry.status,
-                  };
+                  const info = attendanceType(entry);
                   return (
                     <React.Fragment key={`${entry.date}-${i}`}>
                       {i > 0 && <Divider />}
@@ -1151,10 +1161,10 @@ export default function Dashboard({
                         <View
                           style={[
                             styles.attChip,
-                            { backgroundColor: info.bg + "28" },
+                            { backgroundColor: info.color + "28" },
                           ]}
                         >
-                          <AppText variant="micro" style={{ color: info.bg }}>
+                          <AppText variant="micro" style={{ color: info.color }}>
                             {info.label}
                           </AppText>
                         </View>
@@ -1165,177 +1175,25 @@ export default function Dashboard({
               )}
             </SectionCard>
 
-            <SectionCard title="Lisää Wilmasta">
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/coursework" as never)}
-              >
-                <PlatformSymbol
-                  ios="doc.text"
-                  android="assignment"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">Kurssit ja tehtävät</AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Kotitehtävät, tuntipäiväkirja ja kurssikokeet
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-              <Divider />
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/course-selections" as never)}
-              >
-                <PlatformSymbol
-                  ios="rectangle.grid.1x2"
-                  android="view_week"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">Kurssivalinnat</AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Omat valinnat ja tarjottimet vain luku -tilassa
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-              <Divider />
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/rooms" as never)}
-              >
-                <PlatformSymbol
-                  ios="door.left.hand.open"
-                  android="meeting_room"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">Tilojen lukujärjestykset</AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Katso milloin luokkahuone on käytössä
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-              <Divider />
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/teachers" as never)}
-              >
-                <PlatformSymbol
-                  ios="person.2"
-                  android="group"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">
-                    Opettajat ja henkilökunta
-                  </AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Opettajien lukujärjestykset ja viestit
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-              <Divider />
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/news" as never)}
-              >
-                <PlatformSymbol
-                  ios="megaphone"
-                  android="campaign"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">Tiedotteet</AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Koulun ajankohtaiset tiedotteet
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-              <Divider />
-              <Pressable
-                style={styles.moreWilmaRow}
-                onPress={() => router.push("/wilma/grades" as never)}
-              >
-                <PlatformSymbol
-                  ios="checkmark.seal"
-                  android="fact_check"
-                  size={22}
-                  tintColor={theme.accent}
-                />
-                <View style={styles.moreWilmaText}>
-                  <AppText variant="rowTitle">Arvosanat</AppText>
-                  <AppText
-                    variant="caption"
-                    color="textMuted"
-                    style={styles.moreWilmaSubtitle}
-                  >
-                    Kurssisuoritukset, kokeet ja yo-tulokset
-                  </AppText>
-                </View>
-                <PlatformSymbol
-                  ios="chevron.right"
-                  android="chevron_right"
-                  size={22}
-                  tintColor={theme.textFaint}
-                />
-              </Pressable>
-            </SectionCard>
+            {/* Built exactly as the Me tab's menus are: a Surface of Rows,
+                each led by a filled glyph tile in its own system colour. */}
+            <Surface title="Lisää Wilmasta" style={styles.menu}>
+              {MORE_WILMA.map((item) => (
+                <Row key={item.path} onPress={() => router.push(item.path as never)}>
+                  <RowIcon ios={item.ios} android={item.android} color={item.color} />
+                  <View style={styles.moreWilmaText}>
+                    <AppText variant="body">{item.title}</AppText>
+                    <AppText
+                      variant="caption"
+                      color="textMuted"
+                      style={styles.moreWilmaSubtitle}
+                    >
+                      {item.subtitle}
+                    </AppText>
+                  </View>
+                </Row>
+              ))}
+            </Surface>
           </>
         )}
       </ScrollView>
@@ -1346,52 +1204,42 @@ export default function Dashboard({
 // ── Root ───────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  moreWilmaRow: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-  },
   moreWilmaText: { flex: 1 },
   moreWilmaSubtitle: { marginTop: 2 },
-  dashHeader: { marginBottom: 22, marginTop: 4 },
+  // Surface brings its own 24pt top margin and side inset, as on the Me tab.
+  menu: { borderRadius: radii.xl },
+  dashHeader: { marginBottom: 2, marginTop: 4, marginHorizontal: 20 },
   dashGreeting: { letterSpacing: -0.4 },
+  // No side padding: each section insets itself, as the Me tab's groups do.
   dashContent: {
     flexGrow: 1,
-    padding: 16,
+    paddingTop: 16,
     paddingBottom: 100,
   },
   // AppText supplies the face and the colour; only the placement and the
   // capitalisation are this screen's own.
   dashDate: { marginTop: 2, textTransform: "capitalize" },
+  section: { marginHorizontal: 16, marginTop: 24 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 4,
+    marginBottom: 6,
+  },
+  sectionTitleGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
   card: {
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: radii.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 8,
-  },
-  cardTitleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  cardTitlePressed: {
-    opacity: 0.6,
-  },
-  cardPressed: {
-    opacity: 0.85,
-  },
+  cardPressed: { opacity: 0.85 },
+  pressed: { opacity: 0.6 },
   spacer: { flex: 1 },
   badge: {
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 5,
@@ -1467,24 +1315,6 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 2,
   },
-  lunchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 5,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 6,
-  },
-  lunchChipDark: { backgroundColor: "#78350F55" },
-  lunchChipText: {
-    ...fonts.semiBold,
-    fontSize: 12,
-    color: "#B45309",
-  },
-  lunchChipTextDark: { color: "#FBBF24" },
   examRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1506,8 +1336,7 @@ const styles = StyleSheet.create({
   msgSender: { marginTop: 2 },
   msgRight: { alignItems: "flex-end" },
   eventChip: {
-    backgroundColor: "#51A2FF1F",
-    borderRadius: 6,
+    borderRadius: radii.pill,
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginTop: 4,
@@ -1515,5 +1344,5 @@ const styles = StyleSheet.create({
   attRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   attDate: { width: 52 },
   attCourse: { ...fonts.medium, flex: 1 },
-  attChip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  attChip: { borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 3 },
 });

@@ -5,27 +5,30 @@ import {
   loginMutation,
   LoginResult,
 } from "@/lib/wilma/graphqlClient";
-import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { fonts } from "@/constants/typography";
+  AppText,
+  Button,
+  Row,
+  Screen,
+  Surface,
+  useTheme,
+} from "@/components/ui";
+import { typography } from "@/constants/typography";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 
+/**
+ * The Wilma tab before anyone has signed in, built as the Me tab's Wilma
+ * account screen is: a heading, the two fields as rows of one group, a
+ * footnote under it, and the app's one filled button.
+ */
 export default function LoginView({
-  isDark,
   onLogin,
 }: {
-  isDark: boolean;
   onLogin: (result: LoginResult) => void;
 }) {
+  const theme = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,212 +71,106 @@ export default function LoginView({
   };
 
   return (
-    <SafeAreaView
-      edges={["top", "left", "right"]}
-      style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-    >
+    <Screen background="page">
       <ScrollView
-        contentContainerStyle={[
-          styles.loginContent,
-          isDark && { backgroundColor: "#18191B" },
-        ]}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.loginHeader}>
+        <View style={styles.header}>
           <PlatformSymbol
             ios="graduationcap.fill"
             android="school"
-            size={52}
-            tintColor={isDark ? "#51a2ff" : "#3478F5"}
+            size={48}
+            tintColor={theme.accent}
           />
-          <Text style={[styles.loginTitle, isDark && { color: "#fff" }]}>
+          <AppText variant="heading2" style={styles.title}>
             Wilma
-          </Text>
-          <Text style={[styles.loginSubtitle, isDark && { color: "#aaa" }]}>
+          </AppText>
+          <AppText variant="body" color="textMuted" style={styles.subtitle}>
             Kirjaudu sisään nähdäksesi lukujärjestyksesi, viestisi ja
             merkintäsi.
-          </Text>
+          </AppText>
         </View>
 
-        <View style={[styles.card, isDark && { backgroundColor: "#232427" }]}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, isDark && { color: "#d4d4d4" }]}>
-              Käyttäjätunnus
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                isDark && {
-                  backgroundColor: "#404040",
-                  color: "#fff",
-                  borderColor: "#555",
-                },
-              ]}
-              placeholder="etunimi.sukunimi"
-              placeholderTextColor={isDark ? "#777" : "#aaa"}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              textContentType="username"
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, isDark && { color: "#d4d4d4" }]}>
-              Salasana
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                isDark && {
-                  backgroundColor: "#404040",
-                  color: "#fff",
-                  borderColor: "#555",
-                },
-              ]}
-              placeholder="Salasana"
-              placeholderTextColor={isDark ? "#777" : "#aaa"}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-              textContentType="password"
-            />
-          </View>
-          {!!error && (
-            <View style={styles.errorBox}>
-              <PlatformSymbol
-                ios="exclamationmark.circle"
-                android="error"
-                size={16}
-                tintColor="#ff4444"
+        <Surface title="Kirjaudu sisään">
+          <Row chevron={false} style={styles.fieldRow}>
+            <View style={styles.field}>
+              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+                Käyttäjätunnus
+              </AppText>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="etunimi.sukunimi"
+                placeholderTextColor={theme.placeholder}
+                selectionColor={theme.accent}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                keyboardType="email-address"
+                textContentType="username"
               />
-              <Text style={styles.errorText}>{error}</Text>
             </View>
-          )}
-          <Pressable
-            style={[styles.loginBtn, loading && { opacity: 0.6 }]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.loginBtnText}>Kirjaudutaan...</Text>
-              </View>
-            ) : (
-              <Text style={styles.loginBtnText}>Kirjaudu sisään</Text>
-            )}
-          </Pressable>
-        </View>
+          </Row>
+          <Row chevron={false} style={styles.fieldRow}>
+            <View style={styles.field}>
+              <AppText variant="meta" color="textMuted" style={styles.fieldLabel}>
+                Salasana
+              </AppText>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="Salasana"
+                placeholderTextColor={theme.placeholder}
+                selectionColor={theme.accent}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                secureTextEntry
+                textContentType="password"
+                onSubmitEditing={() => void handleLogin()}
+              />
+            </View>
+          </Row>
+        </Surface>
 
-        <View
-          style={[styles.noteRow, isDark && { backgroundColor: "#232427" }]}
-        >
-          <PlatformSymbol
-            ios="info.circle"
-            android="info"
-            size={18}
-            tintColor={isDark ? "#888" : "#777"}
+        {error ? (
+          <AppText variant="meta" color="danger" style={styles.footnote}>
+            {error}
+          </AppText>
+        ) : null}
+        <AppText variant="meta" color="textMuted" style={styles.footnote}>
+          Tunnuksesi tallennetaan vain laitteellesi. Sovellus käyttää niitä
+          ainoastaan lukujärjestyksen, viestien ja merkintöjen hakemiseen.
+        </AppText>
+
+        <View style={styles.buttonWrap}>
+          <Button
+            title="Kirjaudu sisään"
+            onPress={() => void handleLogin()}
+            disabled={!username.trim() || !password}
+            loading={loading}
           />
-          <Text style={[styles.noteText, isDark && { color: "#888" }]}>
-            Tunnuksesi tallennetaan vain laitteellesi. Sovellus käyttää niitä
-            ainoastaan lukujärjestyksen, viestien ja merkintöjen hakemiseen.
-          </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 16,
-  },
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: "#fff0f0",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-  },
-  errorText: {
-    flex: 1,
-    ...fonts.regular,
-    fontSize: 13,
-    color: "#cc2222",
-    lineHeight: 18,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    ...fonts.regular,
-    backgroundColor: "#fff",
-    color: "#222",
-  },
-  inputGroup: { marginBottom: 16 },
-  inputLabel: {
-    ...fonts.medium,
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 8,
-  },
-  loginBtn: {
-    backgroundColor: "#3478F5",
-    borderRadius: 10,
-    padding: 15,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  loginBtnText: {
-    color: "#fff",
-    ...fonts.semiBold,
-    fontSize: 16,
-  },
-  loginContent: { padding: 20, paddingTop: 40, flexGrow: 1 },
-  loginHeader: { alignItems: "center", marginBottom: 28 },
-  loginSubtitle: {
-    ...fonts.regular,
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  loginTitle: {
-    ...fonts.bold,
-    fontSize: 32,
-    color: "#222",
-    marginTop: 12,
-  },
-  noteRow: {
-    flexDirection: "row",
-    backgroundColor: "#f0f7ff",
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 12,
-    gap: 8,
-    alignItems: "flex-start",
-  },
-  noteText: {
-    flex: 1,
-    ...fonts.regular,
-    fontSize: 13,
-    color: "#666",
-    lineHeight: 18,
-  },
+  content: { flexGrow: 1, paddingTop: 32, paddingBottom: 40 },
+  header: { alignItems: "center", marginHorizontal: 32, gap: 6 },
+  title: { marginTop: 6 },
+  subtitle: { textAlign: "center" },
+  fieldRow: { alignItems: "flex-start" },
+  field: { flex: 1 },
+  fieldLabel: { marginBottom: 6 },
+  // An explicit height from the scale's own line height, as the Wilma
+  // account screen's fields have: left intrinsic, an empty field measures
+  // shorter than a filled one and the row jumps on the first keystroke.
+  input: { ...typography.input, height: typography.input.lineHeight, padding: 0 },
+  footnote: { marginHorizontal: 20, marginTop: 10 },
+  buttonWrap: { marginHorizontal: 16, marginTop: 24 },
 });

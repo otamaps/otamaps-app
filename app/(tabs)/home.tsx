@@ -5,15 +5,8 @@ import {
   reauthenticate,
 } from "@/lib/wilma/graphqlClient";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { fonts } from "@/constants/typography";
+import { Screen, StateView } from "@/components/ui";
+import { useColorScheme } from "react-native";
 
 
 type SessionState = "checking" | "loggedOut" | "loggedIn";
@@ -47,26 +40,15 @@ export default function HomeScreen() {
 
   if (sessionState === "checking") {
     return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-        <View style={styles.centered}>
-          <ActivityIndicator
-            size="large"
-            color={isDark ? "#51a2ff" : "#3478F5"}
-          />
-          <Text style={[styles.loadingLabel, isDark && { color: "#888" }]}>
-            Tarkistetaan kirjautumista...
-          </Text>
-        </View>
-      </SafeAreaView>
+      <Screen background="page">
+        <StateView loading />
+      </Screen>
     );
   }
 
   if (sessionState === "loggedOut") {
     return (
-      <LoginView isDark={isDark} onLogin={() => setSessionState("loggedIn")} />
+      <LoginView onLogin={() => setSessionState("loggedIn")} />
     );
   }
 
@@ -74,23 +56,3 @@ export default function HomeScreen() {
     <Dashboard isDark={isDark} onLogout={() => setSessionState("loggedOut")} />
   );
 }
-
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-    gap: 12,
-  },
-  loadingLabel: {
-    ...fonts.regular,
-    fontSize: 14,
-    color: "#aaa",
-    marginTop: 4,
-  },
-});

@@ -1,5 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { LunchPill } from "@/components/schedule/LunchPill";
 import { pick, STATUS, timeTagColors } from "@/components/schedule/status";
 import { WeekNav, WeekNavFade } from "@/components/schedule/WeekNav";
 import DayPickerSheet, {
@@ -121,18 +122,6 @@ function mergeScheduleData(a: ScheduleData, b: ScheduleData): ScheduleData {
 
 // ── Lesson card ───────────────────────────────────────────────────────────────
 
-function LunchChip({ lunch, theme }: { lunch: { start: string; end: string }; theme: Theme }) {
-  const fg = pick(theme, STATUS.lunch);
-  return (
-    <View style={[styles.lunchChip, { backgroundColor: pick(theme, STATUS.lunchTint) }]}>
-      <PlatformSymbol ios="fork.knife" android="restaurant" size={11} tintColor={fg} />
-      <Text style={[styles.lunchChipText, { color: fg }]}>
-        Lounas {lunch.start}–{lunch.end}
-      </Text>
-    </View>
-  );
-}
-
 function LessonCard({
   lesson,
   theme,
@@ -203,7 +192,7 @@ function LessonCard({
               {meta}
             </AppText>
           )}
-          {!!lunch && <LunchChip lunch={lunch} theme={theme} />}
+          {!!lunch && <LunchPill start={lunch.start} end={lunch.end} isDark={theme.isDark} />}
         </View>
       </View>
       {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
@@ -273,7 +262,7 @@ function FreeSlotCard({
           ) : (
             <Text style={[styles.freeSlotTitle, { color: theme.textMuted }]}>Hyppytunti</Text>
           )}
-          {!!lunch && <LunchChip lunch={lunch} theme={theme} />}
+          {!!lunch && <LunchPill start={lunch.start} end={lunch.end} isDark={theme.isDark} />}
         </View>
       </View>
       {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
@@ -922,17 +911,6 @@ const styles = StyleSheet.create({
   cardBottom: { borderBottomLeftRadius: radii.lg, borderBottomRightRadius: radii.lg },
   lessonCardWithLunch: { alignItems: "flex-start", paddingVertical: 15 },
   lessonDivider: { height: StyleSheet.hairlineWidth },
-  lunchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 5,
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 6,
-  },
-  lunchChipText: { ...fonts.semiBold, fontSize: 12 },
 
   // Free slot ("Hyppytunti")
   freeSlotCard: {

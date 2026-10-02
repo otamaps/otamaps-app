@@ -1,5 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { LunchPill } from "@/components/schedule/LunchPill";
 import {
   addMinutesClock,
   clockMinutes,
@@ -217,30 +218,11 @@ export default function DayScheduleSection({
                       </Text>
                     )}
                     {!!entry.lunch && (
-                      // systemYellow, as a translucent fill like the sheet's
-                      // grey ones, with a deeper shade for the text so it
-                      // stays legible in light mode.
-                      <View
-                        style={[
-                          styles.lunchChip,
-                          { backgroundColor: isDark ? LUNCH.fillDark : LUNCH.fill },
-                        ]}
-                      >
-                        <PlatformSymbol
-                          ios="fork.knife"
-                          android="restaurant"
-                          size={10}
-                          tintColor={isDark ? LUNCH.textDark : LUNCH.text}
-                        />
-                        <Text
-                          style={[
-                            styles.lunchChipText,
-                            { color: isDark ? LUNCH.textDark : LUNCH.text },
-                          ]}
-                        >
-                          Lounas {entry.lunch.start}–{entry.lunch.end}
-                        </Text>
-                      </View>
+                      <LunchPill
+                        start={entry.lunch.start}
+                        end={entry.lunch.end}
+                        isDark={isDark}
+                      />
                     )}
                   </View>
                 </View>
@@ -264,14 +246,6 @@ export default function DayScheduleSection({
     </View>
   );
 }
-
-/** The lunch pill: iOS's systemYellow, light and dark. */
-const LUNCH = {
-  fill: "rgba(255,204,0,0.22)",
-  fillDark: "rgba(255,214,10,0.2)",
-  text: "#8A6100",
-  textDark: "#FFD60A",
-};
 
 const styles = StyleSheet.create({
   sectionHeader: { marginTop: 24, marginBottom: 12 },
@@ -378,18 +352,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
-  // A capsule, as the sheet's other small controls are.
-  lunchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 4,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 5,
-  },
-  lunchChipText: { ...fonts.medium, fontSize: 12 },
   emptyRow: {
     flexDirection: "row",
     alignItems: "center",
