@@ -212,9 +212,11 @@ const GLASS_SHEET_RADIUS = 34;
  * How solid the glass is: the sheet's own surface colour, tinted into the
  * material at this opacity. Plain glass let too much of the map through
  * behind a list of names; a tint keeps the glass's edges and refraction,
- * where a solid layer painted on top would cover them.
+ * where a solid layer painted on top would cover them. Dark mode goes
+ * further: the map's bright labels and lit buildings show through dark
+ * glass far more than through light.
  */
-const SHEET_TINT_ALPHA = 0.6;
+const SHEET_TINT_ALPHA = { light: 0.6, dark: 0.85 };
 
 function GlassSheetBackground({ style }: BottomSheetBackgroundProps) {
   const isDark = useColorScheme() === "dark";
@@ -224,7 +226,10 @@ function GlassSheetBackground({ style }: BottomSheetBackgroundProps) {
       pointerEvents="none"
       glassEffectStyle="regular"
       colorScheme={isDark ? "dark" : "light"}
-      tintColor={withAlpha(surface, SHEET_TINT_ALPHA)}
+      tintColor={withAlpha(
+        surface,
+        isDark ? SHEET_TINT_ALPHA.dark : SHEET_TINT_ALPHA.light,
+      )}
       style={[style, glassStyles.glass]}
     />
   );
