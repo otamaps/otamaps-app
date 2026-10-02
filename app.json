@@ -29,7 +29,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/foreground.png",
         "monochromeImage": "./assets/icons/monochromatic.png",
-        "backgroundColor": "#ffffff"
+        "backgroundImage": "./assets/icons/background.png",
+        "backgroundColor": "#4284F3"
       },
       "package": "fi.otamaps.app",
       "versionCode": 18,
