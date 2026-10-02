@@ -61,6 +61,7 @@ export default function ReplyMessageScreen() {
     large: false,
     action: {
       icon: "paperplane",
+      androidIcon: "send",
       accessibilityLabel: "Lähetä vastaus",
       onPress: send,
       disabled: !canSend,

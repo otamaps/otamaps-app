@@ -1,5 +1,7 @@
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { Stack, useRouter } from "expo-router";
-import type { SFSymbol } from "expo-symbols";
+import type { AndroidSymbol, SFSymbol } from "expo-symbols";
+import { Platform, Pressable } from "react-native";
 import type { ScrollEdgeEffect } from "react-native-screens";
 import { useMemo, type ComponentProps } from "react";
 import { BACKGROUND_KEY, useTheme, type Background } from "./theme";
@@ -47,9 +49,13 @@ type Args = {
    * A single trailing icon button — reply, send, compose. `disabled` dims
    * the icon rather than removing it, so the bar doesn't reflow the moment
    * the action becomes available.
+   *
+   * `unstable_headerRightItems` is iOS-only, so Android draws the same
+   * button as a plain `headerRight` using `androidIcon`.
    */
   action?: {
     icon: SFSymbol;
+    androidIcon: AndroidSymbol;
     onPress: () => void;
     accessibilityLabel: string;
     disabled?: boolean;
@@ -151,6 +157,32 @@ export function useNativeHeader({
           }
         : {}),
 
+      // `unstable_headerLeftItems` is iOS-only, so Android never drew the
+      // chevron above. Draw our own through `headerLeft` and hide the system
+      // arrow, so the screen has exactly one back button whether or not its
+      // stack has a previous route.
+      ...(back && Platform.OS === "android"
+        ? {
+            headerBackVisible: false,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.back()}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                hitSlop={8}
+                style={{ marginRight: 16 }}
+              >
+                <PlatformSymbol
+                  ios="chevron.left"
+                  android="arrow_back"
+                  size={24}
+                  tintColor={theme.text}
+                />
+              </Pressable>
+            ),
+          }
+        : {}),
+
       ...(searchPlaceholder && onSearch
         ? {
             headerSearchBarOptions: {
@@ -167,7 +199,28 @@ export function useNativeHeader({
           }
         : {}),
 
-      ...(action
+      ...(action && Platform.OS === "android"
+        ? {
+            headerRight: () => (
+              <Pressable
+                onPress={action.onPress}
+                disabled={action.disabled}
+                accessibilityRole="button"
+                accessibilityLabel={action.accessibilityLabel}
+                hitSlop={8}
+              >
+                <PlatformSymbol
+                  ios={action.icon}
+                  android={action.androidIcon}
+                  size={24}
+                  tintColor={action.disabled ? theme.textFaint : theme.accent}
+                />
+              </Pressable>
+            ),
+          }
+        : {}),
+
+      ...(action && Platform.OS === "ios"
         ? {
             unstable_headerRightItems: () => [
               {

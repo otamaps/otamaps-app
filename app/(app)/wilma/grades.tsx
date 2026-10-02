@@ -118,6 +118,7 @@ export default function WilmaGradesScreen() {
                       <View style={styles.flex1}>
                         {!!subject.credits && (
                           <AppText variant="meta" color="textMuted">
+      androidIcon: "checklist",
                             {subject.credits} ECTS
                           </AppText>
                         )}

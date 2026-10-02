@@ -60,6 +60,7 @@ export default function MessageScreen() {
       !loading && !error && id
         ? {
             icon: "arrowshape.turn.up.left",
+            androidIcon: "reply",
             accessibilityLabel: "Vastaa viestiketjuun",
             onPress: () =>
               router.push({

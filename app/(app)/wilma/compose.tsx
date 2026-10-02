@@ -70,6 +70,7 @@ export default function ComposeMessageScreen() {
     large: false,
     action: {
       icon: "paperplane",
+      androidIcon: "send",
       accessibilityLabel: "Lähetä viesti",
       onPress: send,
       disabled: !canSend,

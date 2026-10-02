@@ -254,6 +254,7 @@ export default function MessagesScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/wilma/message",
+      androidIcon: "edit",
                   params: {
                     id: String(item.id),
                     subject: item.subject,
