@@ -69,7 +69,10 @@
           "imageWidth": 260,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
-          "android": { "imageWidth": 170 }
+          "android": {
+            "image": "./assets/images/splash-logo-android.png",
+            "imageWidth": 192
+          }
         }
       ],
       "@rnmapbox/maps",
