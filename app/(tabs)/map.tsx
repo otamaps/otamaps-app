@@ -7,7 +7,12 @@ import useBLEScanner, {
 import GlobalSearch, { SEARCH_HEIGHT } from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
 import { FloorStepper } from "@/components/map/FloorStepper";
-import { GlassSurface, HAS_LIQUID_GLASS } from "@/components/map/GlassSurface";
+import {
+  GlassSurface,
+  HAS_LIQUID_GLASS,
+  MapBlurProvider,
+  MapBlurTarget,
+} from "@/components/map/GlassSurface";
 import { MapGlassPill } from "@/components/map/MapGlassPill";
 import MapBottomSheet, {
   BottomSheetMethods,
@@ -1337,12 +1342,17 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      <MapBlurProvider>
       <BottomSheetModalProvider>
         <View style={{ flex: 1 }}>
           <StatusBar style={isDark ? "light" : "dark"} />
+          <MapBlurTarget style={styles.map}>
           <MapView
             ref={mapRef}
             style={styles.map}
+            // A SurfaceView, the default, cannot be captured for the glass's
+            // blur on Android; a TextureView can. Ignored on iOS.
+            surfaceView={false}
             onMapIdle={(state) => {
               const [lng, lat] = state.properties.center;
               setCameraCenter([lng, lat]);
@@ -1738,6 +1748,7 @@ export default function HomeScreen() {
               </ShapeSource>
             )}
           </MapView>
+          </MapBlurTarget>
 
           {!canteenVisible && (
             <Animated.View
@@ -2250,6 +2261,7 @@ export default function HomeScreen() {
           </MapBottomSheet>
         </View>
       </BottomSheetModalProvider>
+      </MapBlurProvider>
     </GestureHandlerRootView>
   );
 }

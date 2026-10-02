@@ -1,8 +1,21 @@
 import { useTheme } from "@/components/ui";
-import { BlurView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { useEffect, type ReactNode } from "react";
-import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import {
+  Platform,
+  StyleSheet,
+  type StyleProp,
+  type View,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,6 +39,37 @@ type Props = {
 
 // Decided once: the answer cannot change while the app is running.
 const LIQUID_GLASS = isLiquidGlassAvailable();
+
+// Android's blur only draws what is inside a `BlurTargetView`, so the map
+// registers itself as one and every `GlassSurface` below the provider blurs it.
+const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
+
+/** Wraps a screen whose glass should blur its map. A no-op off Android. */
+export function MapBlurProvider({ children }: { children: ReactNode }) {
+  const target = useRef<View | null>(null);
+  if (Platform.OS !== "android") return <>{children}</>;
+  return <BlurTargetContext.Provider value={target}>{children}</BlurTargetContext.Provider>;
+}
+
+/**
+ * Wraps the map itself — and only the map, since a blur view cannot sit
+ * inside the target it blurs. A no-op off Android.
+ */
+export function MapBlurTarget({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const target = useContext(BlurTargetContext);
+  if (Platform.OS !== "android" || !target) return <>{children}</>;
+  return (
+    <BlurTargetView ref={target} style={style}>
+      {children}
+    </BlurTargetView>
+  );
+}
 
 const SHOW_MS = 250;
 const HIDE_MS = 150;
@@ -51,6 +95,7 @@ export function GlassSurface({
   style,
 }: Props) {
   const theme = useTheme();
+  const blurTarget = useContext(BlurTargetContext);
   const shown = useSharedValue(visible ? 1 : 0);
 
   useEffect(() => {
@@ -89,6 +134,7 @@ export function GlassSurface({
         // Android has no live blur by default; without this it renders a
         // flat translucent view. SDK 31+ only, older falls back.
         blurMethod="dimezisBlurViewSdk31Plus"
+        blurTarget={blurTarget ?? undefined}
         style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: "hidden" }]}
       />
       {children}
