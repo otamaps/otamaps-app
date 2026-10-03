@@ -12,8 +12,9 @@ import {
   WilmaGradebook,
   WilmaMatriculationResult,
 } from "@/lib/wilma/graphqlClient";
+import { scopeBarIn, SearchScopeBar } from "@/modules/search-scope-bar";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
 type Tab = "COURSES" | "MATRICULATION";
@@ -23,12 +24,34 @@ const TABS = [
   ["MATRICULATION", "Yo-tulokset"],
 ] as const;
 
+/**
+ * A subject's base code — "S2" for courses "S201", "S202" — taken from its
+ * courses' codes with the two-digit course number dropped. Empty when the
+ * courses don't share one.
+ */
+function baseCode(courses: { code: string }[]): string {
+  const bases = new Set(
+    courses
+      .map(
+        (course) =>
+          course.code
+            .trim()
+            .split(".")[0]
+            .match(/^(.+)\d{2}$/)?.[1] ?? "",
+      )
+      .filter(Boolean),
+  );
+  return bases.size === 1 ? [...bases][0] : "";
+}
+
 export default function WilmaGradesScreen() {
   const router = useRouter();
   const theme = useTheme();
   const [tab, setTab] = useState<Tab>("COURSES");
   const [gradebook, setGradebook] = useState<WilmaGradebook | null>(null);
-  const [matriculation, setMatriculation] = useState<WilmaMatriculationResult[]>([]);
+  const [matriculation, setMatriculation] = useState<
+    WilmaMatriculationResult[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +66,11 @@ export default function WilmaGradesScreen() {
       setGradebook(nextGradebook);
       setMatriculation(nextMatriculation);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Arvosanojen lataaminen epäonnistui.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Arvosanojen lataaminen epäonnistui.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -54,26 +81,72 @@ export default function WilmaGradesScreen() {
     void load();
   }, [load]);
 
-  // Compact, not large: the tabs sit directly under the bar, which puts a
-  // ScrollView — not this screen — as the root a large title would need to
-  // collapse against.
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLocaleLowerCase("fi-FI");
+  const matches = (...fields: (string | null | undefined)[]) =>
+    !needle ||
+    fields.some((field) => field?.toLocaleLowerCase("fi-FI").includes(needle));
+
+  // A subject stays whole when its own name matches; otherwise only its
+  // matching courses do, and it drops out when none are left.
+  const subjects = useMemo(
+    () =>
+      (gradebook?.subjects ?? [])
+        .map((subject) =>
+          matches(subject.name)
+            ? subject
+            : {
+                ...subject,
+                courses: subject.courses.filter((course) =>
+                  matches(course.code, course.name),
+                ),
+              },
+        )
+        .filter((subject) => matches(subject.name) || subject.courses.length),
+    // `matches` closes over `needle`, which is the dependency that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gradebook, needle],
+  );
+  const results = matriculation.filter((item) => matches(item.subject));
+
+  // A large title with the list as the screen's root, the search field under
+  // it, and the selector in the bar as its scope bar — as the teachers page.
   const header = useNativeHeader({
     title: "Arvosanat",
     background: "page",
-    large: false,
+    searchPlaceholder: "Hae oppiaineella tai kurssilla",
+    onSearch: setQuery,
     action: {
       icon: "checklist",
+      androidIcon: "checklist",
       accessibilityLabel: "Näytä arvioidut kokeet",
       onPress: () => router.push("/wilma/past-exams" as never),
     },
   });
 
+  const scopeInBar = scopeBarIn(header);
+
   return (
     <>
       <Stack.Screen options={header} />
-      <View style={styles.body}>
-        <SegmentedControl value={tab} onChange={setTab} options={TABS} />
-
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load(true);
+            }}
+            tintColor={theme.accent}
+          />
+        }
+      >
+        {scopeInBar ? null : (
+          <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+        )}
         {loading ? (
           <StateView loading />
         ) : error ? (
@@ -84,26 +157,18 @@ export default function WilmaGradesScreen() {
             onAction={() => void load()}
           />
         ) : (
-          <ScrollView
-            contentContainerStyle={styles.content}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  void load(true);
-                }}
-                tintColor={theme.accent}
-              />
-            }
-          >
+          <>
             {tab === "COURSES" ? (
               <>
-                {!!gradebook?.summary.length && (
+                {!needle && !!gradebook?.summary.length && (
                   <Surface>
                     {gradebook.summary.map((item) => (
                       <View key={item.label} style={styles.summaryRow}>
-                        <AppText variant="bodySmall" color="textMuted" style={styles.summaryLabel}>
+                        <AppText
+                          variant="bodySmall"
+                          color="textMuted"
+                          style={styles.summaryLabel}
+                        >
                           {item.label}
                         </AppText>
                         <AppText variant="rowTitle">{item.value}</AppText>
@@ -112,17 +177,23 @@ export default function WilmaGradesScreen() {
                   </Surface>
                 )}
 
-                {gradebook?.subjects.map((subject) => (
-                  <Surface key={subject.name} title={subject.name}>
+                {needle && !subjects.length ? (
+                  <StateView
+                    icon="search-off"
+                    message={`Ei tuloksia haulle ”${query.trim()}”.`}
+                  />
+                ) : null}
+                {subjects.map((subject) => (
+                  // The base code heads the card; the subject's name leads it,
+                  // beside the overall grade.
+                  <Surface
+                    key={subject.name}
+                    title={baseCode(subject.courses) || undefined}
+                  >
                     <View style={styles.subjectRow}>
-                      <View style={styles.flex1}>
-                        {!!subject.credits && (
-                          <AppText variant="meta" color="textMuted">
-      androidIcon: "checklist",
-                            {subject.credits} ECTS
-                          </AppText>
-                        )}
-                      </View>
+                      <AppText variant="rowTitle" style={styles.flex1}>
+                        {subject.name}
+                      </AppText>
                       {!!subject.grade && (
                         <AppText variant="heading3" color="accent">
                           {subject.grade}
@@ -134,42 +205,84 @@ export default function WilmaGradesScreen() {
                         key={`${subject.name}-${course.code}-${course.completedOn}`}
                         style={styles.courseRow}
                       >
-                        <View style={[styles.codeChip, { backgroundColor: theme.accentTint }]}>
+                        <View
+                          style={[
+                            styles.codeChip,
+                            { backgroundColor: theme.accentTint },
+                          ]}
+                        >
                           <AppText variant="micro" color="accent">
                             {course.code}
                           </AppText>
                         </View>
                         <View style={styles.flex1}>
-                          <AppText variant="bodySmall">{course.name || course.code}</AppText>
-                          <AppText variant="caption" color="textFaint" style={styles.meta}>
-                            {[course.completedOn, course.teacher].filter(Boolean).join(" · ")}
+                          <AppText variant="bodySmall">
+                            {course.name || course.code}
+                          </AppText>
+                          <AppText
+                            variant="caption"
+                            color="textFaint"
+                            style={styles.meta}
+                          >
+                            {[course.completedOn, course.teacher]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </AppText>
                         </View>
+                        {/* Secondary: the subject's overall grade, above, is
+                            the one that stands out. */}
                         {!!course.grade && (
-                          <AppText variant="title" color="accent">
+                          <AppText variant="rowTitle" color="textMuted">
                             {course.grade}
                           </AppText>
                         )}
                       </View>
                     ))}
+                    {subject.credits ? (
+                      <View style={styles.summaryRow}>
+                        <AppText
+                          variant="bodySmall"
+                          color="textMuted"
+                          style={styles.summaryLabel}
+                        >
+                          Yhteensä
+                        </AppText>
+                        <AppText variant="rowTitle">
+                          {subject.credits} ECTS
+                        </AppText>
+                      </View>
+                    ) : null}
                   </Surface>
                 ))}
               </>
-            ) : matriculation.length ? (
-              matriculation.map((item) => (
-                <Surface key={`${item.subject}-${item.completedOn}`} title={item.subject}>
+            ) : results.length ? (
+              results.map((item) => (
+                <Surface
+                  key={`${item.subject}-${item.completedOn}`}
+                  title={item.subject}
+                >
                   <View style={styles.subjectRow}>
                     <View style={styles.flex1}>
                       <AppText variant="meta" color="textMuted">
-                        {[item.completedOn, item.compulsory].filter(Boolean).join(" · ")}
+                        {[item.completedOn, item.compulsory]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </AppText>
                       {!!item.points && (
-                        <AppText variant="caption" color="textFaint" style={styles.meta}>
+                        <AppText
+                          variant="caption"
+                          color="textFaint"
+                          style={styles.meta}
+                        >
                           Pisteet: {item.points}
                         </AppText>
                       )}
                       {!!item.rejectedReason && (
-                        <AppText variant="caption" color="danger" style={styles.meta}>
+                        <AppText
+                          variant="caption"
+                          color="danger"
+                          style={styles.meta}
+                        >
                           {item.rejectedReason}
                         </AppText>
                       )}
@@ -183,17 +296,28 @@ export default function WilmaGradesScreen() {
                 </Surface>
               ))
             ) : (
-              <StateView message="Ei yo-tuloksia." />
+              <StateView
+                message={
+                  needle
+                    ? `Ei tuloksia haulle ”${query.trim()}”.`
+                    : "Ei yo-tuloksia."
+                }
+              />
             )}
-          </ScrollView>
+          </>
         )}
-      </View>
+      </ScrollView>
+      {/* After the list, not before: UIKit attaches the large title, search
+          field and scroll-edge effect to the first scroll view in the
+          screen, and this view draws nothing but would be first. */}
+      {scopeInBar ? (
+        <SearchScopeBar value={tab} onChange={setTab} options={TABS} />
+      ) : null}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1 },
   content: { flexGrow: 1, paddingBottom: 40 },
   flex1: { flex: 1 },
   summaryRow: {

@@ -14,8 +14,9 @@ import {
   WilmaMessageFolder,
 } from "@/lib/wilma/graphqlClient";
 import { formatLocalISO } from "@/lib/wilma/scheduleDates";
+import { scopeBarIn, SearchScopeBar } from "@/modules/search-scope-bar";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,14 +48,19 @@ function formatTimestamp(ts: string): string {
   const msgStr = formatLocalISO(d);
 
   if (msgStr === todayStr) {
-    return d.toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("fi-FI", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (msgStr === formatLocalISO(yesterday)) return "Eilen";
 
-  const daysDiff = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.floor(
+    (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (daysDiff < 7) return WEEKDAY_SHORT[d.getDay()];
 
   return `${d.getDate()}.${d.getMonth() + 1}.`;
@@ -64,8 +70,15 @@ function formatTimestamp(ts: string): string {
 function fullTimestamp(ts: string): string {
   const d = new Date(ts.replace(" ", "T"));
   if (isNaN(d.getTime())) return ts;
-  const date = d.toLocaleDateString("fi-FI", { day: "numeric", month: "numeric", year: "numeric" });
-  const time = d.toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" });
+  const date = d.toLocaleDateString("fi-FI", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("fi-FI", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return `${date} klo ${time}`;
 }
 
@@ -122,24 +135,38 @@ function MessageRow({
         >
           {msg.subject}
         </AppText>
-        <AppText variant="meta" color="textMuted" style={styles.sender} numberOfLines={1}>
+        <AppText
+          variant="meta"
+          color="textMuted"
+          style={styles.sender}
+          numberOfLines={1}
+        >
           {senderLine}
         </AppText>
-        <AppText variant="caption" color="textFaint" style={styles.fullTs} numberOfLines={1}>
+        <AppText
+          variant="caption"
+          color="textFaint"
+          style={styles.fullTs}
+          numberOfLines={1}
+        >
           {full}
         </AppText>
 
         {msg.isEvent || msg.applying || msg.replies > 0 ? (
           <View style={styles.chipRow}>
             {msg.isEvent && (
-              <View style={[styles.chip, { backgroundColor: theme.accentTint }]}>
+              <View
+                style={[styles.chip, { backgroundColor: theme.accentTint }]}
+              >
                 <AppText variant="micro" color="accent">
                   Tapahtuma
                 </AppText>
               </View>
             )}
             {msg.applying && (
-              <View style={[styles.chip, { backgroundColor: theme.accentTint }]}>
+              <View
+                style={[styles.chip, { backgroundColor: theme.accentTint }]}
+              >
                 <AppText variant="micro" style={{ color: applyingColor }}>
                   {applyingLabel(msg.applying.status)}
                 </AppText>
@@ -207,65 +234,103 @@ export default function MessagesScreen() {
     void load(true);
   }, [load]);
 
-  // Compact, not large: the folder tabs sit directly under the bar, which
-  // puts a FlatList — not this screen — as the root a large title would
-  // need to collapse against.
+  const [query, setQuery] = useState("");
+  const shown = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase("fi-FI");
+    if (!needle) return messages;
+    return messages.filter((msg) =>
+      [msg.subject, msg.sender, ...msg.senders.map((s) => s.name)].some(
+        (field) => field?.toLocaleLowerCase("fi-FI").includes(needle),
+      ),
+    );
+  }, [messages, query]);
+
+  // A large title with the list as the screen's root, the search field under
+  // it, and the folders in the bar as its scope bar — as the teachers page.
   const header = useNativeHeader({
     title: "Viestit",
     background: "card",
-    large: false,
+    searchPlaceholder: "Hae aiheella tai lähettäjällä",
+    onSearch: setQuery,
     action: {
       icon: "square.and.pencil",
+      androidIcon: "edit",
       accessibilityLabel: "Uusi viesti",
       onPress: () => router.push("/wilma/teachers" as never),
     },
   });
 
+  const scopeInBar = scopeBarIn(header);
+
   return (
     <>
       <Stack.Screen options={header} />
-      <View style={styles.screen}>
-        <SegmentedControl value={folder} onChange={setFolder} options={FOLDERS} />
-        <FlatList
-          data={loading || error ? [] : messages}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
-          }
-          ListEmptyComponent={
-            loading ? (
-              <StateView loading />
-            ) : error ? (
-              <StateView
-                icon="error-outline"
-                message={error}
-                actionLabel="Yritä uudelleen"
-                onAction={() => void load()}
-              />
-            ) : (
-              <StateView icon="mail-outline" message="Ei viestejä" />
-            )
-          }
-          renderItem={({ item }) => (
-            <MessageRow
-              msg={item}
-              theme={theme}
-              onPress={() =>
-                router.push({
-                  pathname: "/wilma/message",
-      androidIcon: "edit",
-                  params: {
-                    id: String(item.id),
-                    subject: item.subject,
-                    sender: item.senders[0]?.name ?? item.sender,
-                  },
-                })
+      <FlatList
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        ListHeaderComponent={
+          scopeInBar ? null : (
+            <SegmentedControl
+              value={folder}
+              onChange={setFolder}
+              options={FOLDERS}
+            />
+          )
+        }
+        data={loading || error ? [] : shown}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.accent}
+          />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <StateView loading />
+          ) : error ? (
+            <StateView
+              icon="error-outline"
+              message={error}
+              actionLabel="Yritä uudelleen"
+              onAction={() => void load()}
+            />
+          ) : (
+            <StateView
+              icon={query.trim() ? "search-off" : "mail-outline"}
+              message={
+                query.trim()
+                  ? `Ei tuloksia haulle ”${query.trim()}”.`
+                  : "Ei viestejä"
               }
             />
-          )}
-        />
-      </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <MessageRow
+            msg={item}
+            theme={theme}
+            onPress={() =>
+              router.push({
+                pathname: "/wilma/message",
+                params: {
+                  id: String(item.id),
+                  subject: item.subject,
+                  sender: item.senders[0]?.name ?? item.sender,
+                },
+              })
+            }
+          />
+        )}
+      />
+      {/* After the list, not before: UIKit attaches the large title, search
+          field and scroll-edge effect to the first scroll view in the
+          screen, and this view draws nothing but would be first. */}
+      {scopeInBar ? (
+        <SearchScopeBar value={folder} onChange={setFolder} options={FOLDERS} />
+      ) : null}
     </>
   );
 }
@@ -273,7 +338,6 @@ export default function MessagesScreen() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
   content: { flexGrow: 1 },
   row: { alignItems: "flex-start" },
   icon: { marginTop: 2 },

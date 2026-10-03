@@ -14,7 +14,9 @@ type Props<T extends string> = {
 
 /**
  * The system segmented control, full width, floating on a Liquid Glass
- * capsule the way iOS 26 sets view switchers over content. SwiftUI's own
+ * capsule the way iOS 26 sets view switchers over content. Only for a
+ * control that genuinely floats above content: in the page itself use
+ * `SegmentedControl`, since a bar's scroll-edge blur passes over glass. SwiftUI's own
  * `Picker`, so segment sizing, the selection thumb, haptics and VoiceOver
  * are all the system's. Its label font is set app-wide by the
  * `withIosSegmentedControlFont` config plugin, since the control ignores
@@ -42,9 +44,9 @@ export function GlassSegmentedControl<T extends string>({
           selection={value}
           onSelectionChange={(next) => onChange(next as T)}
           modifiers={[
-            pickerStyle("segmented"),
-            padding({ all: 4 }),
-            glassEffect({ glass: { variant: "regular", interactive: true }, shape: "capsule" }),
+                  pickerStyle("segmented"),
+                  padding({ all: 4 }),
+                  glassEffect({ glass: { variant: "regular", interactive: true }, shape: "capsule" }),
           ]}
         >
           {options.map(([optionValue, label]) => (
