@@ -1,7 +1,6 @@
 import { reportHandledError } from "@/lib/sentry";
 import { isTransientNetworkError } from "@/lib/networkErrors";
 import { MaterialIcons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -20,7 +19,6 @@ const UPDATE_CHECK_MIN_INTERVAL_MS = 15 * 60_000;
 
 export default function RequiredUpdateGate() {
   const isDark = useColorScheme() === "dark";
-  const releaseVersion = Constants.expoConfig?.version;
   const checkingRef = useRef(false);
   const updateReadyRef = useRef(false);
   const lastCheckAtRef = useRef(0);
@@ -96,14 +94,14 @@ export default function RequiredUpdateGate() {
       <View style={styles.backdrop}>
         <View style={[styles.card, isDark && styles.cardDark]}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="system-update" size={30} color="#FFFFFF" />
+            <MaterialIcons name="restart-alt" size={30} color="#FFFFFF" />
           </View>
           <Text style={[styles.title, isDark && styles.textLight]}>
-            Päivitys tarvitaan
+            Käynnistä sovellus uudelleen
           </Text>
           <Text style={[styles.description, isDark && styles.textMutedDark]}>
-            {releaseVersion ? `Versio ${releaseVersion}` : "Uusi versio"} on ladattu ja
-            valmis. Päivitä sovellus jatkaaksesi.
+            Päivitys on ladattu. Käynnistä OtaMaps uudelleen ottaaksesi sen
+            käyttöön — sovelluskaupasta ei tarvitse ladata mitään.
           </Text>
           {reloading ? (
             <View style={[styles.progressCard, isDark && styles.progressCardDark]}>
@@ -140,7 +138,7 @@ export default function RequiredUpdateGate() {
           )}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Päivitä OtaMaps nyt"
+            accessibilityLabel="Käynnistä OtaMaps uudelleen"
             disabled={reloading}
             onPress={() => void applyUpdate()}
             style={({ pressed }) => [
@@ -156,8 +154,8 @@ export default function RequiredUpdateGate() {
               </>
             ) : (
               <>
-                <Text style={styles.updateButtonText}>Päivitä nyt</Text>
-                <MaterialIcons name="arrow-forward" size={20} color="#FFFFFF" />
+                <Text style={styles.updateButtonText}>Käynnistä uudelleen</Text>
+                <MaterialIcons name="restart-alt" size={20} color="#FFFFFF" />
               </>
             )}
           </Pressable>
