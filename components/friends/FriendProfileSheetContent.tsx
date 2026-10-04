@@ -261,7 +261,14 @@ export default function FriendProfileSheetContent({
       }
 
       setScheduleDay(targetDayISO);
-      setScheduleIsToday(!showNextDay);
+      // "Ongoing" and "done" are only true of today's lessons. The day shown
+      // is not always today — on a weekend it is Monday's — and a stand-in
+      // from an earlier week is only a guess at the weekday, so neither may
+      // be marked by the clock, or a Monday lesson reads as under way on a
+      // Saturday whose time happens to match.
+      setScheduleIsToday(
+        targetDayISO === formatLocalISO(new Date()) && !isStale,
+      );
       setScheduleIsStale(isStale);
       setLessons(dayLessons);
 
