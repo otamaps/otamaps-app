@@ -1,8 +1,13 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { LunchPill } from "@/components/schedule/LunchPill";
+import { pick, STATUS, timeTagColors } from "@/components/schedule/status";
+import { WeekNav, WeekNavFade } from "@/components/schedule/WeekNav";
 import DayPickerSheet, {
   DayPickerSheetRef,
 } from "@/components/sheets/dayPickerSheet";
+import { AppText, StateView, useNativeHeader, useTheme, type Theme } from "@/components/ui";
+import { radii } from "@/constants/theme";
 import {
   addMinutesClock,
   buildDaySlots,
@@ -24,7 +29,6 @@ import {
 import { lessonLabel } from "@/lib/wilma/lessonLabels";
 import {
   formatLocalISO,
-  getISOWeekNumber,
   getMondayOfWeek,
   getNextSchoolDay,
   getSchoolWeekDays,
@@ -32,27 +36,20 @@ import {
   parseLocalISO,
   shortDateLabel,
   weekdayLabel,
-  weekMonthLabel,
 } from "@/lib/wilma/scheduleDates";
-import { MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { LinearGradient } from "expo-linear-gradient";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { fonts } from "@/constants/typography";
 
 /** How far ahead the view may jump on open before giving up on finding lessons. */
 const MAX_AUTO_ADVANCE_WEEKS = 4;
@@ -125,31 +122,9 @@ function mergeScheduleData(a: ScheduleData, b: ScheduleData): ScheduleData {
 
 // ── Lesson card ───────────────────────────────────────────────────────────────
 
-function LunchChip({
-  lunch,
-  isDark,
-}: {
-  lunch: { start: string; end: string };
-  isDark: boolean;
-}) {
-  return (
-    <View style={[styles.lunchChip, isDark && styles.lunchChipDark]}>
-      <PlatformSymbol
-        ios="fork.knife"
-        android="restaurant"
-        size={11}
-        tintColor={isDark ? "#FBBF24" : "#B45309"}
-      />
-      <Text style={[styles.lunchChipText, isDark && styles.lunchChipTextDark]}>
-        Lounas {lunch.start}–{lunch.end}
-      </Text>
-    </View>
-  );
-}
-
 function LessonCard({
   lesson,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -159,7 +134,7 @@ function LessonCard({
   isCurrent,
 }: {
   lesson: ScheduleLesson;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
@@ -181,37 +156,14 @@ function LessonCard({
   const tallHeight = lessonHeight(
     clockMinutes(lesson.end) - clockMinutes(lesson.start),
   );
-  // A lesson that is over drops its blue accent for a neutral gray, so the
-  // colored badges left on the day are only the ones still ahead.
-  const timeColor = isCurrent
-    ? isDark
-      ? "#4ADE80"
-      : "#16A34A"
-    : isOver
-      ? isDark
-        ? "#9CA3AF"
-        : "#8A929D"
-      : isDark
-        ? "#51a2ff"
-        : undefined;
-  const timeSubColor = isCurrent
-    ? isDark
-      ? "#4ADE8080"
-      : "#16A34A80"
-    : isOver
-      ? isDark
-        ? "#9CA3AF80"
-        : "#8A929D80"
-      : isDark
-        ? "#51a2ff70"
-        : undefined;
+  const tag = timeTagColors(theme, { isCurrent, isOver });
 
   return (
     <>
       <View
         style={[
           styles.lessonCard,
-          isDark && { backgroundColor: "#232427" },
+          { backgroundColor: theme.card },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           !!lunch && styles.lessonCardWithLunch,
@@ -219,27 +171,11 @@ function LessonCard({
           isPast && styles.pastOpacity,
         ]}
       >
-        <View
-          style={[
-            styles.timeTag,
-            isDark && { backgroundColor: "#51A2FF1F" },
-            isOver && styles.timeTagPast,
-            isOver && isDark && styles.timeTagPastDark,
-            isCurrent && styles.timeTagCurrent,
-            isCurrent && isDark && styles.timeTagCurrentDark,
-          ]}
-        >
-          <Text
-            style={[styles.timeTagStart, !!timeColor && { color: timeColor }]}
-          >
+        <View style={[styles.timeTag, { backgroundColor: tag.fill }]}>
+          <Text style={[styles.timeTagStart, { color: tag.start }]}>
             {formatTime(lesson.start)}
           </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              !!timeSubColor && { color: timeSubColor },
-            ]}
-          >
+          <Text style={[styles.timeTagEnd, { color: tag.end }]}>
             {formatTime(lesson.end)}
           </Text>
         </View>
@@ -247,26 +183,19 @@ function LessonCard({
           <LessonTitleRow
             title={title}
             code={code}
-            isDark={isDark}
+            isDark={theme.isDark}
             numberOfLines={2}
-            titleStyle={[styles.lessonSubject, isDark && { color: "#fff" }]}
+            titleStyle={[styles.lessonSubject, { color: theme.text }]}
           />
           {!!meta && (
-            <Text
-              style={[styles.lessonMeta, isDark && { color: "#aaa" }]}
-              numberOfLines={1}
-            >
+            <AppText variant="bodySmall" color="textMuted" style={styles.lessonMeta} numberOfLines={1}>
               {meta}
-            </Text>
+            </AppText>
           )}
-          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
+          {!!lunch && <LunchPill start={lunch.start} end={lunch.end} isDark={theme.isDark} />}
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
@@ -277,7 +206,7 @@ function FreeSlotCard({
   start,
   end,
   lunch,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -287,7 +216,7 @@ function FreeSlotCard({
   start: string;
   end: string;
   lunch: { start: string; end: string } | null;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
@@ -299,12 +228,8 @@ function FreeSlotCard({
   // two consecutive rows.
   const displayEnd = addMinutesClock(end, -5);
   const tallHeight = freeSlotHeight(clockMinutes(end) - clockMinutes(start));
-  const timeColor = isCurrent ? (isDark ? "#4ADE80" : "#16A34A") : undefined;
-  const timeSubColor = isCurrent
-    ? isDark
-      ? "#4ADE8080"
-      : "#16A34A80"
-    : undefined;
+  const timeColor = isCurrent ? pick(theme, STATUS.current) : theme.textMuted;
+  const timeSubColor = isCurrent ? pick(theme, STATUS.currentSub) : theme.textMuted;
 
   return (
     <>
@@ -312,7 +237,7 @@ function FreeSlotCard({
         style={[
           styles.lessonCard,
           styles.freeSlotCard,
-          isDark && styles.freeSlotCardDark,
+          { backgroundColor: theme.card, borderColor: theme.border },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           !!lunch && styles.lessonCardWithLunch,
@@ -324,50 +249,23 @@ function FreeSlotCard({
           style={[
             styles.timeTag,
             styles.freeSlotTimeTag,
-            isDark && styles.freeSlotTimeTagDark,
-            isCurrent && styles.timeTagCurrent,
-            isCurrent && isDark && styles.timeTagCurrentDark,
+            { backgroundColor: theme.border },
+            isCurrent && { backgroundColor: pick(theme, STATUS.currentTint) },
           ]}
         >
-          <Text
-            style={[
-              styles.timeTagStart,
-              styles.freeSlotTimeText,
-              isDark && styles.freeSlotTimeTextDark,
-              !!timeColor && { color: timeColor },
-            ]}
-          >
-            {start}
-          </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              styles.freeSlotTimeText,
-              isDark && styles.freeSlotTimeTextDark,
-              !!timeSubColor && { color: timeSubColor },
-            ]}
-          >
-            {displayEnd}
-          </Text>
+          <Text style={[styles.timeTagStart, { color: timeColor }]}>{start}</Text>
+          <Text style={[styles.timeTagEnd, { color: timeSubColor }]}>{displayEnd}</Text>
         </View>
         <View style={styles.lessonInfo}>
-          <Text
-            style={
-              isCurrent
-                ? [styles.lessonSubject, isDark && { color: "#fff" }]
-                : [styles.freeSlotTitle, isDark && styles.freeSlotTitleDark]
-            }
-          >
-            Hyppytunti
-          </Text>
-          {!!lunch && <LunchChip lunch={lunch} isDark={isDark} />}
+          {isCurrent ? (
+            <Text style={[styles.lessonSubject, { color: theme.text }]}>Hyppytunti</Text>
+          ) : (
+            <Text style={[styles.freeSlotTitle, { color: theme.textMuted }]}>Hyppytunti</Text>
+          )}
+          {!!lunch && <LunchPill start={lunch.start} end={lunch.end} isDark={theme.isDark} />}
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
@@ -377,7 +275,7 @@ function FreeSlotCard({
 function LunchOnlyCard({
   start,
   end,
-  isDark,
+  theme,
   isFirst,
   isLast,
   showDivider,
@@ -385,93 +283,64 @@ function LunchOnlyCard({
 }: {
   start: string;
   end: string;
-  isDark: boolean;
+  theme: Theme;
   isFirst: boolean;
   isLast: boolean;
   showDivider: boolean;
   isPast: boolean;
 }) {
+  const fg = pick(theme, STATUS.lunch);
   return (
     <>
       <View
         style={[
           styles.lessonCard,
-          isDark && { backgroundColor: "#232427" },
+          { backgroundColor: theme.card },
           isFirst && styles.cardTop,
           isLast && styles.cardBottom,
           isPast && styles.pastOpacity,
         ]}
       >
-        <View
-          style={[
-            styles.timeTag,
-            styles.lunchOnlyTimeTag,
-            isDark && styles.lunchOnlyTimeTagDark,
-          ]}
-        >
-          <Text
-            style={[
-              styles.timeTagStart,
-              styles.lunchOnlyTimeText,
-              isDark && styles.lunchOnlyTimeTextDark,
-            ]}
-          >
-            {start}
-          </Text>
-          <Text
-            style={[
-              styles.timeTagEnd,
-              styles.lunchOnlyTimeTextSub,
-              isDark && styles.lunchOnlyTimeTextSubDark,
-            ]}
-          >
-            {end}
-          </Text>
+        <View style={[styles.timeTag, { backgroundColor: pick(theme, STATUS.lunchTint) }]}>
+          <Text style={[styles.timeTagStart, { color: fg }]}>{start}</Text>
+          <Text style={[styles.timeTagEnd, { color: pick(theme, STATUS.lunchSub) }]}>{end}</Text>
         </View>
         <View style={styles.lessonInfo}>
-          <Text style={[styles.lessonSubject, isDark && { color: "#fff" }]}>
-            Lounas
-          </Text>
+          <Text style={[styles.lessonSubject, { color: theme.text }]}>Lounas</Text>
         </View>
       </View>
-      {showDivider && (
-        <View
-          style={[styles.lessonDivider, isDark && { backgroundColor: "#333" }]}
-        />
-      )}
+      {showDivider && <View style={[styles.lessonDivider, { backgroundColor: theme.border }]} />}
     </>
   );
 }
 
 // ── Exam row ──────────────────────────────────────────────────────────────────
 
-function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
+function ExamRow({ exam, theme }: { exam: Exam; theme: Theme }) {
   const { code, title } = lessonLabel(exam.course, exam.courseTitle);
   return (
     <View
       style={[
         styles.examCard,
-        isDark && { backgroundColor: "#232427", borderColor: "#ff9800" },
+        {
+          backgroundColor: theme.isDark ? theme.card : STATUS.examTint.light,
+          borderColor: STATUS.exam,
+        },
       ]}
     >
-      <MaterialIcons
-        name="assignment"
-        size={16}
-        color="#ff9800"
-        style={{ marginTop: 2 }}
-      />
-      <View style={{ flex: 1 }}>
+      <PlatformSymbol ios="doc.text" android="assignment" size={16} tintColor={STATUS.exam} style={styles.examIcon} />
+      <View style={styles.flex1}>
         <LessonTitleRow
           title={`${title}${exam.name ? ` – ${exam.name}` : ""}`}
           code={code}
-          isDark={isDark}
+          isDark={theme.isDark}
           numberOfLines={2}
-          titleStyle={[styles.examTitle, isDark && { color: "#fff" }]}
+          titleStyle={[styles.examTitle, { color: theme.text }]}
         />
-        <Text style={[styles.examTime, isDark && { color: "#aaa" }]}>
+        <AppText variant="caption" color="textMuted" style={styles.examTime}>
           {formatTime(exam.timeStart)} – {formatTime(exam.timeEnd)}
           {exam.teachers[0] ? `  ·  ${exam.teachers[0].teacherName}` : ""}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -480,9 +349,13 @@ function ExamRow({ exam, isDark }: { exam: Exam; isDark: boolean }) {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
-  const router = useRouter();
-  const isDark = useColorScheme() === "dark";
-  const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  // On iOS the scroll view runs up under the bar and UIKit insets it by the
+  // bar's height, so its resting offset is negative by that much and a
+  // programmatic scroll has to account for it. Android lays it out below.
+  const headerHeight = useHeaderHeight();
+  const topInset = Platform.OS === "ios" ? headerHeight : 0;
+  const scrollTop = -topInset;
   const today = formatLocalISO(new Date());
   // Opened from the Wilma tab's "Tänään" card: that card may already be
   // showing the next school day (once today's lessons are done), so land on
@@ -525,8 +398,12 @@ export default function ScheduleScreen() {
   }, []);
 
   const scrollRef = useRef<ScrollView>(null);
-  const dayOffsets = useRef<Record<string, number>>({});
-  const pendingScrollDay = useRef<string | null>(null);
+  const dayOffsets = useRef<Record<string, { y: number; height: number }>>({});
+  const pendingScrollDay = useRef<{ day: string; center: boolean } | null>(null);
+  // Needed to centre a day, and to keep that from scrolling past the end:
+  // iOS doesn't clamp a programmatic offset, it just shows blank space.
+  const viewportHeight = useRef(0);
+  const contentHeight = useRef(0);
   const dayPickerRef = useRef<DayPickerSheetRef>(null);
   // Jumping the week forward is a one-time convenience on open. Once it has
   // settled — or the user has picked a week themselves — it must never move
@@ -536,13 +413,7 @@ export default function ScheduleScreen() {
   // Derived values, memoized so `daySlotsByDay` below gets a stable
   // `weekDays` reference to key off instead of recomputing every render.
   const monday = useMemo(() => getMondayOfWeek(weekOffset), [weekOffset]);
-  const friday = useMemo(() => {
-    const f = new Date(monday);
-    f.setDate(monday.getDate() + 4);
-    return f;
-  }, [monday]);
   const weekDays = useMemo(() => getSchoolWeekDays(monday), [monday]);
-  const weekNum = useMemo(() => getISOWeekNumber(monday), [monday]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -605,8 +476,8 @@ export default function ScheduleScreen() {
     autoAdvance.current.settled = true;
     pendingScrollDay.current = null;
     setWeekOffset((offset) => offset + delta);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, []);
+    scrollRef.current?.scrollTo({ y: scrollTop, animated: false });
+  }, [scrollTop]);
 
   // Lessons and exams bucketed by calendar date for the whole week.
   const lessonsByDay = useMemo(() => {
@@ -684,25 +555,42 @@ export default function ScheduleScreen() {
     return byDay;
   }, [weekDays, lessonsByDay, lunchRows]);
 
-  const scrollToDay = useCallback((day: string) => {
-    const y = dayOffsets.current[day];
-    // The section may not be measured yet; the next onLayout finishes the job.
-    if (y === undefined) {
-      pendingScrollDay.current = day;
-      return;
-    }
-    pendingScrollDay.current = null;
-    // Wait a frame so the ScrollView has taken the new content height; without
-    // it a jump to the last day of the week gets clamped back to the top.
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 4), animated: false });
-    });
-  }, []);
+  // `center` puts the day in the middle of the space below the header — how
+  // the screen opens — falling back to its top edge when the day is taller
+  // than that space. Otherwise the day lands just under the header.
+  const scrollToDay = useCallback(
+    (day: string, center = false) => {
+      const layout = dayOffsets.current[day];
+      // The section may not be measured yet; the next onLayout finishes the job.
+      if (layout === undefined) {
+        pendingScrollDay.current = { day, center };
+        return;
+      }
+      pendingScrollDay.current = null;
+      // Wait a frame so the ScrollView has taken the new content height; without
+      // it a jump to the last day of the week gets clamped back to the top.
+      requestAnimationFrame(() => {
+        const visible = viewportHeight.current - topInset;
+        const topAligned = layout.y - 4 - topInset;
+        const target =
+          center && layout.height < visible
+            ? layout.y - topInset - (visible - layout.height) / 2
+            : topAligned;
+        const maxOffset = Math.max(scrollTop, contentHeight.current - viewportHeight.current);
+        scrollRef.current?.scrollTo({
+          y: Math.min(maxOffset, Math.max(scrollTop, target)),
+          animated: false,
+        });
+      });
+    },
+    [topInset, scrollTop],
+  );
 
   const handleDayLayout = useCallback(
-    (day: string, y: number) => {
-      dayOffsets.current[day] = y;
-      if (pendingScrollDay.current === day) scrollToDay(day);
+    (day: string, y: number, height: number) => {
+      dayOffsets.current[day] = { y, height };
+      const pending = pendingScrollDay.current;
+      if (pending?.day === day) scrollToDay(day, pending.center);
     },
     [scrollToDay],
   );
@@ -731,7 +619,7 @@ export default function ScheduleScreen() {
       // `weekOffset` was already initialized to targetDay's own week, so it
       // belongs in `weekDays` as soon as that week has loaded.
       autoAdvance.current.settled = true;
-      if (weekDays.includes(targetDay)) scrollToDay(targetDay);
+      if (weekDays.includes(targetDay)) scrollToDay(targetDay, true);
       return;
     }
 
@@ -743,7 +631,7 @@ export default function ScheduleScreen() {
     );
     if (target) {
       autoAdvance.current.settled = true;
-      scrollToDay(target);
+      scrollToDay(target, true);
       return;
     }
     if (autoAdvance.current.weeksTried >= MAX_AUTO_ADVANCE_WEEKS) {
@@ -767,375 +655,227 @@ export default function ScheduleScreen() {
     weekOffset,
   ]);
 
+  // The native soft edge attaches to the scroll view found by following each
+  // view's FIRST child down from the screen, and only when the screen is
+  // pushed. So the ScrollView stays mounted through loading and errors
+  // (those render inside it), and the sheet provider — which puts its own
+  // hosting view ahead of its children — sits after it rather than around
+  // it. Get either wrong and the effect silently never draws.
+  const header = useNativeHeader({
+    title: "Lukujärjestys",
+    background: "page",
+    large: false,
+    edgeEffect: "soft",
+  });
+
   return (
-    <BottomSheetModalProvider>
-    {/* The safe-area inset above the header is otherwise painted with the
-        screen's body background, so the status bar sits on a visibly
-        different color than the nav bar right below it. Painting the inset
-        with the header's own background keeps the two matched. */}
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <View
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-        <Stack.Screen options={{ headerShown: false }} />
+    <>
+      <Stack.Screen options={header} />
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        <View style={styles.bodyWrap}>
+          <ScrollView
+            ref={scrollRef}
+            contentInsetAdjustmentBehavior="automatic"
+            onLayout={(event) => {
+              viewportHeight.current = event.nativeEvent.layout.height;
+            }}
+            onContentSizeChange={(_, height) => {
+              contentHeight.current = height;
+            }}
+            style={styles.body}
+            contentContainerStyle={[
+              styles.bodyContent,
+              (loading || !!error) && styles.bodyContentState,
+            ]}
+            scrollEnabled={!loading && !error}
+            refreshControl={
+              loading || error ? undefined : (
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
+              )
+            }
+          >
+            {loading ? (
+              <StateView loading />
+            ) : error ? (
+              <StateView icon="error-outline" message={error} />
+            ) : weekDays.map((day) => {
+              const daySlots = daySlotsByDay[day] ?? [];
+              const exams = examsByDay[day] ?? [];
+              const heading = dayHeading(day);
+              const isToday = day === today;
+              // Once the highlight has moved on to the next school day
+              // (today's last lesson is long over), today itself is done
+              // too and should dim along with the actually-past days.
+              const isPastDay = day < highlightedDay;
+              const isHighlighted = day === highlightedDay;
 
-        {/* ── Header ── */}
-        <View
-          style={[
-            styles.header,
-            isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
-          ]}
-        >
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
-          <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
-            Lukujärjestys
-          </Text>
-          <View style={{ flex: 1 }} />
-        </View>
+              return (
+                <View
+                  key={day}
+                  style={[styles.daySection, isPastDay && styles.pastOpacity]}
+                  onLayout={(event) =>
+                    handleDayLayout(
+                      day,
+                      event.nativeEvent.layout.y,
+                      event.nativeEvent.layout.height,
+                    )
+                  }
+                >
+                  <View style={styles.dayHeader}>
+                    <AppText
+                      variant="rowTitle"
+                      color={isHighlighted ? "accent" : "text"}
+                    >
+                      {heading.name}
+                    </AppText>
+                    <AppText variant="meta" color="textMuted">
+                      {heading.date}
+                    </AppText>
+                    <View style={styles.flex1} />
+                    {isHighlighted && (
+                      <View style={[styles.todayPill, { backgroundColor: theme.accentTint, borderColor: theme.accent + "49" }]}>
+                        <AppText variant="micro" color="accent">
+                          {isToday ? "Tänään" : "Huomenna"}
+                        </AppText>
+                      </View>
+                    )}
+                  </View>
 
-        {/* ── Body ── */}
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <MaterialIcons
-              name="error-outline"
-              size={48}
-              color={isDark ? "#888" : "#ccc"}
-            />
-            <Text style={[styles.errorText, isDark && { color: "#888" }]}>
-              {error}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.bodyWrap}>
-            <ScrollView
-              ref={scrollRef}
-              style={[styles.body, isDark && { backgroundColor: "#18191B" }]}
-              contentContainerStyle={styles.bodyContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={isDark ? "#51a2ff" : "#3478F5"}
-                />
-              }
-            >
-              {weekDays.map((day) => {
-                const daySlots = daySlotsByDay[day] ?? [];
-                const exams = examsByDay[day] ?? [];
-                const heading = dayHeading(day);
-                const isToday = day === today;
-                // Once the highlight has moved on to the next school day
-                // (today's last lesson is long over), today itself is done
-                // too and should dim along with the actually-past days.
-                const isPastDay = day < highlightedDay;
-                const isHighlighted = day === highlightedDay;
+                  {exams.map((exam) => (
+                    <ExamRow key={exam.examId} exam={exam} theme={theme} />
+                  ))}
 
-                return (
-                  <View
-                    key={day}
-                    style={[styles.daySection, isPastDay && styles.pastOpacity]}
-                    onLayout={(event) =>
-                      handleDayLayout(day, event.nativeEvent.layout.y)
-                    }
-                  >
-                    <View style={styles.dayHeader}>
-                      <Text
-                        style={[
-                          styles.dayName,
-                          isDark && { color: "#fff" },
-                          isHighlighted && {
-                            color: isDark ? "#51a2ff" : "#3478F5",
-                          },
-                        ]}
-                      >
-                        {heading.name}
-                      </Text>
-                      <Text
-                        style={[styles.dayDate, isDark && { color: "#888" }]}
-                      >
-                        {heading.date}
-                      </Text>
-                      <View style={{ flex: 1 }} />
-                      {isHighlighted && (
-                        <View
-                          style={[
-                            styles.todayPill,
-                            isDark && {
-                              backgroundColor: "#51A2FF1F",
-                              borderColor: "#51a2ff49",
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.todayPillText,
-                              isDark && { color: "#51a2ff" },
-                            ]}
-                          >
-                            {isToday ? "Tänään" : "Huomenna"}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                  {daySlots.length > 0 ? (
+                    <View>
+                      {daySlots.map((slot, i) => {
+                        // Free slots and the odd standalone lunch sit in the
+                        // same continuous, rounded card group as the day's
+                        // lessons rather than breaking out into their own box.
+                        const isFirst = i === 0;
+                        const isLast = i === daySlots.length - 1;
+                        // A free slot already reads as a break via its own
+                        // dashed border, so a divider right next to it would
+                        // just double up on that same visual cue.
+                        const next = daySlots[i + 1];
+                        const showDivider =
+                          !isLast &&
+                          slot.kind !== "freeslot" &&
+                          next?.kind !== "freeslot";
+                        // When today itself has already dimmed as a whole
+                        // (the highlight moved on to tomorrow), skip the
+                        // per-row dim too — stacking both would make today's
+                        // lessons darker than an actually past day's.
+                        const isPast =
+                          !isPastDay && isToday && slot.end <= nowClock;
+                        // Unlike the dim, the gray badge also applies on a
+                        // day that has wholly passed — stacking a color with
+                        // the day's opacity reads fine, a second dim does not.
+                        const isOver =
+                          isPastDay || (isToday && slot.end <= nowClock);
+                        const isCurrent =
+                          isToday &&
+                          slot.start <= nowClock &&
+                          nowClock < slot.end;
 
-                    {exams.map((exam) => (
-                      <ExamRow key={exam.examId} exam={exam} isDark={isDark} />
-                    ))}
-
-                    {daySlots.length > 0 ? (
-                      <View>
-                        {daySlots.map((slot, i) => {
-                          // Free slots and the odd standalone lunch sit in the
-                          // same continuous, rounded card group as the day's
-                          // lessons rather than breaking out into their own box.
-                          const isFirst = i === 0;
-                          const isLast = i === daySlots.length - 1;
-                          // A free slot already reads as a break via its own
-                          // dashed border, so a divider right next to it would
-                          // just double up on that same visual cue.
-                          const next = daySlots[i + 1];
-                          const showDivider =
-                            !isLast &&
-                            slot.kind !== "freeslot" &&
-                            next?.kind !== "freeslot";
-                          // When today itself has already dimmed as a whole
-                          // (the highlight moved on to tomorrow), skip the
-                          // per-row dim too — stacking both would make today's
-                          // lessons darker than an actually past day's.
-                          const isPast =
-                            !isPastDay && isToday && slot.end <= nowClock;
-                          // Unlike the dim, the gray badge also applies on a
-                          // day that has wholly passed — stacking a color with
-                          // the day's opacity reads fine, a second dim does not.
-                          const isOver =
-                            isPastDay || (isToday && slot.end <= nowClock);
-                          const isCurrent =
-                            isToday &&
-                            slot.start <= nowClock &&
-                            nowClock < slot.end;
-
-                          if (slot.kind === "lesson") {
-                            return (
-                              <LessonCard
-                                key={`lesson-${slot.lesson.reservationId}`}
-                                lesson={slot.lesson}
-                                isDark={isDark}
-                                isFirst={isFirst}
-                                isLast={isLast}
-                                showDivider={showDivider}
-                                lunch={slot.lunch}
-                                isPast={isPast}
-                                isOver={isOver}
-                                isCurrent={isCurrent}
-                              />
-                            );
-                          }
-                          if (slot.kind === "freeslot") {
-                            return (
-                              <FreeSlotCard
-                                key={slot.key}
-                                start={slot.start}
-                                end={slot.end}
-                                lunch={slot.lunch}
-                                isDark={isDark}
-                                isFirst={isFirst}
-                                isLast={isLast}
-                                showDivider={showDivider}
-                                isPast={isPast}
-                                isCurrent={isCurrent}
-                              />
-                            );
-                          }
+                        if (slot.kind === "lesson") {
                           return (
-                            <LunchOnlyCard
-                              key={`lunch-${slot.start}`}
+                            <LessonCard
+                              key={`lesson-${slot.lesson.reservationId}`}
+                              lesson={slot.lesson}
+                              theme={theme}
+                              isFirst={isFirst}
+                              isLast={isLast}
+                              showDivider={showDivider}
+                              lunch={slot.lunch}
+                              isPast={isPast}
+                              isOver={isOver}
+                              isCurrent={isCurrent}
+                            />
+                          );
+                        }
+                        if (slot.kind === "freeslot") {
+                          return (
+                            <FreeSlotCard
+                              key={slot.key}
                               start={slot.start}
                               end={slot.end}
-                              isDark={isDark}
+                              lunch={slot.lunch}
+                              theme={theme}
                               isFirst={isFirst}
                               isLast={isLast}
                               showDivider={showDivider}
                               isPast={isPast}
+                              isCurrent={isCurrent}
                             />
                           );
-                        })}
-                      </View>
-                    ) : exams.length === 0 ? (
-                      <View
-                        style={[styles.emptyDay, isDark && styles.emptyDayDark]}
-                      >
-                        <Text
-                          style={[
-                            styles.emptyDayText,
-                            isDark && { color: "#666" },
-                          ]}
-                        >
-                          Ei tunteja
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </ScrollView>
-            <LinearGradient
-              pointerEvents="none"
-              colors={
-                isDark
-                  ? [
-                      "#18191B00",
-                      "#18191B1A",
-                      "#18191B4D",
-                      "#18191B99",
-                      "#18191B",
-                    ]
-                  : [
-                      "#fafafa00",
-                      "#fafafa1A",
-                      "#fafafa4D",
-                      "#fafafa99",
-                      "#fafafa",
-                    ]
-              }
-              locations={[0, 0.25, 0.5, 0.75, 1]}
-              style={styles.bottomFade}
-            />
-          </View>
-        )}
-
-        {/* ── Week navigation ── */}
-        <View
-          style={[
-            styles.weekNav,
-            { paddingBottom: 10 + insets.bottom },
-            isDark && { backgroundColor: "#18191B" },
-          ]}
-        >
-          <Pressable
-            onPress={() => goToWeek(-1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={28}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
-          <Pressable
-            style={{ alignItems: "center" }}
-            onPress={() => dayPickerRef.current?.present(formatLocalISO(monday))}
-            hitSlop={8}
-          >
-            <Text style={[styles.weekLabel, isDark && { color: "#fff" }]}>
-              Viikko {weekNum}
-            </Text>
-            <Text style={[styles.weekSub, isDark && { color: "#888" }]}>
-              {weekMonthLabel(monday, friday)}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => goToWeek(1)}
-            style={styles.navBtn}
-            hitSlop={12}
-          >
-            <MaterialIcons
-              name="chevron-right"
-              size={28}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
+                        }
+                        return (
+                          <LunchOnlyCard
+                            key={`lunch-${slot.start}`}
+                            start={slot.start}
+                            end={slot.end}
+                            theme={theme}
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            showDivider={showDivider}
+                            isPast={isPast}
+                          />
+                        );
+                      })}
+                    </View>
+                  ) : exams.length === 0 ? (
+                    <View
+                      style={[
+                        styles.emptyDay,
+                        {
+                          borderColor: theme.border,
+                          // `theme.card` is the 3-digit `#fff` shorthand in
+                          // light mode, which an appended alpha pair turns
+                          // into an invalid 5-digit string — spelled out in
+                          // full here instead of reusing the token.
+                          backgroundColor: theme.isDark ? "#23242780" : "#ffffff80",
+                        },
+                      ]}
+                    >
+                      <AppText variant="bodySmall" color="textFaint">
+                        Ei tunteja
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </ScrollView>
+          <WeekNavFade />
         </View>
+
+        <WeekNav
+          monday={monday}
+          onStep={goToWeek}
+          onPressLabel={() => dayPickerRef.current?.present(formatLocalISO(monday))}
+        />
+        <BottomSheetModalProvider>
+          <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
+        </BottomSheetModalProvider>
       </View>
-    </SafeAreaView>
-    <DayPickerSheet ref={dayPickerRef} onSelectDay={goToDay} />
-    </BottomSheetModalProvider>
+    </>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B", color: "#fff" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1 },
   pastOpacity: { opacity: 0.5 },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fff",
-    gap: 12,
-  },
-  headerTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 17,
-    color: "#222",
-  },
-
-  // Week navigation
-  weekNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    backgroundColor: "#fafafa",
-  },
-  navBtn: { padding: 4 },
-  weekLabel: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#222",
-  },
-  weekSub: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 1,
-    textTransform: "capitalize",
-  },
+  flex1: { flex: 1 },
 
   // Body
   bodyWrap: { flex: 1, position: "relative" },
   body: { flex: 1 },
   bodyContent: { padding: 16, paddingBottom: 40 },
-  // Fades the scrolling content out just above the week navigation bar, so
-  // it reads as sliding underneath it rather than stopping abruptly.
-  bottomFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 44,
-  },
+  // Loading and error fill the viewport so StateView can centre itself.
+  bodyContentState: { flexGrow: 1 },
+
 
   // Day sections
   daySection: { marginBottom: 22 },
@@ -1146,174 +886,67 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 2,
   },
-  dayName: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#222",
-  },
-  dayDate: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#999",
-  },
   todayPill: {
-    backgroundColor: "#EEF4FF",
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: "#cddcf3",
-  },
-  todayPillText: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 11,
-    color: "#3478F5",
   },
   emptyDay: {
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "#e8e8e8",
-    backgroundColor: "#ffffff80",
     paddingHorizontal: 14,
     paddingVertical: 14,
-  },
-  emptyDayDark: { borderColor: "#333", backgroundColor: "#23242780" },
-  emptyDayText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#aaa",
   },
 
   // Lesson cards (grouped, rounded first/last)
   lessonCard: {
-    backgroundColor: "#fff",
     paddingHorizontal: 14,
     paddingVertical: 13,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  cardTop: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  cardBottom: { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  cardTop: { borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg },
+  cardBottom: { borderBottomLeftRadius: radii.lg, borderBottomRightRadius: radii.lg },
   lessonCardWithLunch: { alignItems: "flex-start", paddingVertical: 15 },
-  lessonDivider: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
-  },
-  lunchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 5,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 6,
-  },
-  lunchChipDark: { backgroundColor: "#78350F55" },
-  lunchChipText: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 12,
-    color: "#B45309",
-  },
-  lunchChipTextDark: { color: "#FBBF24" },
+  lessonDivider: { height: StyleSheet.hairlineWidth },
 
   // Free slot ("Hyppytunti")
   freeSlotCard: {
-    backgroundColor: "#fff",
     borderWidth: 1,
     borderLeftWidth: 0,
     borderRightWidth: 0,
     borderStyle: "dashed",
-    borderColor: "#e0e0e0",
   },
-  freeSlotCardDark: { backgroundColor: "#232427", borderColor: "#4A5058" },
-  freeSlotTimeTag: { backgroundColor: "#F3F4F6" },
-  freeSlotTimeTagDark: { backgroundColor: "#2E3034" },
-  freeSlotTimeText: { color: "#888" },
-  freeSlotTimeTextDark: { color: "#AAA" },
-  freeSlotTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontStyle: "italic",
-    fontSize: 15,
-    color: "#888",
-  },
-  freeSlotTitleDark: { color: "#AAA" },
+  freeSlotTimeTag: {},
+  freeSlotTitle: { ...fonts.semiBold, fontStyle: "italic", fontSize: 15 },
 
-  // Standalone lunch (falls outside every lesson and free slot)
-  lunchOnlyTimeTag: { backgroundColor: "#FEF3C7" },
-  lunchOnlyTimeTagDark: { backgroundColor: "#78350F55" },
-  lunchOnlyTimeText: { color: "#B45309" },
-  lunchOnlyTimeTextDark: { color: "#FBBF24" },
-  lunchOnlyTimeTextSub: { color: "#B4530980" },
-  lunchOnlyTimeTextSubDark: { color: "#FBBF2480" },
   timeTag: {
-    backgroundColor: "#EEF4FF",
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     alignItems: "center",
     minWidth: 50,
   },
-  timeTagStart: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 13,
-    color: "#3478F5",
-  },
-  timeTagEnd: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 11,
-    color: "#3478F570",
-    marginTop: 1,
-  },
-  timeTagCurrent: { backgroundColor: "#16A34A1A" },
-  timeTagCurrentDark: { backgroundColor: "#4ADE8022" },
-  timeTagPast: { backgroundColor: "#F3F4F6" },
-  timeTagPastDark: { backgroundColor: "#2E3034" },
+  timeTagStart: { ...fonts.semiBold, fontSize: 13 },
+  timeTagEnd: { ...fonts.regular, fontSize: 11, marginTop: 1 },
   lessonInfo: { flex: 1 },
-  lessonSubject: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  lessonMeta: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#888",
-    marginTop: 2,
-  },
+  lessonSubject: { ...fonts.semiBold, fontSize: 15 },
+  lessonMeta: { marginTop: 2 },
 
   // Exam card
   examCard: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: "#fff8f0",
     borderRadius: 10,
     borderLeftWidth: 3,
-    borderColor: "#ff9800",
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 8,
   },
-  examTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 14,
-    color: "#222",
-  },
-  examTime: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-
-  // Error
-  errorText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#aaa",
-    textAlign: "center",
-  },
+  examIcon: { marginTop: 2 },
+  examTitle: { ...fonts.semiBold, fontSize: 14 },
+  examTime: { marginTop: 2 },
 });

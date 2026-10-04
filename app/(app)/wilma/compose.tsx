@@ -1,116 +1,161 @@
+import { AppText, useNativeHeader, useTheme } from "@/components/ui";
+import { typography } from "@/constants/typography";
 import { sendWilmaMessage } from "@/lib/wilma/graphqlClient";
-import { MaterialIcons } from "@expo/vector-icons";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ComposeMessageScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === "dark";
-  const params = useLocalSearchParams<{ recipientId: string; schoolId: string; name?: string; code?: string }>();
+  const theme = useTheme();
+  const params = useLocalSearchParams<{
+    recipientId: string;
+    schoolId: string;
+    name?: string;
+    code?: string;
+  }>();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
 
   const recipientId = Number(params.recipientId);
   const schoolId = Number(params.schoolId);
-  const valid = Number.isInteger(recipientId) && recipientId > 0 && Number.isInteger(schoolId) && schoolId > 0;
+  const valid =
+    Number.isInteger(recipientId) && recipientId > 0 && Number.isInteger(schoolId) && schoolId > 0;
   const canSend = valid && subject.trim().length > 0 && body.trim().length > 0 && !sending;
 
   const send = () => {
     if (!canSend) return;
-    Alert.alert(
-      "Lähetä viesti?",
-      `Vastaanottaja: ${params.name ?? "valittu vastaanottaja"}`,
-      [
-        { text: "Peruuta", style: "cancel" },
-        {
-          text: "Lähetä",
-          onPress: async () => {
-            setSending(true);
-            try {
-              await sendWilmaMessage({ recipientId, schoolId, subject: subject.trim(), body: body.trim() });
-              Alert.alert("Viesti lähetetty", "Wilma vahvisti viestin lähetyksen.", [
-                { text: "OK", onPress: () => router.replace("/wilma/messages" as never) },
-              ]);
-            } catch (caught: unknown) {
-              Alert.alert("Lähetys epäonnistui", caught instanceof Error ? caught.message : "Yritä myöhemmin uudelleen.");
-            } finally {
-              setSending(false);
-            }
-          },
+    Alert.alert("Lähetä viesti?", `Vastaanottaja: ${params.name ?? "valittu vastaanottaja"}`, [
+      { text: "Peruuta", style: "cancel" },
+      {
+        text: "Lähetä",
+        onPress: async () => {
+          setSending(true);
+          try {
+            await sendWilmaMessage({
+              recipientId,
+              schoolId,
+              subject: subject.trim(),
+              body: body.trim(),
+            });
+            Alert.alert("Viesti lähetetty", "Wilma vahvisti viestin lähetyksen.", [
+              { text: "OK", onPress: () => router.replace("/wilma/messages" as never) },
+            ]);
+          } catch (caught: unknown) {
+            Alert.alert(
+              "Lähetys epäonnistui",
+              caught instanceof Error ? caught.message : "Yritä myöhemmin uudelleen.",
+            );
+          } finally {
+            setSending(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
+  const header = useNativeHeader({
+    title: "Uusi viesti",
+    background: "flat",
+    large: false,
+    action: {
+      icon: "paperplane",
+      androidIcon: "send",
+      accessibilityLabel: "Lähetä viesti",
+      onPress: send,
+      disabled: !canSend,
+    },
+  });
+
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#3478F5"} />
-        </Pressable>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]}>Uusi viesti</Text>
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={send} disabled={!canSend} hitSlop={8}>
-          {sending ? <ActivityIndicator size="small" color="#3478F5" /> : <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#3478F5") : "#aaa"} />}
-        </Pressable>
-      </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <>
+      <Stack.Screen options={header} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.label, isDark && styles.mutedDark]}>Vastaanottaja</Text>
-          <View style={[styles.recipientCard, isDark && styles.fieldDark]}>
-            <MaterialIcons name="person-outline" size={20} color={isDark ? "#51a2ff" : "#3478F5"} />
-            <Text style={[styles.recipient, isDark && styles.textLight]}>{params.name ?? "Tuntematon vastaanottaja"}{params.code ? ` (${params.code})` : ""}</Text>
+          <AppText variant="meta" color="textMuted" style={styles.label}>
+            Vastaanottaja
+          </AppText>
+          <View style={[styles.recipientCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <PlatformSymbol ios="person" android="person" size={18} tintColor={theme.accent} />
+            <AppText variant="rowTitle" style={styles.recipient} numberOfLines={1}>
+              {params.name ?? "Tuntematon vastaanottaja"}
+              {params.code ? ` (${params.code})` : ""}
+            </AppText>
           </View>
-          <Text style={[styles.label, isDark && styles.mutedDark]}>Aihe</Text>
-          <TextInput style={[styles.input, isDark && styles.fieldDark, isDark && styles.textLight]} value={subject} onChangeText={setSubject} maxLength={200} placeholder="Viestin aihe" placeholderTextColor={isDark ? "#777" : "#aaa"} />
-          <Text style={[styles.label, isDark && styles.mutedDark]}>Viesti</Text>
-          <TextInput style={[styles.input, styles.bodyInput, isDark && styles.fieldDark, isDark && styles.textLight]} value={body} onChangeText={setBody} maxLength={10000} placeholder="Kirjoita viesti" placeholderTextColor={isDark ? "#777" : "#aaa"} multiline textAlignVertical="top" />
-          {!valid && <Text style={styles.error}>Vastaanottajan tiedot puuttuvat. Palaa vastaanottajalistaasi.</Text>}
+
+          <AppText variant="meta" color="textMuted" style={styles.label}>
+            Aihe
+          </AppText>
+          <TextInput
+            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
+            value={subject}
+            onChangeText={setSubject}
+            maxLength={200}
+            placeholder="Viestin aihe"
+            placeholderTextColor={theme.placeholder}
+          />
+
+          <AppText variant="meta" color="textMuted" style={styles.label}>
+            Viesti
+          </AppText>
+          <TextInput
+            style={[
+              styles.input,
+              styles.bodyInput,
+              { color: theme.text, borderColor: theme.border, backgroundColor: theme.card },
+            ]}
+            value={body}
+            onChangeText={setBody}
+            maxLength={10000}
+            placeholder="Kirjoita viesti"
+            placeholderTextColor={theme.placeholder}
+            multiline
+            textAlignVertical="top"
+          />
+
+          {!valid && (
+            <AppText variant="bodySmall" color="danger" style={styles.error}>
+              Vastaanottajan tiedot puuttuvat. Palaa vastaanottajalistaasi.
+            </AppText>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
-      </View>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#18191B" },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
-  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
   content: { padding: 16, gap: 8 },
-  label: { marginTop: 8, fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" },
-  recipientCard: { flexDirection: "row", alignItems: "center", gap: 9, padding: 13, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd" },
-  recipient: { flex: 1, fontFamily: "Figtree-SemiBold", fontSize: 15, color: "#222" },
-  input: { paddingHorizontal: 13, paddingVertical: 12, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd", fontFamily: "Figtree-Regular", fontSize: 16, color: "#222" },
+  label: { marginTop: 8 },
+  recipientCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 13,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  recipient: { flex: 1 },
+  input: {
+    padding: 13,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...typography.input,
+  },
   bodyInput: { minHeight: 220 },
-  fieldDark: { backgroundColor: "#2b2b2b", borderColor: "#444" },
-  textLight: { color: "#fff" },
-  mutedDark: { color: "#aaa" },
-  error: { marginTop: 8, fontFamily: "Figtree-Regular", fontSize: 13, color: "#d33" },
+  error: { marginTop: 8 },
 });

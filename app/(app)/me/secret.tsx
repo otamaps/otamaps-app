@@ -13,6 +13,7 @@ import {
   useColorScheme,
   View
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const Settings = () => {
   const [isDebugMode, setIsDebugMode] = useState(false);
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     color: "#333",
     paddingVertical: 16,
   },
@@ -130,13 +131,13 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginBottom: 2,
   },
   settingDescription: {
     fontSize: 13,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     color: "#666",
   },
   permissionButton: {
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
   },
   permissionButtonText: {
     fontSize: 14,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
   },
   optionContainer: {
     paddingVertical: 16,

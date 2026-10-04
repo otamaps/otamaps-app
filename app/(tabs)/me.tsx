@@ -1,24 +1,25 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
+import {
+  AppText,
+  Row,
+  Screen,
+  StateView,
+  Surface,
+  useTheme,
+} from "@/components/ui";
 import { FABLAB_VISIBLE } from "@/constants/features";
+import { DEFAULT_USER_COLOR, colors, radii, tint } from "@/constants/theme";
+import {fonts } from "@/constants/typography";
+import { formatClassLabel } from "@/lib/classLabel";
+import { getReadableLabelColor } from "@/lib/color";
 import { clearUserCache, getUser } from "@/lib/getUserHandle";
 import { signOutGoogleAndSupabase } from "@/lib/googleAuth";
-import { formatClassLabel } from "@/lib/classLabel";
 import { supabase } from "@/lib/supabase";
 import { getUserPreferences } from "@/lib/userPreferences";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 type UserProfile = {
   name: string;
@@ -31,18 +32,56 @@ type UserProfile = {
 
 const copyToClipboard = async (value: string | undefined) => {
   if (!value) return;
-
   const Clipboard = await import("expo-clipboard");
   await Clipboard.setStringAsync(value);
 };
 
-const Me = () => {
+/**
+ * The filled, rounded glyph iOS sets at the head of a settings row. White on
+ * a colour, so it reads as a badge for the row rather than an icon floating
+ * beside the label.
+ */
+function RowIcon({
+  ios,
+  android,
+  color,
+}: {
+  ios: React.ComponentProps<typeof PlatformSymbol>["ios"];
+  android: React.ComponentProps<typeof PlatformSymbol>["android"];
+  color: string;
+}) {
+  return (
+    <View style={[styles.rowIcon, { backgroundColor: color }]}>
+      <PlatformSymbol
+        ios={ios}
+        android={android}
+        size={17}
+        tintColor={colors.textOnDark}
+      />
+    </View>
+  );
+}
+
+/** A short neutral tag at the end of a row: "Yhdistetty", "Uusi!". */
+function Badge({ label }: { label: string }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.badge, { backgroundColor: theme.border }]}>
+      <AppText variant="caption" color="textSecondary">
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+export default function MeScreen() {
+  const theme = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const isDark = useColorScheme() === "dark";
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [isWilmaProfile, setIsWilmaProfile] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showBackgroundNudge, setShowBackgroundNudge] = useState(false);
   const params = useLocalSearchParams();
 
   useEffect(() => {
@@ -65,762 +104,312 @@ const Me = () => {
     }
   }, [params]);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const user = await getUser();
-        console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
+  // One definition, called both on mount and on every focus. It used to be
+  // written out twice, identically, in an effect and a focus effect.
+  const loadProfile = useCallback(async () => {
+    try {
+      const user = await getUser();
+      if (!user) throw new Error("No user found");
 
-        if (!user) throw new Error("No user found");
-        const preferences = await getUserPreferences({ forceRefresh: true });
-        setIsWilmaProfile(preferences.profile_source === "wilma");
+      const preferences = await getUserPreferences({ forceRefresh: true });
+      setIsWilmaProfile(preferences.profile_source === "wilma");
+      setShowBackgroundNudge(!preferences.background_tracking_enabled);
 
-        // Get user metadata from auth
-        const userData = {
-          name:
-            user.user_metadata?.full_name ||
-            user.email?.split("@")[0] ||
-            "Käyttäjä",
-          class: user.user_metadata?.class || "",
-          color: user.user_metadata?.color || "#3478F5",
-          email: user.email,
-        };
+      const fromAuth: UserProfile = {
+        name:
+          user.user_metadata?.full_name ||
+          user.email?.split("@")[0] ||
+          "Käyttäjä",
+        class: user.user_metadata?.class || "",
+        color: user.user_metadata?.color || DEFAULT_USER_COLOR,
+        email: user.email,
+      };
 
-        // Try to get additional data from users table
-        const { data: profileData, error: profileError } = await supabase
-          .from("users")
-          .select("name, class, color, code, role")
-          .eq("id", user.id)
-          .maybeSingle();
+      const { data, error } = await supabase
+        .from("users")
+        .select("name, class, color, code, role")
+        .eq("id", user.id)
+        .maybeSingle();
 
-        if (!profileError && profileData) {
-          setIsAdmin(profileData.role === "admin");
-          setProfile({
-            ...userData,
-            ...profileData,
-            name: profileData.name || userData.name,
-            class: profileData.class || userData.class,
-            color: profileData.color || userData.color,
-          });
-        } else {
-          setProfile(userData);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setIsLoading(false);
+      if (!error && data) {
+        setIsAdmin(data.role === "admin");
+        setProfile({
+          ...fromAuth,
+          ...data,
+          name: data.name || fromAuth.name,
+          class: data.class || fromAuth.class,
+          color: data.color || fromAuth.color,
+        });
+      } else {
+        setProfile(fromAuth);
       }
-    };
+    } catch (caught) {
+      console.error("Error fetching profile:", caught);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    fetchProfile();
+  useEffect(() => {
+    void loadProfile();
 
-    // Set up real-time subscription
     const channel = supabase
       .channel("profile_changes")
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "users",
-        },
+        { event: "UPDATE", schema: "public", table: "users" },
         (payload) => {
-          if (payload.new) {
-            setProfile((prev) => ({
-              ...prev,
-              ...payload.new,
-              name: payload.new.name || prev?.name,
-              class: payload.new.class || prev?.class,
-              color: payload.new.color || prev?.color,
-            }));
-            if (typeof payload.new.role === "string") {
-              setIsAdmin(payload.new.role === "admin");
-            }
+          if (!payload.new) return;
+          setProfile((prev) => ({
+            ...prev,
+            ...payload.new,
+            name: payload.new.name || prev?.name,
+            class: payload.new.class || prev?.class,
+            color: payload.new.color || prev?.color,
+          }));
+          if (typeof payload.new.role === "string") {
+            setIsAdmin(payload.new.role === "admin");
           }
         },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadProfile]);
 
   useFocusEffect(
-    React.useCallback(() => {
-      const fetchDebugMode = async () => {
-        const value = await AsyncStorage.getItem("isDebugMode");
-        setIsDebugMode(value === "true");
-      };
-      fetchDebugMode();
-
-      const fetchProfile = async () => {
-        try {
-          const user = await getUser();
-
-          console.log(`👤 Authenticated user: ${user?.id || "None"} in me.tsx`);
-
-          if (!user) throw new Error("No user found");
-          const preferences = await getUserPreferences({ forceRefresh: true });
-          setIsWilmaProfile(preferences.profile_source === "wilma");
-
-          // Get user metadata from auth
-          const userData = {
-            name:
-              user.user_metadata?.full_name ||
-              user.email?.split("@")[0] ||
-              "Käyttäjä",
-            class: user.user_metadata?.class || "",
-            color: user.user_metadata?.color || "#3478F5",
-            email: user.email,
-          };
-
-          // Try to get additional data from users table
-          const { data: profileData, error: profileError } = await supabase
-            .from("users")
-            .select("name, class, color, code, role")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (!profileError && profileData) {
-            setIsAdmin(profileData.role === "admin");
-            setProfile({
-              ...userData,
-              ...profileData,
-              name: profileData.name || userData.name,
-              class: profileData.class || userData.class,
-              color: profileData.color || userData.color,
-            });
-          } else {
-            setProfile(userData);
-          }
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchProfile();
-    }, []),
+    useCallback(() => {
+      void AsyncStorage.getItem("isDebugMode").then((value) =>
+        setIsDebugMode(value === "true"),
+      );
+      void loadProfile();
+    }, [loadProfile]),
   );
 
-  if (isLoading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: isDark ? "#18191B" : "transparent",
-        }}
-      >
-        <ActivityIndicator size="large" color={isDark ? "#fff" : "#3478F5"} />
-      </View>
-    );
-  }
+  const copyFriendCode = async () => {
+    try {
+      await copyToClipboard(profile?.code);
+      Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
+    } catch {
+      Alert.alert(
+        "Ei onnistunut",
+        "Leikepöydän käyttö ei ole saatavilla tässä versiossa.",
+      );
+    }
+  };
 
+  const signOut = () => {
+    signOutGoogleAndSupabase()
+      .catch((caught) => console.error("Sign-out failed:", caught))
+      .finally(() => {
+        clearUserCache();
+        router.push("/");
+      });
+  };
+
+  // No navigation bar: the tab bar already names this screen, and a large
+  // title would only say "Minä" a second time. `Screen` supplies the shell
+  // the bar would otherwise have provided — the safe-area inset and the page
+  // colour the groups sit on.
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "transparent" }}
-    >
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "space-between",
-          // marginTop: 40,
-          backgroundColor: isDark ? "#18191B" : "transparent",
-        }}
-      >
-        <StatusBar style={isDark ? "light" : "dark"} />
-        <View
-          style={{
-            flex: 1,
-            width: "100%",
-            alignItems: "center",
-            backgroundColor: isDark ? "#18191B" : "transparent",
-          }}
-        >
-          <View
-            style={[
-              styles.userContainer,
-              isDark && { backgroundColor: "#232427" },
-            ]}
-          >
-            <View style={styles.userRow}>
-              <View
-                style={[
-                  styles.avatarContainer,
-                  { backgroundColor: profile?.color || "#3478F5" },
-                ]}
-              >
-                <Text style={styles.avatarText}>
-                  {profile?.name ? profile.name.charAt(0).toUpperCase() : "?"}
-                </Text>
-              </View>
-              <View style={styles.userInfo}>
-                <Text
-                  style={[
-                    styles.nameText,
-                    { fontSize: 24 },
-                    isDark && { color: "#fff" },
-                  ]}
-                >
-                  {profile?.name || "Käyttäjä"}
-                </Text>
-                {profile?.class && (
-                  <Text
-                    style={[
-                      styles.nameText,
-                      {
-                        fontSize: 16,
-                        color: "#666",
-                        fontFamily: "Figtree-Medium",
-                      },
-                      isDark && { color: "#ffffff70" },
-                    ]}
-                  >
-                    {formatClassLabel(profile.class)}
-                  </Text>
-                )}
-              </View>
-              <Pressable
-                style={styles.friendCodeSide}
-                onPress={async () => {
-                  try {
-                    await copyToClipboard(profile?.code);
-                    Alert.alert("Kopioitu!", "Ystäväkoodi kopioitu!");
-                  } catch {
-                    Alert.alert(
-                      "Ei onnistunut",
-                      "Leikepöydän käyttö ei ole saatavilla tässä versiossa.",
-                    );
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    styles.friendCodeLabelSide,
-                    isDark && { color: "#ffffff70" },
-                    { marginBottom: 6 },
-                  ]}
-                >
-                  Ystäväkoodi
-                </Text>
+    <Screen background="page">
+      <ScrollView contentContainerStyle={styles.content}>
+        {isLoading ? (
+          <StateView loading />
+        ) : (
+          <>
+            <Surface style={{ borderRadius: radii.xl }}>
+              <Row onPress={() => router.push("/me/edit")}>
                 <View
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    backgroundColor: isDark ? "#232427" : "#eeeeee",
-                    borderRadius: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <PlatformSymbol
-                    ios="doc.on.doc"
-                    android="content_copy"
-                    size={14}
-                    tintColor={isDark ? "#fff" : "#3333337d"}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text
-                    style={[
-                      styles.friendCodeTextSide,
-                      isDark && { color: "#fff" },
-                    ]}
-                  >
-                    {profile?.code}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.optionsContainer,
-              isDark && { backgroundColor: "#232427" },
-            ]}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && {
-                  backgroundColor: "#232427",
-                },
-
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-              ]}
-              onPress={() => router.push("/me/edit")}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Muokkaa tietojani
-              </Text>
-            </Pressable>
-            <View
-              style={{
-                height: 1,
-                backgroundColor: isDark ? "#454545" : "#dddddd50",
-              }}
-            />
-            {isAdmin && (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionContainer,
-                    isDark && { backgroundColor: "#232427" },
-                    pressed && styles.optionContainerPressed,
-                    isDark && pressed && { backgroundColor: "#525252" },
-                    {
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    },
+                  style={[
+                    styles.avatar,
+                    { backgroundColor: profile?.color || DEFAULT_USER_COLOR },
                   ]}
-                  onPress={() => router.push("/me/admin/queue")}
                 >
-                  <Text
+                  <AppText
+                    variant="heading3"
                     style={{
-                      fontSize: 16,
-                      fontFamily: "Figtree-SemiBold",
-                      color: isDark ? "#fff" : "#444",
+                      color: getReadableLabelColor(
+                        profile?.color || DEFAULT_USER_COLOR,
+                      ),
                     }}
                   >
-                    Jonotilanteen hallinta
-                  </Text>
-                  <PlatformSymbol
+                    {profile?.name?.charAt(0).toUpperCase() ?? "?"}
+                  </AppText>
+                </View>
+                <View style={styles.identity}>
+                  <AppText
+                    variant="title"
+                    style={styles.name}
+                    numberOfLines={1}
+                  >
+                    {profile?.name || "Käyttäjä"}
+                  </AppText>
+                  {profile?.class ? (
+                    <AppText
+                      variant="meta"
+                      color="textMuted"
+                      numberOfLines={1}
+                      style={{ fontSize: 14 }}
+                    >
+                      {formatClassLabel(profile.class)}
+                    </AppText>
+                  ) : null}
+                </View>
+              </Row>
+
+              <Row onPress={copyFriendCode} chevron={false}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  Ystäväkoodi
+                </AppText>
+                <AppText variant="body" color="textMuted">
+                  {profile?.code ?? "—"}
+                </AppText>
+                <PlatformSymbol
+                  ios="doc.on.doc"
+                  android="content_copy"
+                  size={16}
+                  tintColor={theme.textFaint}
+                />
+              </Row>
+            </Surface>
+
+            {showBackgroundNudge ? (
+              <Surface style={{ borderRadius: radii.xl }}>
+                <Row onPress={() => router.push("/me/settings")}>
+                  <RowIcon
+                    ios="dot.radiowaves.left.and.right"
+                    android="settings_input_antenna"
+                    color={theme.accent}
+                  />
+                  <View style={styles.identity}>
+                    <AppText variant="body" style={styles.rowLabel}>
+                      Ota taustapaikannus käyttöön
+                    </AppText>
+                    <AppText variant="meta" color="textMuted">
+                      Tunnista koulun majakoita myös silloin, kun OtaMaps ei
+                      ole näkyvissä
+                    </AppText>
+                  </View>
+                </Row>
+              </Surface>
+            ) : null}
+
+            {isAdmin ? (
+              <Surface title="Hallinta" style={{ borderRadius: radii.xl }}>
+                <Row onPress={() => router.push("/me/admin/queue")}>
+                  <RowIcon
                     ios="checkmark.shield"
                     android="admin_panel_settings"
-                    size={20}
-                    tintColor={isDark ? "#51A2FF" : "#3478F5"}
+                    color={tint.queue}
                   />
-                </Pressable>
-                <View
-                  style={{
-                    height: 1,
-                    backgroundColor: isDark ? "#454545" : "#dddddd50",
-                  }}
-                />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionContainer,
-                    isDark && { backgroundColor: "#232427" },
-                    pressed && styles.optionContainerPressed,
-                    isDark && pressed && { backgroundColor: "#525252" },
-                    {
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    },
-                  ]}
-                  onPress={() => router.push("/me/admin/lunch-shifts")}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: "Figtree-SemiBold",
-                      color: isDark ? "#fff" : "#444",
-                    }}
-                  >
-                    Ruokailuvuorojen hallinta
-                  </Text>
-                  <PlatformSymbol
+                  <AppText variant="body" style={styles.rowLabel}>
+                    Jonotilanteen hallinta
+                  </AppText>
+                </Row>
+                <Row onPress={() => router.push("/me/admin/lunch-shifts")}>
+                  <RowIcon
                     ios="fork.knife"
                     android="restaurant"
-                    size={20}
-                    tintColor={isDark ? "#51A2FF" : "#3478F5"}
+                    color={tint.lunch}
                   />
-                </Pressable>
-                <View
-                  style={{
-                    height: 1,
-                    backgroundColor: isDark ? "#454545" : "#dddddd50",
-                  }}
-                />
-              </>
-            )}
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#232427" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-                {
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                },
-              ]}
-              onPress={() => router.push("/me/wilma")}
+                  <AppText variant="body" style={styles.rowLabel}>
+                    Ruokailuvuorojen hallinta
+                  </AppText>
+                </Row>
+              </Surface>
+            ) : null}
+
+            <Surface
+              style={{ borderRadius: radii.xl }}
+              // title="Asetukset ja ohjeet"
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                {isWilmaProfile ? "Wilma-tili" : "Yhdistä Wilma-tili"}
-              </Text>
-              <View
-                style={{
-                  backgroundColor: isDark ? "#525252" : "#eee",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 6,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: isDark ? "#fff" : "#444",
-                  }}
-                >
-                  {isWilmaProfile ? "Yhdistetty" : "Yhdistä"}
-                </Text>
-              </View>
-            </Pressable>
-            <View
-              style={{
-                height: 1,
-                backgroundColor: isDark ? "#454545" : "#dddddd50",
-              }}
-            />
-            {FABLAB_VISIBLE && (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionContainer,
-                    isDark && { backgroundColor: "#232427" },
-                    pressed && styles.optionContainerPressed,
-                    isDark && pressed && { backgroundColor: "#525252" },
-                    {
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    },
-                  ]}
-                  onPress={() => router.push("/me/fablab")}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: "Figtree-SemiBold",
-                      color: isDark ? "#fff" : "#444",
-                    }}
-                  >
+              <Row onPress={() => router.push("/me/wilma")}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  {isWilmaProfile ? "Wilma-tili" : "Yhdistä Wilma-tili"}
+                </AppText>
+                <Badge label={isWilmaProfile ? "Yhdistetty" : "Yhdistä"} />
+              </Row>
+              {FABLAB_VISIBLE ? (
+                <Row onPress={() => router.push("/me/fablab")}>
+                  <AppText variant="body" style={styles.rowLabel}>
                     Fablab
-                  </Text>
-                  <View
-                    style={{
-                      backgroundColor: isDark ? "#525252" : "#eee",
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 6,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: isDark ? "#fff" : "#444",
-                      }}
-                    >
-                      Uusi!
-                    </Text>
-                  </View>
-                </Pressable>
-                <View
+                  </AppText>
+                  <Badge label="Uusi!" />
+                </Row>
+              ) : null}
+              <Row onPress={() => router.push("/me/settings")}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  Asetukset
+                </AppText>
+              </Row>
+              <Row onPress={() => router.push("/me/guide")}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  Ohje
+                </AppText>
+              </Row>
+              <Row onPress={() => router.push("/me/about")}>
+                <AppText
+                  variant="body"
                   style={{
-                    height: 1,
-                    backgroundColor: isDark ? "#454545" : "#dddddd50",
+                    ...styles.rowLabel,
                   }}
-                />
-              </>
-            )}
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#232427" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-              ]}
-              onPress={() => router.push("/me/settings")}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Asetukset
-              </Text>
-            </Pressable>
-            <View
-              style={{
-                height: 1,
-                backgroundColor: isDark ? "#454545" : "#dddddd50",
-              }}
-            />
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#232427" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-              ]}
-              onPress={() => router.push("/me/guide")}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Ohje
-              </Text>
-            </Pressable>
-            <View
-              style={{
-                height: 1,
-                backgroundColor: isDark ? "#454545" : "#dddddd50",
-              }}
-            />
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#232427" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-              ]}
-              onPress={() => router.push("/me/about")}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Tietoja
-              </Text>
-            </Pressable>
-          </View>
-          {isDebugMode && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionContainer,
-                isDark && { backgroundColor: "#232427" },
-                pressed && styles.optionContainerPressed,
-                isDark && pressed && { backgroundColor: "#525252" },
-                { width: "90%", marginBottom: 16 },
-              ]}
-              onPress={() => {
-                router.push("/(app)/debug2/ble");
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: "Figtree-SemiBold",
-                  color: isDark ? "#fff" : "#444",
-                }}
-              >
-                Debug
-              </Text>
-            </Pressable>
-          )}
-          <Pressable
-            style={({ pressed }) => [
-              styles.optionContainer,
-              isDark && { backgroundColor: "#232427" },
-              pressed && styles.optionContainerPressed,
-              isDark && pressed && { backgroundColor: "#525252" },
-              { width: "90%" },
-            ]}
-            onPress={() => {
-              signOutGoogleAndSupabase()
-                .catch((error) => {
-                  console.error("Sign-out failed:", error);
-                })
-                .finally(() => {
-                  clearUserCache();
-                  router.push("/");
-                });
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: "Figtree-SemiBold",
-                color: isDark ? "#ff637e" : "#ec003f",
-              }}
-            >
-              Kirjaudu ulos
-            </Text>
-          </Pressable>
-        </View>
+                >
+                  Tietoja
+                </AppText>
+              </Row>
+            </Surface>
 
-        {/* <View
-          style={{ alignItems: "center", marginBottom: "15%", opacity: 0.55 }}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Figtree-Medium",
-              color: isDark ? "#a1a1a1" : "#999",
-            }}
-          >
-            mahdollistanut
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Image
-              source={require("@/assets/images/Hallitus_Logo.png")}
-              resizeMode="contain"
-              style={{
-                width: 50,
-                height: 50,
-                marginVertical: 8,
-                marginTop: 20,
-              }}
-              tintColor="#999"
-            />
-            <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
-              |
-            </Text>
-            <TouchableOpacity
-              onPress={() => void openExternalUrl("https://streetsmarts.fi/")}
-            >
-              <Image
-                source={require("@/assets/images/streetsmarts.png")}
-                resizeMode="contain"
-                style={{
-                  width: 70,
-                  height: 50,
-                  marginVertical: 8,
-                  marginTop: 20,
-                }}
-                tintColor="#999"
-              />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 32, color: isDark ? "#a1a1a1" : "#999" }}>
-              |
-            </Text>
-            <Text
-              style={{
-                fontSize: 18,
-                fontFamily: "Figtree-SemiBold",
-                color: isDark ? "#a1a1a1" : "#999",
-              }}
-            >
-              OLVY
-            </Text>
-          </View>
-        </View> */}
-      </View>
-    </SafeAreaView>
+            {isDebugMode ? (
+              <Surface style={{ borderRadius: radii.xl }}>
+                <Row onPress={() => router.push("/(app)/debug2/ble")}>
+                  <AppText variant="body" style={styles.rowLabel}>
+                    Debug
+                  </AppText>
+                </Row>
+              </Surface>
+            ) : null}
+
+            <Surface style={{ borderRadius: radii.xl }}>
+              <Row onPress={signOut} chevron={false}>
+                <AppText variant="body" color="danger" style={styles.rowLabel}>
+                  Kirjaudu ulos
+                </AppText>
+              </Row>
+            </Surface>
+          </>
+        )}
+      </ScrollView>
+    </Screen>
   );
-};
-
-export default Me;
+}
 
 const styles = StyleSheet.create({
-  userContainer: {
-    width: "90%",
-    margin: 16,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-  },
-  friendCodeContainer: {
-    width: "90%",
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    marginBottom: 16,
+  content: { flexGrow: 1, paddingBottom: 32 },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.pill,
     alignItems: "center",
-  },
-  friendCodeLabel: {
-    fontSize: 16,
-    fontFamily: "Figtree-Medium",
-    color: "#666",
-    marginBottom: 4,
-  },
-  friendCodeText: {
-    fontSize: 18,
-    fontFamily: "Figtree-Bold",
-    color: "#333",
-    letterSpacing: 2,
-  },
-  friendCodeSide: {
-    alignItems: "center",
-    marginLeft: 16,
-  },
-  friendCodeLabelSide: {
-    fontSize: 14,
-    fontFamily: "Figtree-Medium",
-    color: "#666",
-    marginBottom: 2,
-  },
-  friendCodeTextSide: {
-    fontSize: 18,
-    fontFamily: "Figtree-Bold",
-    color: "#333",
-    letterSpacing: 1,
-  },
-  optionsContainer: {
-    width: "90%",
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    marginBottom: 16,
-  },
-  optionContainer: {
-    borderRadius: 16,
-    padding: 16,
-    paddingVertical: 20,
-    backgroundColor: "#fff",
-  },
-  optionContainerPressed: {
-    padding: 16,
-    paddingVertical: 20,
-    backgroundColor: "#f5f5f5",
-  },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 9,
-    marginRight: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    color: "white",
-    fontSize: 28,
-    fontFamily: "Figtree-Bold",
-  },
-  userInfo: {
-    flex: 1,
     justifyContent: "center",
   },
-  nameText: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 16,
-    color: "#333",
-    textTransform: "capitalize",
+  identity: { flex: 1 },
+  // The scale tops out at semibold in this size; name the bold face rather
+  // than let a numeric weight be synthesised from the regular one.
+  name: { ...fonts.semiBold, fontSize: 21 },
+  rowLabel: { flex: 1, fontSize: 15, ...fonts.medium },
+  rowIcon: {
+    width: 29,
+    height: 29,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
   },
 });

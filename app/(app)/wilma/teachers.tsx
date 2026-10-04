@@ -1,3 +1,6 @@
+import { AppText, Row, StateView, useNativeHeader, useTheme } from "@/components/ui";
+import { colors } from "@/constants/theme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   fetchMessageRecipients,
   fetchWilmaQueryCapabilities,
@@ -5,29 +8,193 @@ import {
 } from "@/lib/wilma/graphqlClient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+
+/**
+ * Dismissed for good once tapped: the gesture is only unguessable the first
+ * time, and a hint that comes back is worse than one that never showed.
+ */
+const HINT_DISMISSED_KEY = "otamaps-teachers-swipe-hint-v1";
+
+/**
+ * A rightward threshold far enough away that the row never follows one.
+ * `activeOffsetX` is built as [-dragOffsetFromRightEdge, dragOffsetFromLeftEdge],
+ * so the second number is what a *rightward* drag must beat to start moving
+ * the row. At its default of 10 a row claimed the screen's edge-swipe back
+ * anywhere over the list, which is why going back only worked from the
+ * header.
+ */
+const NEVER_RIGHTWARD = 10_000;
+
+/** The action's resting width, before a drag stretches it further. */
+const ACTION_WIDTH = 84;
+
+type SwipeableRef = React.ComponentRef<typeof ReanimatedSwipeable>;
+
+/**
+ * The revealed action. Deliberately plain: gesture-handler builds this for
+ * every mounted row, not the one being swiped, so anything it holds is held
+ * a hundred times over. It takes the accent as a prop rather than reading
+ * the theme, which would subscribe each row to appearance changes twice.
+ */
+function MessageAction({
+  accent,
+  methods,
+  onMessage,
+  accessibilityLabel,
+}: {
+  accent: string;
+  methods: { close: () => void };
+  onMessage: () => void;
+  accessibilityLabel: string;
+}) {
+  return (
+    <View style={styles.actionSlot}>
+      <View style={[styles.actionBleed, { backgroundColor: accent }]} />
+      <Pressable
+        onPress={() => {
+          methods.close();
+          onMessage();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={({ pressed }) => [styles.swipeAction, pressed && styles.pressed]}
+      >
+        <MaterialIcons name="mail-outline" size={22} color={colors.textOnDark} />
+        <AppText variant="micro" style={styles.swipeLabel}>
+          Viesti
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * Memoised: without it every keystroke in the search field re-renders each
+ * visible row, and a row carries a gesture handler.
+ */
+const TeacherRow = memo(function TeacherRow({
+  item,
+  hasSchedule,
+  openRowRef,
+  onMessage,
+  onSchedule,
+}: {
+  item: WilmaMessageRecipient;
+  hasSchedule: boolean;
+  openRowRef: React.MutableRefObject<SwipeableRef | null>;
+  onMessage: (item: WilmaMessageRecipient) => void;
+  onSchedule: (item: WilmaMessageRecipient) => void;
+}) {
+  const theme = useTheme();
+  const swipeRef = useRef<SwipeableRef | null>(null);
+  // A closed row must let a rightward drag through to the screen's edge-swipe
+  // back; an open one must claim it, or closing the row navigates away
+  // instead.
+  const [open, setOpen] = useState(false);
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      // Lighter than the default so the row tracks the finger the way a UIKit
+      // cell does, and free to overshoot, which is what makes pulling past
+      // the threshold feel like a commit.
+      friction={1.6}
+      rightThreshold={ACTION_WIDTH * 0.6}
+      // The rightward threshold, which only a closed row puts out of reach.
+      dragOffsetFromLeftEdge={open ? undefined : NEVER_RIGHTWARD}
+      onSwipeableWillOpen={() => {
+        setOpen(true);
+        // One row open at a time, as in Mail: opening this closes whichever
+        // was left open.
+        const previous = openRowRef.current;
+        if (previous && previous !== swipeRef.current) previous.close();
+        openRowRef.current = swipeRef.current;
+      }}
+      onSwipeableWillClose={() => {
+        setOpen(false);
+        if (openRowRef.current === swipeRef.current) openRowRef.current = null;
+      }}
+      renderRightActions={(_progress, _translation, methods) => (
+        <MessageAction
+          accent={theme.accent}
+          methods={methods}
+          onMessage={() => onMessage(item)}
+          accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
+        />
+      )}
+    >
+      <Row
+        // Only a teacher with a published schedule has anywhere to go, so the
+        // rest render flat — and without a chevron promising a destination
+        // that is not there. Every row still swipes.
+        onPress={hasSchedule ? () => onSchedule(item) : undefined}
+        accessibilityLabel={
+          hasSchedule
+            ? `Näytä opettajan ${item.name} lukujärjestys`
+            : undefined
+        }
+      >
+        <View style={styles.rowText}>
+          <View style={styles.nameLine}>
+            <AppText variant="rowTitle" style={styles.name} numberOfLines={1}>
+              {item.name}
+            </AppText>
+            {!!item.code && (
+              <AppText variant="meta" color="textMuted">
+                ({item.code})
+              </AppText>
+            )}
+          </View>
+          <AppText
+            variant="caption"
+            color="textMuted"
+            style={styles.category}
+            numberOfLines={1}
+          >
+            {item.isOwnTeacher ? "Oma opettaja · " : ""}
+            {item.category}
+          </AppText>
+        </View>
+      </Row>
+    </ReanimatedSwipeable>
+  );
+});
 
 export default function TeachersScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
   const [recipients, setRecipients] = useState<WilmaMessageRecipient[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scheduleSupported, setScheduleSupported] = useState(false);
+  // `null` until storage answers, so the hint cannot flash up and vanish for
+  // someone who dismissed it long ago.
+  const [hintVisible, setHintVisible] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(HINT_DISMISSED_KEY)
+      .then((dismissed) => {
+        if (!cancelled) setHintVisible(dismissed !== "1");
+      })
+      .catch(() => {
+        // Storage being unreadable is not a reason to withhold the hint.
+        if (!cancelled) setHintVisible(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissHint = useCallback(() => {
+    setHintVisible(false);
+    void AsyncStorage.setItem(HINT_DISMISSED_KEY, "1").catch(() => {});
+  }, []);
 
   const load = useCallback(async (refresh = false) => {
     if (!refresh) setLoading(true);
@@ -55,7 +222,7 @@ export default function TeachersScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -74,303 +241,152 @@ export default function TeachersScreen() {
       });
   }, [query, recipients]);
 
-  const openMessage = (item: WilmaMessageRecipient) =>
-    router.push({
+  const openRowRef = useRef<SwipeableRef | null>(null);
+
+  const openMessage = useCallback(
+    (item: WilmaMessageRecipient) =>
+      router.push({
       pathname: "/wilma/compose" as never,
       params: {
         recipientId: String(item.id),
         schoolId: String(item.schoolId),
         name: item.name,
-        code: item.code,
-      },
-    });
+          code: item.code,
+        },
+      }),
+    [router],
+  );
 
-  const openSchedule = (item: WilmaMessageRecipient) =>
-    router.push({
-      pathname: "/wilma/teacher-schedule" as never,
-      params: { teacherId: String(item.id), name: item.name, code: item.code },
-    });
+  const openSchedule = useCallback(
+    (item: WilmaMessageRecipient) =>
+      router.push({
+        pathname: "/wilma/teacher-schedule" as never,
+        params: { teacherId: String(item.id), name: item.name, code: item.code },
+      }),
+    [router],
+  );
 
+  const header = useNativeHeader({
+    title: "Opettajat ja henkilökunta",
+    background: "card",
+    searchPlaceholder: "Hae nimellä tai lyhenteellä",
+    onSearch: setQuery,
+  });
+
+  // The list is the screen's root element and stays mounted through every
+  // state, so the large title has a scroll view to attach to from the first
+  // frame. See `useNativeHeader`.
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.container, isDark && styles.containerDark]}>
-        <View style={[styles.header, isDark && styles.headerDark]}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </Pressable>
-          <Text style={[styles.headerTitle, isDark && styles.textLight]}>
-            Opettajat ja henkilökunta
-          </Text>
-        </View>
-
-        <View style={[styles.searchBox, isDark && styles.searchBoxDark]}>
-          <MaterialIcons
-            name="search"
-            size={20}
-            color={isDark ? "#888" : "#999"}
-          />
-          <TextInput
-            style={[styles.searchInput, isDark && styles.textLight]}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Hae nimellä tai lyhenteellä"
-            placeholderTextColor={isDark ? "#777" : "#aaa"}
-            autoCorrect={false}
-          />
-        </View>
-
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator
-              size="large"
-              color={isDark ? "#51a2ff" : "#3478F5"}
-            />
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <MaterialIcons
-              name="error-outline"
-              size={48}
-              color={isDark ? "#666" : "#ccc"}
-            />
-            <Text style={[styles.stateText, isDark && styles.mutedDark]}>
-              {error}
-            </Text>
-            <Pressable style={styles.retryButton} onPress={() => load()}>
-              <Text style={styles.retryText}>Yritä uudelleen</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => `${item.id}:${item.schoolId}`}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  load(true);
-                }}
-                tintColor={isDark ? "#51a2ff" : "#3478F5"}
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.centered}>
-                <Text style={[styles.stateText, isDark && styles.mutedDark]}>
-                  Ei hakutuloksia
-                </Text>
-              </View>
-            }
-            renderItem={({ item }) => {
-              const isTeacher = item.category
-                .toLocaleLowerCase("fi-FI")
-                .includes("opettajat");
-              const hasSchedule = isTeacher && scheduleSupported;
-              return (
-                <Pressable
-                  disabled={!hasSchedule}
-                  onPress={() => openSchedule(item)}
-                  accessibilityRole={hasSchedule ? "button" : undefined}
-                  accessibilityLabel={
-                    hasSchedule
-                      ? `Näytä opettajan ${item.name} lukujärjestys`
-                      : undefined
-                  }
-                  style={({ pressed }) => [
-                    styles.row,
-                    isDark && styles.rowDark,
-                    pressed && hasSchedule && styles.rowPressed,
-                  ]}
-                >
-                  {/* <View style={[styles.avatar, isDark && styles.avatarDark]}>
-                <MaterialIcons name="person-outline" size={22} color={isDark ? "#51a2ff" : "#3478F5"} />
-              </View> */}
-                  <View style={styles.rowText}>
-                    <View style={styles.nameLine}>
-                      <Text
-                        style={[styles.name, isDark && styles.textLight]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      {!!item.code && (
-                        <Text style={[styles.code, isDark && styles.mutedDark]}>
-                          ({item.code})
-                        </Text>
-                      )}
-                    </View>
-                    <Text
-                      style={[styles.category, isDark && styles.mutedDark]}
-                      numberOfLines={1}
-                    >
-                      {item.isOwnTeacher ? "Oma opettaja · " : ""}
-                      {item.category}
-                    </Text>
-                  </View>
-                  <View style={styles.actions}>
-                    {hasSchedule && (
-                      <Pressable
-                        style={[
-                          styles.actionButton,
-                          isDark && styles.actionButtonDark,
-                          {
-                            backgroundColor: isDark ? "#ff516828" : "#ee4a4d24",
-                          },
-                        ]}
-                        onPress={() => openSchedule(item)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Näytä opettajan ${item.name} lukujärjestys`}
-                      >
-                        <MaterialIcons
-                          name="calendar-month"
-                          size={19}
-                          color={isDark ? "#ff5168" : "#ee4a4d"}
-                        />
-                      </Pressable>
-                    )}
-                    <Pressable
-                      style={[
-                        styles.actionButton,
-                        isDark && styles.actionButtonDark,
-                      ]}
-                      onPress={() => openMessage(item)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Lähetä viesti vastaanottajalle ${item.name}`}
-                    >
-                      <MaterialIcons
-                        name="mail-outline"
-                        size={19}
-                        color={isDark ? "#51a2ff" : "#3478F5"}
-                      />
-                    </Pressable>
-                  </View>
-                </Pressable>
-              );
+    <>
+      <Stack.Screen options={header} />
+      <FlatList
+        data={loading || error ? [] : filtered}
+        keyExtractor={(item) => `${item.id}:${item.schoolId}`}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        // Every mounted row carries a pan detector, a tap detector and the
+        // worklet behind the full swipe — gesture-handler builds the action
+        // eagerly for each row, not when one is swiped. At the default
+        // windowSize of 21 that is ten screens of them either side, and
+        // tearing the lot down is what froze the screen on the way back.
+        // Two screens either side is plenty to scroll against.
+        windowSize={5}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load(true);
             }}
+            tintColor={theme.accent}
           />
-        )}
-      </View>
-    </SafeAreaView>
+        }
+        ListHeaderComponent={
+          hintVisible ? (
+            <View
+              style={[
+                styles.hint,
+                { backgroundColor: theme.card, borderBottomColor: theme.border },
+              ]}
+            >
+              <MaterialIcons name="swipe-left" size={18} color={theme.textMuted} />
+              <AppText variant="caption" color="textMuted" style={styles.hintText}>
+                Napauta avataksesi lukujärjestyksen. Pyyhkäise vasemmalle
+                lähettääksesi viestin.
+              </AppText>
+              <Pressable
+                onPress={dismissHint}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Piilota vinkki"
+              >
+                <MaterialIcons name="close" size={18} color={theme.textFaint} />
+              </Pressable>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          loading ? (
+            <StateView loading />
+          ) : error ? (
+            <StateView
+              icon="error-outline"
+              message={error}
+              actionLabel="Yritä uudelleen"
+              onAction={() => void load()}
+            />
+          ) : (
+            <StateView message="Ei hakutuloksia" />
+          )
+        }
+        renderItem={({ item }) => {
+          const isTeacher = item.category
+            .toLocaleLowerCase("fi-FI")
+            .includes("opettajat");
+          return (
+            <TeacherRow
+              item={item}
+              hasSchedule={isTeacher && scheduleSupported}
+              openRowRef={openRowRef}
+              onMessage={openMessage}
+              onSchedule={openSchedule}
+            />
+          );
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#fff" },
-  containerDark: { backgroundColor: "#18191B" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fff",
-  },
-  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    margin: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    // Sits on the page background rather than on a card of its own — the
-    // border alone outlines the field.
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-  },
-  searchBoxDark: { backgroundColor: "#18191B", borderColor: "#444" },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#222",
-  },
-  centered: {
-    flex: 1,
-    minHeight: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 24,
-  },
-  stateText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    textAlign: "center",
-    color: "#888",
-  },
-  retryButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 9,
-    backgroundColor: "#eef4ff",
-  },
-  retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#eee",
-  },
-  rowDark: { backgroundColor: "#232427", borderBottomColor: "#3a3a3a" },
-  rowPressed: { opacity: 0.6 },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#eef4ff",
-  },
-  avatarDark: { backgroundColor: "#25334a" },
+  // Lets the loading and empty blocks fill the screen rather than collapsing
+  // to nothing at the top of an empty list.
+  content: { flexGrow: 1 },
   rowText: { flex: 1 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: {
-    flexShrink: 1,
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
+  name: { flexShrink: 1 },
+  category: { marginTop: 2 },
+  hint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  code: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#888" },
-  category: {
-    marginTop: 2,
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#888",
-  },
-  actions: { flexDirection: "row", gap: 7 },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  hintText: { flex: 1 },
+  actionSlot: { width: ACTION_WIDTH },
+  // Reaches past the right edge so an overshooting drag still lands on
+  // colour. Cheaper than widening the action as the row moves.
+  actionBleed: { position: "absolute", top: 0, bottom: 0, left: 0, right: -600 },
+  swipeAction: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#eef4ff",
+    gap: 4,
   },
-  actionButtonDark: { backgroundColor: "#25334a" },
-  textLight: { color: "#fff" },
-  mutedDark: { color: "#888" },
+  swipeLabel: { color: colors.textOnDark },
+  pressed: { opacity: 0.6 },
 });

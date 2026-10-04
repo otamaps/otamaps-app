@@ -1,4 +1,36 @@
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet, type TextStyle } from "react-native";
+
+/**
+ * A weight of the app's typeface, to spread into a text style:
+ * `{ ...fonts.semiBold, fontSize: 15 }`.
+ *
+ * iOS sets type in the system font, SF Pro, as the platform's own screens
+ * and the native navigation bar already do — so a screen no longer mixes
+ * SF Pro in its bar with Figtree beneath it. Android keeps Figtree, whose
+ * four faces must each be named outright: a numeric `fontWeight` there
+ * makes the platform synthesize the weight from the regular face, which
+ * renders visibly differently from the real one. On iOS a numeric weight
+ * is exactly right, since SF Pro is variable.
+ */
+/**
+ * The typeface iOS sets the app in: `"system"` for SF Pro, `"figtree"` for
+ * the brand face. One switch for the whole app, kept while the two are
+ * compared side by side. Android is Figtree either way.
+ */
+export const IOS_TYPEFACE: "system" | "figtree" = "figtree";
+
+function face(weight: TextStyle["fontWeight"], figtree: string): TextStyle {
+  return Platform.OS === "ios" && IOS_TYPEFACE === "system"
+    ? { fontWeight: weight }
+    : { fontFamily: figtree };
+}
+
+export const fonts = {
+  regular: face("400", "Figtree-Regular"),
+  medium: face("500", "Figtree-Medium"),
+  semiBold: face("600", "Figtree-SemiBold"),
+  bold: face("700", "Figtree-Bold"),
+} as const;
 
 /**
  * The app's type scale.
@@ -15,96 +47,86 @@ import { StyleSheet } from "react-native";
  */
 export const typography = StyleSheet.create({
   heading1: {
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     fontSize: 32,
     lineHeight: 40,
   },
   heading2: {
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     fontSize: 28,
     lineHeight: 36,
   },
   heading3: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 24,
     lineHeight: 32,
   },
   /** A screen's own title, printed in the body rather than the nav bar. */
   title: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 20,
     lineHeight: 26,
   },
   /** The title inside a back-navigation header. */
   navTitle: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 17,
     lineHeight: 22,
   },
   /** A section heading within a scrolling screen. */
   sectionTitle: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 16,
     lineHeight: 21,
   },
   /** The leading line of a list row or card. */
   rowTitle: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
     lineHeight: 20,
   },
   bodyLarge: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 18,
     lineHeight: 28,
   },
   body: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 16,
     lineHeight: 24,
   },
   bodySmall: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     lineHeight: 20,
   },
   /** The supporting line under a row title — room, teacher, timestamp. */
   meta: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 18,
   },
   caption: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     lineHeight: 16,
   },
   /** Pills and badges: the smallest size that still reads at a glance. */
   micro: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 11,
     lineHeight: 14,
   },
+  /** A filled button's label — the same size UIKit sets its own at. */
   button: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.medium,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   input: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 16,
     lineHeight: 24,
   },
 });
 
-/**
- * Figtree ships as four separate faces. Always name the face — a numeric
- * `fontWeight` makes the platform synthesize a weight from the regular face,
- * which renders visibly differently from the real one.
- */
-export const FONT_FAMILY = {
-  regular: "Figtree-Regular",
-  medium: "Figtree-Medium",
-  semiBold: "Figtree-SemiBold",
-  bold: "Figtree-Bold",
-} as const;

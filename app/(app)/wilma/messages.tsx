@@ -1,27 +1,35 @@
 import {
+  AppText,
+  Row,
+  SegmentedControl,
+  StateView,
+  useNativeHeader,
+  useTheme,
+  type Theme,
+  useSelectorSwipe,
+} from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import {
   fetchMessages,
   WilmaMessage,
   WilmaMessageFolder,
 } from "@/lib/wilma/graphqlClient";
 import { formatLocalISO } from "@/lib/wilma/scheduleDates";
-import { MaterialIcons } from "@expo/vector-icons";
+import { scopeBarIn, SearchScopeBar } from "@/modules/search-scope-bar";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const WEEKDAY_SHORT = ["Su", "Ma", "Ti", "Ke", "To", "Pe", "La"];
+
+const FOLDERS = [
+  ["INBOX", "Saapuneet"],
+  ["OUTBOX", "Lähetetyt"],
+  ["APPOINTMENTS", "Kutsut"],
+] as const;
 
 /**
  * Relative timestamp label:
@@ -76,26 +84,28 @@ function fullTimestamp(ts: string): string {
   return `${date} klo ${time}`;
 }
 
-// Applying status → chip label + colour
-const APPLYING_LABELS: Record<string, { label: string; color: string }> = {
-  present: { label: "Osallistuu", color: "#4caf50" },
-  absent: { label: "Poissa", color: "#f44336" },
-  unknown: { label: "Ei vastattu", color: "#ff9800" },
+// Applying status → chip label. Colour comes from the theme: present reads
+// as an ordinary quiet chip, the other two lean on the app's one accent and
+// its danger red rather than inventing an amber/green scale for one field.
+const APPLYING_LABELS: Record<string, string> = {
+  present: "Osallistuu",
+  absent: "Poissa",
+  unknown: "Ei vastattu",
 };
 
-function applyingDisplay(status: string): { label: string; color: string } {
-  return APPLYING_LABELS[status] ?? { label: status, color: "#888" };
+function applyingLabel(status: string): string {
+  return APPLYING_LABELS[status] ?? status;
 }
 
 // ── Message row ───────────────────────────────────────────────────────────────
 
 function MessageRow({
   msg,
-  isDark,
+  theme,
   onPress,
 }: {
   msg: WilmaMessage;
-  isDark: boolean;
+  theme: Theme;
   onPress: () => void;
 }) {
   const senderLine =
@@ -106,107 +116,86 @@ function MessageRow({
       : msg.senders.map((sender) => sender.name).join(", ") || msg.sender;
   const ts = formatTimestamp(msg.timestamp);
   const full = fullTimestamp(msg.timestamp);
-  const applying = msg.applying ? applyingDisplay(msg.applying.status) : null;
+  const applyingColor =
+    msg.applying?.status === "absent" ? theme.danger : theme.accent;
 
   return (
-    <Pressable
-      style={[
-        styles.row,
-        isDark && { backgroundColor: "#232427", borderBottomColor: "#333" },
-      ]}
-      onPress={onPress}
-      android_ripple={{ color: "#00000010" }}
-    >
-      {/* Left: icon column */}
-      <View style={styles.iconCol}>
-        <MaterialIcons
-          name={msg.isEvent ? "event" : "mail-outline"}
-          size={20}
-          color={isDark ? "#555" : "#ccc"}
-        />
-      </View>
+    <Row style={styles.row} onPress={onPress} chevron={false}>
+      <PlatformSymbol
+        ios={msg.isEvent ? "calendar" : "envelope"}
+        android={msg.isEvent ? "event" : "mail"}
+        size={18}
+        tintColor={theme.textFaint}
+        style={styles.icon}
+      />
 
-      {/* Centre: subject + sender + chips */}
-      <View style={styles.textCol}>
-        <Text
-          style={[
-            styles.subject,
-            !msg.isUnread && styles.subjectRead,
-            isDark && { color: msg.isUnread ? "#fff" : "#d0d0d0" },
-          ]}
+      <View style={styles.text}>
+        <AppText
+          variant="rowTitle"
+          color={msg.isUnread ? "text" : "textSecondary"}
           numberOfLines={1}
         >
           {msg.subject}
-        </Text>
-
-        <Text
-          style={[styles.sender, isDark && { color: "#aaa" }]}
+        </AppText>
+        <AppText
+          variant="meta"
+          color="textMuted"
+          style={styles.sender}
           numberOfLines={1}
         >
           {senderLine}
-        </Text>
-
-        <Text
-          style={[styles.fullTs, isDark && { color: "#666" }]}
+        </AppText>
+        <AppText
+          variant="caption"
+          color="textFaint"
+          style={styles.fullTs}
           numberOfLines={1}
         >
           {full}
-        </Text>
+        </AppText>
 
-        {/* Chip row – only rendered if there's something to show */}
-        {(msg.isEvent || applying || msg.replies > 0) && (
+        {msg.isEvent || msg.applying || msg.replies > 0 ? (
           <View style={styles.chipRow}>
             {msg.isEvent && (
-              <View style={[styles.chip, { backgroundColor: "#51A2FF1F" }]}>
-                <Text style={[styles.chipText, { color: "#3478F5" }]}>
+              <View
+                style={[styles.chip, { backgroundColor: theme.accentTint }]}
+              >
+                <AppText variant="micro" color="accent">
                   Tapahtuma
-                </Text>
+                </AppText>
               </View>
             )}
-            {applying && (
+            {msg.applying && (
               <View
-                style={[
-                  styles.chip,
-                  { backgroundColor: applying.color + "28" },
-                ]}
+                style={[styles.chip, { backgroundColor: theme.accentTint }]}
               >
-                <Text style={[styles.chipText, { color: applying.color }]}>
-                  {applying.label}
-                </Text>
+                <AppText variant="micro" style={{ color: applyingColor }}>
+                  {applyingLabel(msg.applying.status)}
+                </AppText>
               </View>
             )}
             {msg.replies > 0 && (
-              <View
-                style={[
-                  styles.chip,
-                  isDark
-                    ? { backgroundColor: "#333" }
-                    : { backgroundColor: "#f0f0f0" },
-                ]}
-              >
-                <MaterialIcons
-                  name="reply"
+              <View style={[styles.chip, { backgroundColor: theme.border }]}>
+                <PlatformSymbol
+                  ios="arrowshape.turn.up.left"
+                  android="reply"
                   size={10}
-                  color={isDark ? "#888" : "#999"}
-                  style={{ marginRight: 2 }}
+                  tintColor={theme.textMuted}
+                  style={styles.replyIcon}
                 />
-                <Text
-                  style={[
-                    styles.chipText,
-                    isDark ? { color: "#888" } : { color: "#999" },
-                  ]}
-                >
+                <AppText variant="micro" color="textMuted">
                   {msg.replies}
-                </Text>
+                </AppText>
               </View>
             )}
           </View>
-        )}
+        ) : null}
       </View>
 
-      {/* Right: relative timestamp */}
-      <Text style={[styles.relativeTs, isDark && { color: "#666" }]}>{ts}</Text>
-    </Pressable>
+      <AppText variant="caption" color="textFaint" style={styles.relativeTs}>
+        {ts}
+      </AppText>
+    </Row>
   );
 }
 
@@ -214,7 +203,7 @@ function MessageRow({
 
 export default function MessagesScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
 
   const [messages, setMessages] = useState<WilmaMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,8 +216,7 @@ export default function MessagesScreen() {
       if (!isRefresh) setLoading(true);
       setError(null);
       try {
-        const msgs = await fetchMessages(folder, { forceRefresh: isRefresh });
-        setMessages(msgs);
+        setMessages(await fetchMessages(folder, { forceRefresh: isRefresh }));
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Lataus epäonnistui");
       } finally {
@@ -240,295 +228,132 @@ export default function MessagesScreen() {
   );
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    load(true);
+    void load(true);
   }, [load]);
 
+  const [query, setQuery] = useState("");
+  const shown = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase("fi-FI");
+    if (!needle) return messages;
+    return messages.filter((msg) =>
+      [msg.subject, msg.sender, ...msg.senders.map((s) => s.name)].some(
+        (field) => field?.toLocaleLowerCase("fi-FI").includes(needle),
+      ),
+    );
+  }, [messages, query]);
+
+  // A large title with the list as the screen's root, the search field under
+  // it, and the folders in the bar as its scope bar — as the teachers page.
+  const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: folder === FOLDERS[0][0],
+    title: "Viestit",
+    background: "card",
+    searchPlaceholder: "Hae aiheella tai lähettäjällä",
+    onSearch: setQuery,
+    action: {
+      icon: "square.and.pencil",
+      androidIcon: "edit",
+      accessibilityLabel: "Uusi viesti",
+      onPress: () => router.push("/wilma/teachers" as never),
+    },
+  });
+
+  const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(FOLDERS, folder, setFolder);
+
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView
-      style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]}
-      edges={["top"]}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-
-      <View
-        style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
-      >
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
-        ]}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={isDark ? "#51a2ff" : "#3478F5"}
-          />
-        </Pressable>
-        <Text style={[styles.headerTitle, isDark && { color: "#fff" }]}>
-          Viestit
-        </Text>
-        <View style={{ flex: 1 }} />
-        <Pressable
-          onPress={() => router.push("/wilma/teachers" as never)}
-          hitSlop={8}
-        >
-          <MaterialIcons
-            name="edit-square"
-            size={22}
-            color={isDark ? "#51a2ff" : "#3478F5"}
-          />
-        </Pressable>
-        {messages.length > 0 && (
-          <Text style={[styles.headerCount, isDark && { color: "#666" }]}>
-            {messages.length}
-          </Text>
-        )}
-      </View>
-
-      <View
-        style={[
-          styles.folderTabs,
-          isDark && { backgroundColor: "#18191B", borderBottomColor: "#333" },
-        ]}
-      >
-        {(
-          [
-            ["INBOX", "Saapuneet"],
-            ["OUTBOX", "Lähetetyt"],
-            ["APPOINTMENTS", "Kutsut"],
-          ] as const
-        ).map(([value, label]) => {
-          const active = folder === value;
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              style={[styles.folderTab, active && styles.folderTabActive]}
-              onPress={() => setFolder(value)}
-            >
-              <Text
-                style={[
-                  styles.folderTabText,
-                  isDark && { color: "#999" },
-                  active && { color: isDark ? "#51a2ff" : "#3478F5" },
-                ]}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {loading && (
-        <View style={styles.centered}>
-          <ActivityIndicator
-            size="large"
-            color={isDark ? "#51a2ff" : "#3478F5"}
-          />
-        </View>
-      )}
-
-      {!loading && error && (
-        <View style={styles.centered}>
-          <MaterialIcons
-            name="error-outline"
-            size={48}
-            color={isDark ? "#888" : "#ccc"}
-          />
-          <Text style={[styles.errorText, isDark && { color: "#888" }]}>
-            {error}
-          </Text>
-          <Pressable
-            style={[styles.retryBtn, isDark && { backgroundColor: "#232427" }]}
-            onPress={() => load()}
-          >
-            <MaterialIcons
-              name="refresh"
-              size={16}
-              color={isDark ? "#51a2ff" : "#3478F5"}
+    <>
+      <Stack.Screen options={header} />
+      <GestureDetector gesture={swipe}>
+      <FlatList
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        ListHeaderComponent={
+          scopeInBar ? null : (
+            <SegmentedControl
+              value={folder}
+              onChange={setFolder}
+              options={FOLDERS}
             />
-            <Text style={[styles.retryText, isDark && { color: "#51a2ff" }]}>
-              Yritä uudelleen
-            </Text>
-          </Pressable>
-        </View>
-      )}
-
-      {!loading && !error && messages.length === 0 && (
-        <View style={styles.centered}>
-          <MaterialIcons
-            name="mail-outline"
-            size={52}
-            color={isDark ? "#444" : "#ddd"}
+          )
+        }
+        data={loading || error ? [] : shown}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.accent}
           />
-          <Text style={[styles.emptyText, isDark && { color: "#666" }]}>
-            Ei viestejä
-          </Text>
-        </View>
-      )}
-
-      {!loading && !error && messages.length > 0 && (
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => String(item.id)}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={isDark ? "#51a2ff" : "#3478F5"}
+        }
+        ListEmptyComponent={
+          loading ? (
+            <StateView loading />
+          ) : error ? (
+            <StateView
+              icon="error-outline"
+              message={error}
+              actionLabel="Yritä uudelleen"
+              onAction={() => void load()}
             />
-          }
-          renderItem={({ item }) => (
-            <MessageRow
-              msg={item}
-              isDark={isDark}
-              onPress={() =>
-                router.push({
-                  pathname: "/wilma/message",
-                  params: {
-                    id: String(item.id),
-                    subject: item.subject,
-                    sender: item.senders[0]?.name ?? item.sender,
-                  },
-                })
+          ) : (
+            <StateView
+              icon={query.trim() ? "search-off" : "mail-outline"}
+              message={
+                query.trim()
+                  ? `Ei tuloksia haulle ”${query.trim()}”.`
+                  : "Ei viestejä"
               }
             />
-          )}
-          contentContainerStyle={[
-            styles.listContent,
-            isDark && { backgroundColor: "#18191B" },
-          ]}
-          style={[styles.list, isDark && { backgroundColor: "#18191B" }]}
-        />
-      )}
-      </View>
-    </SafeAreaView>
+          )
+        }
+        renderItem={({ item }) => (
+          <MessageRow
+            msg={item}
+            theme={theme}
+            onPress={() =>
+              router.push({
+                pathname: "/wilma/message",
+                params: {
+                  id: String(item.id),
+                  subject: item.subject,
+                  sender: item.senders[0]?.name ?? item.sender,
+                },
+              })
+            }
+          />
+        )}
+      />
+      </GestureDetector>
+      {/* After the list, not before: UIKit attaches the large title, search
+          field and scroll-edge effect to the first scroll view in the
+          screen, and this view draws nothing but would be first. */}
+      {scopeInBar ? (
+        <SearchScopeBar value={folder} onChange={setFolder} options={FOLDERS} />
+      ) : null}
+    </>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    padding: 32,
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fff",
-    gap: 12,
-  },
-  headerTitle: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 17,
-    color: "#222",
-  },
-  headerCount: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#aaa",
-  },
-  folderTabs: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e4e7ec",
-    paddingHorizontal: 12,
-  },
-  folderTab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 11,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  folderTabActive: { borderBottomColor: "#3478F5" },
-  folderTabText: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 13,
-    color: "#666",
-  },
-
-  list: { flex: 1, backgroundColor: "#fff" },
-  listContent: { backgroundColor: "#fff" },
-
-  // Message row
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#eee",
-    gap: 10,
-  },
-  iconCol: {
-    paddingTop: 2,
-    width: 24,
-    alignItems: "center",
-  },
-  textCol: { flex: 1 },
-  subject: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 15,
-    color: "#222",
-  },
-  subjectRead: { fontFamily: "Figtree-Medium" },
-  sender: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    color: "#888",
-    marginTop: 2,
-  },
-  fullTs: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 11,
-    color: "#AAA",
-    marginTop: 2,
-  },
-  relativeTs: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 12,
-    color: "#aaa",
-    paddingTop: 2,
-    minWidth: 36,
-    textAlign: "right",
-  },
-
-  // Chips
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 6,
-  },
+  content: { flexGrow: 1 },
+  row: { alignItems: "flex-start" },
+  icon: { marginTop: 2 },
+  text: { flex: 1 },
+  sender: { marginTop: 2 },
+  fullTs: { marginTop: 2 },
+  relativeTs: { paddingTop: 2 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -536,37 +361,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  chipText: {
-    fontFamily: "Figtree-Medium",
-    fontSize: 11,
-  },
-
-  // Error / empty
-  errorText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#aaa",
-    textAlign: "center",
-  },
-  retryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#f0f4ff",
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    marginTop: 4,
-  },
-  retryText: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 14,
-    color: "#3478F5",
-  },
-  emptyText: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
-    color: "#AAA",
-    textAlign: "center",
-  },
+  replyIcon: { marginRight: 2 },
 });

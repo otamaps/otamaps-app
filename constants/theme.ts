@@ -45,8 +45,8 @@ export const colors = {
   placeholder: "#AAA",
   placeholderDark: "#777",
 
-  /** Page background behind the cards. */
-  bg: "#f5f5f5",
+  /** Page background behind the cards — iOS's own grouped-content grey. */
+  bg: "#F2F2F6",
   bgDark: "#18191B",
   /**
    * The page background for a full-bleed screen — one whose rows run edge to
@@ -94,7 +94,7 @@ export const sheet = {
   textSecondary: "#657080",
   textSecondaryDark: "#AEB4BE",
   /** Corner radius of the sheet itself, not of the cards inside it. */
-  radius: 16,
+  radius: 21,
 } as const;
 
 export const radii = {
@@ -103,6 +103,25 @@ export const radii = {
   lg: 12,
   xl: 16,
   pill: 999,
+} as const;
+
+/**
+ * Fills for the rounded glyph at the head of a settings row.
+ *
+ * One value each rather than a light/dark pair: iOS holds these steady
+ * across both schemes and puts a white glyph on them, so the tile stays
+ * recognisable as the same thing in either.
+ *
+ * These are the system's own values, which is what makes the pattern read:
+ * iOS picks them bright and fully saturated, not the muted end of a ramp.
+ * The schedule's lunch chip is a pale `#FEF3C7` for the opposite reason —
+ * dark text sits on it, where a tile carries a white glyph.
+ */
+export const tint = {
+  /** Lunch. systemOrange, the warm end of the schedule's amber. */
+  lunch: "#FF9500",
+  /** Queue and canteen state. systemMint. */
+  queue: "#00C7BE",
 } as const;
 
 /**

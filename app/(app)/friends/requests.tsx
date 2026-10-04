@@ -13,6 +13,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const RequestsScreen = () => {
   const [user, setUser] = useState<any>(null);
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
   },
   requestName: {
     fontSize: 20,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginBottom: 4,
   },
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
   },
   acceptButtonText: {
     fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#fff",
     textAlign: "center",
   },
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
   },
   noRequestsText: {
     fontSize: 22,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#444",
     marginBottom: 12,
   },

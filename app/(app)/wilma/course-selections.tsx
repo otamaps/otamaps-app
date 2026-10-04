@@ -1,4 +1,19 @@
 import {
+  AppText,
+  Row,
+  RowIcon,
+  SegmentedControl,
+  StateView,
+  Surface,
+  useNativeHeader,
+  useTheme,
+  type Theme,
+  useSelectorSwipe,
+} from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { radii } from "@/constants/theme";
+import {
   fetchCourseTray,
   fetchCourseTrays,
   fetchSelectedCourses,
@@ -8,31 +23,72 @@ import {
 } from "@/lib/wilma/graphqlClient";
 import {
   findCurrentCourseTray,
-  groupCoursesByPeriod,
+  groupCoursesByPeriodParts,
+  isOtherSchoolTray,
 } from "@/lib/wilma/courseSelectionGrouping";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { scopeBarIn, SearchScopeBar } from "@/modules/search-scope-bar";
+import { Stack } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
 type Tab = "SELECTED" | "TRAYS";
 
+const TABS = [
+  ["SELECTED", "Omat valinnat"],
+  ["TRAYS", "Tarjottimet"],
+] as const;
+
 export default function WilmaCourseSelectionsScreen() {
-  const router = useRouter();
-  const isDark = useColorScheme() === "dark";
+  const theme = useTheme();
   const [tab, setTab] = useState<Tab>("SELECTED");
   const [selected, setSelected] = useState<WilmaSelectedCourse[]>([]);
   const [trays, setTrays] = useState<WilmaCourseTray[]>([]);
   const [expandedTrayId, setExpandedTrayId] = useState<string | null>(null);
-  const [trayDetails, setTrayDetails] = useState<Record<string, WilmaCourseTrayDetail>>({});
-  const [trayDetailLoading, setTrayDetailLoading] = useState<string | null>(null);
-  const [trayDetailError, setTrayDetailError] = useState<Record<string, string>>({});
-  const [expandedPeriods, setExpandedPeriods] = useState<Record<string, boolean>>({});
+  const [trayDetails, setTrayDetails] = useState<
+    Record<string, WilmaCourseTrayDetail>
+  >({});
+  const [trayDetailLoading, setTrayDetailLoading] = useState<string | null>(
+    null,
+  );
+  const [trayDetailError, setTrayDetailError] = useState<
+    Record<string, string>
+  >({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const selectedGroups = useMemo(() => groupCoursesByPeriod(selected), [selected]);
+  const [query, setQuery] = useState("");
+  const [showOtherSchools, setShowOtherSchools] = useState(false);
+  const needle = query.trim().toLocaleLowerCase("fi-FI");
+  const selectedGroups = useMemo(() => {
+    const shown = needle
+      ? selected.filter((course) =>
+          [course.groupCode, course.tray].some((field) =>
+            field.toLocaleLowerCase("fi-FI").includes(needle),
+          ),
+        )
+      : selected;
+    return groupCoursesByPeriodParts(shown);
+  }, [selected, needle]);
+  const shownTrays = useMemo(
+    () =>
+      needle
+        ? trays.filter((tray) =>
+            [tray.name, tray.category].some((field) =>
+              field.toLocaleLowerCase("fi-FI").includes(needle),
+            ),
+          )
+        : trays,
+    [trays, needle],
+  );
+  // B parts start hidden; a period's key is here once its B part is opened.
+  const [shownB, setShownB] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async (refresh = false) => {
     setError(null);
@@ -48,19 +104,20 @@ export default function WilmaCourseSelectionsScreen() {
         setTrayDetails({});
         setTrayDetailError({});
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Kurssivalintojen lataaminen epäonnistui."); }
-    finally { setLoading(false); setRefreshing(false); }
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Kurssivalintojen lataaminen epäonnistui.",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
-  useEffect(() => { void load(); }, [load]);
-
   useEffect(() => {
-    if (!selectedGroups.length) return;
-    setExpandedPeriods((current) =>
-      Object.keys(current).length
-        ? current
-        : { [selectedGroups[0].key]: true }
-    );
-  }, [selectedGroups]);
+    void load();
+  }, [load]);
 
   const loadTrayDetail = useCallback(async (tray: WilmaCourseTray) => {
     let targetId = tray.id;
@@ -72,7 +129,7 @@ export default function WilmaCourseSelectionsScreen() {
       const currentTray = findCurrentCourseTray(tray, currentTrays);
       if (!currentTray) {
         throw new Error(
-          "Kurssitarjotin ei ole enää saatavilla. Päivitä näkymä ja yritä uudelleen."
+          "Kurssitarjotin ei ole enää saatavilla. Päivitä näkymä ja yritä uudelleen.",
         );
       }
 
@@ -85,196 +142,480 @@ export default function WilmaCourseSelectionsScreen() {
     } catch (cause) {
       setTrayDetailError((current) => ({
         ...current,
-        [targetId]: cause instanceof Error
-          ? cause.message
-          : "Kurssitarjottimen sisältöä ei voitu ladata.",
+        [targetId]:
+          cause instanceof Error
+            ? cause.message
+            : "Kurssitarjottimen sisältöä ei voitu ladata.",
       }));
     } finally {
       setTrayDetailLoading(null);
     }
   }, []);
 
-  const toggleTray = useCallback(async (tray: WilmaCourseTray) => {
-    if (expandedTrayId === tray.id) {
-      setExpandedTrayId(null);
-      return;
-    }
+  const toggleTray = useCallback(
+    async (tray: WilmaCourseTray) => {
+      if (expandedTrayId === tray.id) {
+        setExpandedTrayId(null);
+        return;
+      }
 
-    setExpandedTrayId(tray.id);
-    if (trayDetails[tray.id] || trayDetailLoading === tray.id) return;
-    await loadTrayDetail(tray);
-  }, [expandedTrayId, loadTrayDetail, trayDetails, trayDetailLoading]);
+      setExpandedTrayId(tray.id);
+      if (trayDetails[tray.id] || trayDetailLoading === tray.id) return;
+      await loadTrayDetail(tray);
+    },
+    [expandedTrayId, loadTrayDetail, trayDetails, trayDetailLoading],
+  );
+
+  // A large title, with the list as the screen's root so UIKit can collapse
+  // it — and give the bar the soft scroll edge only large titles get.
+  // …and the search field under the title, with the selector in the bar as
+  // its scope bar, as the teachers page.
+  const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: tab === TABS[0][0],
+    title: "Kurssivalinnat",
+    background: "page",
+    searchPlaceholder: "Hae kurssikoodilla tai nimellä",
+    onSearch: setQuery,
+  });
+  const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(TABS, tab, setTab);
+
+  // Other schools' trays wait behind a disclosure, opened by default only
+  // while searching, so a match there is never hidden.
+  const ownTrays = shownTrays.filter((tray) => !isOtherSchoolTray(tray));
+  const otherTrays = shownTrays.filter(isOtherSchoolTray);
+  const othersShown = showOtherSchools || !!needle;
+
+  const renderTray = (tray: WilmaCourseTray) => {
+    const expanded = expandedTrayId === tray.id;
+    const detail = trayDetails[tray.id];
+    return (
+      <Surface key={tray.id} style={styles.group}>
+        <Row onPress={() => void toggleTray(tray)} chevron={false}>
+          <RowIcon
+            ios={tray.closed ? "lock.fill" : "square.grid.2x2.fill"}
+            android={tray.closed ? "lock" : "view_week"}
+            color={tray.closed ? theme.textFaint : theme.accent}
+          />
+          <View style={styles.flex1}>
+            <AppText variant="body">{tray.name}</AppText>
+            <AppText variant="meta" color="textMuted" style={styles.meta}>
+              {tray.category} · {tray.status}
+            </AppText>
+          </View>
+          <PlatformSymbol
+            ios={expanded ? "chevron.up" : "chevron.down"}
+            android={expanded ? "expand_less" : "expand_more"}
+            size={13}
+            weight="semibold"
+            tintColor={theme.textFaint}
+          />
+        </Row>
+        {expanded
+          ? trayDetailLoading === tray.id
+            ? [
+                <View key="loading" style={styles.detailState}>
+                  <ActivityIndicator color={theme.accent} />
+                </View>,
+              ]
+            : trayDetailError[tray.id]
+              ? [
+                  <View key="error" style={styles.detailState}>
+                    <AppText
+                      variant="bodySmall"
+                      color="textMuted"
+                      style={styles.centeredText}
+                    >
+                      {trayDetailError[tray.id]}
+                    </AppText>
+                    <Pressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => void loadTrayDetail(tray)}
+                    >
+                      <AppText variant="body" color="accent">
+                        Yritä uudelleen
+                      </AppText>
+                    </Pressable>
+                  </View>,
+                ]
+              : detail?.bars.length
+                ? detail.bars.flatMap((bar, barIndex) => [
+                    <AppText
+                      key={`${tray.id}-bar-${barIndex}`}
+                      variant="micro"
+                      color="textMuted"
+                      style={styles.barHeading}
+                    >
+                      {bar.name.toLocaleUpperCase("fi-FI")}
+                    </AppText>,
+                    ...bar.courses.map((course) => (
+                      <Row
+                        key={course.id}
+                        chevron={false}
+                        style={styles.courseRow}
+                      >
+                        <CodeChip
+                          label={course.code}
+                          theme={theme}
+                          selected={course.selected}
+                        />
+                        <View style={styles.flex1}>
+                          <AppText variant="body">{course.name}</AppText>
+                          {!!course.teacher && (
+                            <AppText
+                              variant="meta"
+                              color="textMuted"
+                              style={styles.meta}
+                            >
+                              {course.teacher}
+                            </AppText>
+                          )}
+                          {course.selected ||
+                          course.locked ||
+                          course.full ||
+                          course.completed ? (
+                            <View style={styles.badges}>
+                              {course.selected && (
+                                <Badge label="Valittu" accent theme={theme} />
+                              )}
+                              {course.locked && (
+                                <Badge label="Lukittu" theme={theme} />
+                              )}
+                              {course.full && (
+                                <Badge label="Täynnä" theme={theme} />
+                              )}
+                              {course.completed && (
+                                <Badge
+                                  label={`Suoritettu${course.grade ? ` · ${course.grade}` : ""}`}
+                                  theme={theme}
+                                />
+                              )}
+                            </View>
+                          ) : null}
+                        </View>
+                      </Row>
+                    )),
+                  ])
+                : [
+                    <AppText
+                      key="empty"
+                      variant="bodySmall"
+                      color="textMuted"
+                      style={[styles.centeredText, styles.detailState]}
+                    >
+                      Tarjottimelta ei löytynyt kursseja.
+                    </AppText>,
+                  ]
+          : null}
+      </Surface>
+    );
+  };
 
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
-      <View style={[styles.container, isDark && styles.containerDark]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, isDark && styles.borderDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}><MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} /></Pressable>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]}>Kurssivalinnat</Text>
-      </View>
-      <View style={[styles.tabs, isDark && styles.borderDark]}>
-        {([["SELECTED", "Omat valinnat"], ["TRAYS", "Tarjottimet"]] as const).map(([value, label]) => (
-          <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} style={[styles.tab, tab === value && styles.tabActive]} onPress={() => setTab(value)}>
-            <Text style={[styles.tabText, isDark && styles.textMuted, tab === value && styles.tabTextActive]}>{label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {loading ? <View style={styles.centered}><ActivityIndicator size="large" color="#3478F5" /></View>
-      : error ? <View style={styles.centered}><Text style={styles.empty}>{error}</Text><Pressable style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Yritä uudelleen</Text></Pressable></View>
-      : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor="#3478F5" />}>
-          <View style={[styles.notice, isDark && styles.noticeDark]}><MaterialIcons name="lock-outline" size={18} color="#3478F5" /><Text style={[styles.noticeText, isDark && styles.textMuted]}>Tämä näkymä on vain luku -tilassa. Kurssivalintoja ei muuteta.</Text></View>
-          {tab === "SELECTED" ? (selectedGroups.length ? selectedGroups.map((group) => {
-            const expanded = expandedPeriods[group.key] ?? false;
-            return (
-              <View key={group.key} style={[styles.trayCard, isDark && styles.cardDark]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded }}
-                  style={styles.periodHeader}
-                  onPress={() =>
-                    setExpandedPeriods((current) => ({
-                      ...current,
-                      [group.key]: !expanded,
-                    }))
+    <>
+      <Stack.Screen options={header} />
+      <GestureDetector gesture={swipe}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load(true);
+            }}
+            tintColor={theme.accent}
+          />
+        }
+      >
+        {scopeInBar ? null : (
+          <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+        )}
+        {/* A footnote, not a banner: it qualifies the page, it isn't news. */}
+        <View style={styles.readOnly}>
+          <PlatformSymbol
+            ios="lock.fill"
+            android="lock"
+            size={11}
+            tintColor={theme.textMuted}
+          />
+          <AppText variant="meta" color="textMuted" style={styles.flex1}>
+            Vain luku -tila. Kurssivalintoja ei muuteta.
+          </AppText>
+        </View>
+
+        {loading ? (
+          <StateView loading />
+        ) : error ? (
+          <StateView
+            icon="error-outline"
+            message={error}
+            actionLabel="Yritä uudelleen"
+            onAction={() => void load()}
+          />
+        ) : tab === "SELECTED" ? (
+          selectedGroups.length ? (
+            selectedGroups.map((group) => {
+              const bShown = shownB[group.key] ?? false;
+              return (
+                <Surface
+                  key={group.key}
+                  title={
+                    /^\d+$/.test(group.label)
+                      ? `Jakso ${group.label}`
+                      : group.label
                   }
+                  style={styles.group}
                 >
-                  <View style={styles.periodBadge}>
-                    <Text style={styles.periodBadgeText}>{group.label}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, isDark && styles.textLight]}>
-                      Jakso {group.label}
-                    </Text>
-                    <Text style={styles.meta}>
-                      {group.courses.length} {group.courses.length === 1 ? "valinta" : "valintaa"}
-                    </Text>
-                  </View>
-                  <MaterialIcons
-                    name={expanded ? "expand-less" : "expand-more"}
-                    size={22}
-                    color={isDark ? "#aaa" : "#667085"}
-                  />
-                </Pressable>
-                {expanded && (
-                  <View style={[styles.periodContents, isDark && styles.trayContentsDark]}>
-                    {group.courses.map((course) => (
-                      <View
-                        key={`${course.tray}-${course.period}-${course.groupCode}`}
-                        style={[styles.selectedCourseRow, isDark && styles.courseRowDark]}
+                  {group.a.map((course) => (
+                    <SelectedCourseRow
+                      key={courseKey(course)}
+                      course={course}
+                      theme={theme}
+                    />
+                  ))}
+                  {/* The B part waits behind a row of its own, as a
+                      disclosure: the A part is what's on now. */}
+                  {group.b.length ? (
+                    <Row
+                      onPress={() =>
+                        setShownB((current) => ({
+                          ...current,
+                          [group.key]: !bShown,
+                        }))
+                      }
+                      chevron={false}
+                      accessibilityLabel={`${bShown ? "Piilota" : "Näytä"} B-osa`}
+                    >
+                      <AppText
+                        variant="meta"
+                        color="textMuted"
+                        style={styles.flex1}
                       >
-                        <View style={styles.codeChip}>
-                          <Text style={styles.codeText}>{course.groupCode}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.cardTitle, isDark && styles.textLight]}>
-                            {course.tray}
-                          </Text>
-                          {!!course.bar && <Text style={styles.meta}>Palkki {course.bar}</Text>}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          }) : <Text style={styles.empty}>Valittuja kursseja ei löytynyt.</Text>)
-          : (trays.length ? trays.map((tray) => {
-            const expanded = expandedTrayId === tray.id;
-            const detail = trayDetails[tray.id];
-            return (
-              <View key={tray.id} style={[styles.trayCard, isDark && styles.cardDark]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded }}
-                  style={styles.trayHeader}
-                  onPress={() => void toggleTray(tray)}
+                        B-osa · {group.b.length}{" "}
+                        {group.b.length === 1 ? "valinta" : "valintaa"}
+                      </AppText>
+                      <PlatformSymbol
+                        ios={bShown ? "chevron.up" : "chevron.down"}
+                        android={bShown ? "expand_less" : "expand_more"}
+                        size={11}
+                        weight="semibold"
+                        tintColor={theme.textFaint}
+                      />
+                    </Row>
+                  ) : null}
+                  {bShown
+                    ? group.b.map((course) => (
+                        <SelectedCourseRow
+                          key={courseKey(course)}
+                          course={course}
+                          theme={theme}
+                          secondary
+                        />
+                      ))
+                    : null}
+                </Surface>
+              );
+            })
+          ) : (
+            <StateView
+              icon={needle ? "search-off" : "inbox"}
+              message={
+                needle
+                  ? `Ei tuloksia haulle ”${query.trim()}”.`
+                  : "Valittuja kursseja ei löytynyt."
+              }
+            />
+          )
+        ) : shownTrays.length ? (
+          <>
+            {ownTrays.map(renderTray)}
+            {/* Other schools' trays, tucked behind one quiet row: they are
+                listed by Wilma but rarely what the student is looking for. */}
+            {otherTrays.length ? (
+              <Surface style={styles.group}>
+                <Row
+                  onPress={() => setShowOtherSchools((shown) => !shown)}
+                  chevron={false}
+                  accessibilityLabel={`${othersShown ? "Piilota" : "Näytä"} muiden koulujen tarjottimet`}
                 >
-                  <MaterialIcons name={tray.closed ? "event-busy" : "view-week"} size={22} color={tray.closed ? "#8a94a6" : "#3478F5"} />
-                  <View style={{ flex: 1 }}><Text style={[styles.cardTitle, isDark && styles.textLight]}>{tray.name}</Text><Text style={styles.meta}>{tray.category} · {tray.status}</Text></View>
-                  <MaterialIcons name={expanded ? "expand-less" : "expand-more"} size={22} color={isDark ? "#aaa" : "#667085"} />
-                </Pressable>
-                {expanded && (
-                  <View style={[styles.trayContents, isDark && styles.trayContentsDark]}>
-                    {trayDetailLoading === tray.id ? (
-                      <ActivityIndicator color="#3478F5" style={styles.detailLoader} />
-                    ) : trayDetailError[tray.id] ? (
-                      <View style={styles.detailError}>
-                        <Text style={styles.empty}>{trayDetailError[tray.id]}</Text>
-                        <Pressable
-                          style={styles.retry}
-                          onPress={() => void loadTrayDetail(tray)}
-                        >
-                          <Text style={styles.retryText}>Yritä uudelleen</Text>
-                        </Pressable>
-                      </View>
-                    ) : detail?.bars.length ? detail.bars.map((bar, barIndex) => (
-                      <View key={`${tray.id}-${bar.name}-${barIndex}`} style={styles.trayBar}>
-                        <Text style={[styles.barTitle, isDark && styles.textLight]}>{bar.name}</Text>
-                        {bar.courses.map((course) => (
-                          <View key={course.id} style={[styles.courseRow, isDark && styles.courseRowDark]}>
-                            <View style={[styles.codeChip, course.selected && styles.selectedCodeChip]}>
-                              <Text style={[styles.codeText, course.selected && styles.selectedCodeText]}>{course.code}</Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.courseName, isDark && styles.textLight]}>{course.name}</Text>
-                              {!!course.teacher && <Text style={styles.meta}>{course.teacher}</Text>}
-                              <View style={styles.courseBadges}>
-                                {course.selected && <Text style={styles.selectedBadge}>Valittu</Text>}
-                                {course.locked && <Text style={styles.mutedBadge}>Lukittu</Text>}
-                                {course.full && <Text style={styles.mutedBadge}>Täynnä</Text>}
-                                {course.completed && <Text style={styles.mutedBadge}>Suoritettu{course.grade ? ` · ${course.grade}` : ""}</Text>}
-                              </View>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    )) : (
-                      <Text style={styles.empty}>Tarjottimelta ei löytynyt kursseja.</Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          }) : <Text style={styles.empty}>Kurssitarjottimia ei löytynyt.</Text>)}
-        </ScrollView>}
+                  <AppText
+                    variant="meta"
+                    color="textMuted"
+                    style={styles.flex1}
+                  >
+                    Muiden koulujen tarjottimet · {otherTrays.length}
+                  </AppText>
+                  <PlatformSymbol
+                    ios={othersShown ? "chevron.up" : "chevron.down"}
+                    android={othersShown ? "expand_less" : "expand_more"}
+                    size={11}
+                    weight="semibold"
+                    tintColor={theme.textFaint}
+                  />
+                </Row>
+              </Surface>
+            ) : null}
+            {othersShown ? otherTrays.map(renderTray) : null}
+          </>
+        ) : (
+          <StateView
+            icon={needle ? "search-off" : "inbox"}
+            message={
+              needle
+                ? `Ei tuloksia haulle ”${query.trim()}”.`
+                : "Kurssitarjottimia ei löytynyt."
+            }
+          />
+        )}
+      </ScrollView>
+      </GestureDetector>
+      {/* After the list, not before: UIKit attaches the large title, search
+          field and scroll-edge effect to the first scroll view in the
+          screen, and this view draws nothing but would be first. */}
+      {scopeInBar ? (
+        <SearchScopeBar value={tab} onChange={setTab} options={TABS} />
+      ) : null}
+    </>
+  );
+}
+
+function courseKey(course: WilmaSelectedCourse): string {
+  return `${course.tray}-${course.period}-${course.groupCode}`;
+}
+
+/**
+ * One of the student's own courses, led by its bar ("palkki") — the slot in
+ * the timetable it takes — then its course code, with the tray's name below.
+ */
+function SelectedCourseRow({
+  course,
+  theme,
+  secondary,
+}: {
+  course: WilmaSelectedCourse;
+  theme: Theme;
+  /** A B-part course: grey and quieter, behind the A part it follows. */
+  secondary?: boolean;
+}) {
+  return (
+    <Row chevron={false}>
+      <CodeChip label={course.bar || "–"} theme={theme} muted={secondary} />
+      <View style={styles.flex1}>
+        <AppText
+          variant="body"
+          color={secondary ? "textSecondary" : "text"}
+          numberOfLines={1}
+        >
+          {course.groupCode}
+        </AppText>
+        <AppText
+          variant="meta"
+          color="textMuted"
+          style={styles.meta}
+          numberOfLines={2}
+        >
+          {course.tray}
+        </AppText>
       </View>
-    </SafeAreaView>
+    </Row>
+  );
+}
+
+/** A course code as a capsule; filled when it is one of the student's own. */
+function CodeChip({
+  label,
+  theme,
+  selected,
+  muted,
+}: {
+  label: string;
+  theme: Theme;
+  selected?: boolean;
+  /** Grey instead of the accent, for something secondary. */
+  muted?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.codeChip,
+        {
+          backgroundColor: selected
+            ? theme.accent
+            : muted
+              ? theme.border
+              : theme.accentTint,
+        },
+      ]}
+    >
+      <AppText
+        variant="micro"
+        color={muted ? "textMuted" : "accent"}
+        style={selected ? styles.codeChipTextSelected : undefined}
+      >
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+function Badge({
+  label,
+  theme,
+  accent,
+}: {
+  label: string;
+  theme: Theme;
+  accent?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: accent ? theme.accentTint : theme.border },
+      ]}
+    >
+      <AppText variant="micro" color={accent ? "accent" : "textMuted"}>
+        {label}
+      </AppText>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" }, containerDark: { backgroundColor: "#18191B" }, header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" }, borderDark: { backgroundColor: "#18191B", borderBottomColor: "#333" }, tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd", paddingHorizontal: 12 },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" }, tabActive: { borderBottomColor: "#3478F5" }, tabText: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#666" }, tabTextActive: { color: "#3478F5" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 }, content: { padding: 16, gap: 10 }, notice: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#eaf1ff", borderRadius: 12, padding: 12, marginBottom: 4 }, noticeDark: { backgroundColor: "#233047" }, noticeText: { flex: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#4b6282" },
-  cardDark: { backgroundColor: "#232427" }, codeChip: { backgroundColor: "#eaf1ff", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, codeText: { fontFamily: "Figtree-SemiBold", fontSize: 12, color: "#3478F5" }, cardTitle: { fontFamily: "Figtree-SemiBold", fontSize: 14, color: "#222" }, meta: { fontFamily: "Figtree-Regular", fontSize: 12, color: "#8a94a6", marginTop: 3 },
-  trayCard: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
-  trayHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  periodHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  periodBadge: { alignItems: "center", backgroundColor: "#3478F5", borderRadius: 9, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 8 },
-  periodBadgeText: { color: "#fff", fontFamily: "Figtree-Bold", fontSize: 14 },
-  periodContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", gap: 8, padding: 10 },
-  selectedCourseRow: { alignItems: "flex-start", backgroundColor: "#f7f9fc", borderRadius: 10, flexDirection: "row", gap: 10, padding: 10 },
-  trayContents: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e3e7ee", padding: 12, gap: 14 },
-  trayContentsDark: { borderTopColor: "#444" },
-  trayBar: { gap: 7 },
-  barTitle: { fontFamily: "Figtree-SemiBold", fontSize: 13, color: "#222" },
-  courseRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#f7f9fc", borderRadius: 10, padding: 10 },
-  courseRowDark: { backgroundColor: "#333" },
-  courseName: { fontFamily: "Figtree-Medium", fontSize: 13, color: "#222" },
-  selectedCodeChip: { backgroundColor: "#3478F5" },
-  selectedCodeText: { color: "#fff" },
-  courseBadges: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 5 },
-  selectedBadge: { fontFamily: "Figtree-SemiBold", fontSize: 10, color: "#3478F5", backgroundColor: "#eaf1ff", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  mutedBadge: { fontFamily: "Figtree-Medium", fontSize: 10, color: "#666", backgroundColor: "#e9edf3", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  detailLoader: { marginVertical: 18 },
-  detailError: { alignItems: "center", gap: 10, paddingVertical: 8 },
-  empty: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" }, retry: { backgroundColor: "#eaf1ff", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { fontFamily: "Figtree-SemiBold", color: "#3478F5" }, textLight: { color: "#fff" }, textMuted: { color: "#aaa" },
+  content: { flexGrow: 1, paddingBottom: 40 },
+  flex1: { flex: 1 },
+  readOnly: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: 20,
+    marginTop: 2,
+  },
+  group: { borderRadius: radii.xl },
+  meta: { marginTop: 2 },
+  // A bar's name inside its tray's group, as a small sub-heading.
+  barHeading: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
+  courseRow: { alignItems: "flex-start" },
+  codeChip: {
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 1,
+  },
+  codeChipTextSelected: { color: "#fff" },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 6 },
+  badge: { borderRadius: radii.pill, paddingHorizontal: 7, paddingVertical: 2 },
+  detailState: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  centeredText: { textAlign: "center" },
 });

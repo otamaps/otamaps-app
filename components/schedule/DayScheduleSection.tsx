@@ -1,5 +1,6 @@
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
+import { LunchPill } from "@/components/schedule/LunchPill";
 import {
   addMinutesClock,
   clockMinutes,
@@ -13,6 +14,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 export type DayScheduleEntry = {
   id: string;
@@ -216,27 +218,11 @@ export default function DayScheduleSection({
                       </Text>
                     )}
                     {!!entry.lunch && (
-                      <View
-                        style={[
-                          styles.lunchChip,
-                          isDark && styles.lunchChipDark,
-                        ]}
-                      >
-                        <PlatformSymbol
-                          ios="fork.knife"
-                          android="restaurant"
-                          size={11}
-                          tintColor={isDark ? "#FBBF24" : "#B45309"}
-                        />
-                        <Text
-                          style={[
-                            styles.lunchChipText,
-                            isDark && styles.lunchChipTextDark,
-                          ]}
-                        >
-                          Lounas {entry.lunch.start}–{entry.lunch.end}
-                        </Text>
-                      </View>
+                      <LunchPill
+                        start={entry.lunch.start}
+                        end={entry.lunch.end}
+                        isDark={isDark}
+                      />
                     )}
                   </View>
                 </View>
@@ -265,12 +251,12 @@ const styles = StyleSheet.create({
   sectionHeader: { marginTop: 24, marginBottom: 12 },
   sectionTitle: {
     color: "#222",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 17,
   },
   sectionCaption: {
     color: "#888",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     marginTop: 2,
   },
@@ -286,7 +272,7 @@ const styles = StyleSheet.create({
   stateText: {
     flexShrink: 1,
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 14,
     textAlign: "center",
   },
@@ -298,7 +284,7 @@ const styles = StyleSheet.create({
   },
   dayTitle: {
     color: "#222",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 15,
     marginBottom: 8,
   },
@@ -316,7 +302,7 @@ const styles = StyleSheet.create({
   noticeText: {
     flex: 1,
     color: "#B45309",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 12,
     lineHeight: 16,
   },
@@ -336,19 +322,19 @@ const styles = StyleSheet.create({
   lessonTime: {
     width: 92,
     color: "#666",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 13,
   },
-  lessonTimeCurrent: { color: "#3478F5", fontFamily: "Figtree-SemiBold" },
+  lessonTimeCurrent: { color: "#3478F5", ...fonts.semiBold },
   lessonDetails: { flex: 1 },
   lessonTitle: {
     color: "#222",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 14,
   },
   freeSlotTitle: {
     color: "#888",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontStyle: "italic",
     fontSize: 14,
   },
@@ -356,34 +342,16 @@ const styles = StyleSheet.create({
   pastOpacity: { opacity: 0.5 },
   lessonSubtitle: {
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     marginTop: 1,
   },
   lessonDetail: {
     color: "#888",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 12,
     marginTop: 3,
   },
-  lunchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 5,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 5,
-  },
-  lunchChipDark: { backgroundColor: "#78350F55" },
-  lunchChipText: {
-    color: "#B45309",
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 12,
-  },
-  lunchChipTextDark: { color: "#FBBF24" },
   emptyRow: {
     flexDirection: "row",
     alignItems: "center",

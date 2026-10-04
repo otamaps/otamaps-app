@@ -1,10 +1,9 @@
+import { StateView, useNativeHeader, useTheme } from "@/components/ui";
 import { fetchNewsItem, WilmaNewsDetail } from "@/lib/wilma/graphqlClient";
 import { openExternalUrl } from "@/lib/openExternalUrl";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 function documentHtml(body: string, isDark: boolean): string {
@@ -19,9 +18,8 @@ function documentHtml(body: string, isDark: boolean): string {
 }
 
 export default function WilmaNewsItemScreen() {
-  const router = useRouter();
+  const theme = useTheme();
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
-  const isDark = useColorScheme() === "dark";
   const [detail, setDetail] = useState<WilmaNewsDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,64 +31,51 @@ export default function WilmaNewsItemScreen() {
     }
     fetchNewsItem(numericId)
       .then(setDetail)
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Tiedotteen lataaminen epäonnistui."));
+      .catch((cause) =>
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Tiedotteen lataaminen epäonnistui.",
+        ),
+      );
   }, [id]);
 
+  const header = useNativeHeader({
+    title: detail?.title ?? title ?? "Tiedote",
+    background: "flat",
+    large: false,
+  });
+
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
-      <View style={[styles.container, isDark && styles.containerDark]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={24} color={isDark ? "#51a2ff" : "#3478F5"} />
-        </Pressable>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]} numberOfLines={2}>
-          {detail?.title ?? title ?? "Tiedote"}
-        </Text>
+    <>
+      <Stack.Screen options={header} />
+      <View style={styles.body}>
+        {!detail && !error ? (
+          <StateView loading />
+        ) : error ? (
+          <StateView icon="error-outline" message={error} />
+        ) : (
+          <WebView
+            source={{ html: documentHtml(detail?.htmlBody ?? "", theme.isDark) }}
+            javaScriptEnabled={false}
+            domStorageEnabled={false}
+            style={[styles.web, { backgroundColor: theme.bgFlat }]}
+            originWhitelist={["*"]}
+            onShouldStartLoadWithRequest={(request) => {
+              if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
+              if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
+                void openExternalUrl(request.url);
+              }
+              return false;
+            }}
+          />
+        )}
       </View>
-      {!detail && !error ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? "#51a2ff" : "#3478F5"} />
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <MaterialIcons name="error-outline" size={46} color="#aaa" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : (
-        <WebView
-          source={{ html: documentHtml(detail?.htmlBody ?? "", isDark) }}
-          javaScriptEnabled={false}
-          domStorageEnabled={false}
-          style={{ flex: 1, backgroundColor: isDark ? "#18191B" : "#fff" }}
-          originWhitelist={["*"]}
-          onShouldStartLoadWithRequest={(request) => {
-            if (request.url === "about:blank" || request.url.startsWith("data:")) return true;
-            if (request.url.startsWith("http://") || request.url.startsWith("https://")) {
-              void openExternalUrl(request.url);
-            }
-            return false;
-          }}
-        />
-      )}
-      </View>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#fff" },
-  containerDark: { backgroundColor: "#18191B" },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee", backgroundColor: "#fff" },
-  headerDark: { borderBottomColor: "#333" },
-  headerTitle: { flex: 1, fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 28 },
-  errorText: { fontFamily: "Figtree-Regular", fontSize: 14, color: "#888", textAlign: "center" },
-  textLight: { color: "#fff" },
+  body: { flex: 1 },
+  web: { flex: 1 },
 });

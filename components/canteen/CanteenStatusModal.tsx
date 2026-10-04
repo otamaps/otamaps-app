@@ -41,6 +41,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
+import { fonts } from "@/constants/typography";
 
 type Props = {
   visible: boolean;
@@ -704,10 +705,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 22,
   },
-  sheetTitle: { fontSize: 25, fontFamily: "Figtree-Bold", letterSpacing: -0.5 },
+  sheetTitle: { fontSize: 25, ...fonts.bold, letterSpacing: -0.5 },
   topBarText: { flex: 1, paddingRight: 12 },
   sheetSubtitle: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,
@@ -729,21 +730,21 @@ const styles = StyleSheet.create({
   },
   staleNoteText: {
     flex: 1,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 13,
     lineHeight: 18,
   },
   section: { marginTop: 28, marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontFamily: "Figtree-Bold" },
+  sectionTitle: { fontSize: 18, ...fonts.bold },
   sectionCaption: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 3,
   },
   reportValueRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   reportValue: {
-    fontFamily: "Figtree-Semibold",
+    ...fonts.semiBold,
     fontSize: 20,
     color: "#252525",
   },
@@ -761,13 +762,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   mapLabel: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 12,
     letterSpacing: 1.4,
   },
   /** Where the level drawn on the map above came from. */
   mapCaption: {
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 12,
@@ -788,7 +789,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 2,
   },
-  sliderScaleText: { fontFamily: "Figtree-Regular", fontSize: 12 },
+  sliderScaleText: { ...fonts.regular, fontSize: 12 },
   submitButton: {
     minHeight: 48,
     borderRadius: 14,
@@ -800,7 +801,7 @@ const styles = StyleSheet.create({
   submitFill: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
   submitButtonText: {
     color: "#FFFFFF",
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     fontSize: 15,
   },
   contributionCard: {
@@ -812,7 +813,7 @@ const styles = StyleSheet.create({
   },
   contributionText: { flex: 1 },
   contributionValue: {
-    fontFamily: "Figtree-Semibold",
+    ...fonts.semiBold,
     fontSize: 16,
     color: "#000",
   },
@@ -826,12 +827,12 @@ const styles = StyleSheet.create({
   },
   menuSections: { gap: 12 },
   menuCard: { borderRadius: 20, padding: 16 },
-  menuTitle: { fontFamily: "Figtree-Bold", fontSize: 16, marginBottom: 8 },
+  menuTitle: { ...fonts.bold, fontSize: 16, marginBottom: 8 },
   mealRow: { flexDirection: "row", paddingVertical: 6, gap: 10 },
   mealBullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
   mealText: { flex: 1 },
-  mealName: { fontFamily: "Figtree-Medium", fontSize: 14, lineHeight: 19 },
-  diets: { fontFamily: "Figtree-Regular", fontSize: 12, marginTop: 2 },
+  mealName: { ...fonts.medium, fontSize: 14, lineHeight: 19 },
+  diets: { ...fonts.regular, fontSize: 12, marginTop: 2 },
   sourceButton: {
     minHeight: 48,
     flexDirection: "row",
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 14,
   },
-  sourceButtonText: { fontFamily: "Figtree-SemiBold", fontSize: 14 },
+  sourceButtonText: { ...fonts.semiBold, fontSize: 14 },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.72 },
 });

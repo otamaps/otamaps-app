@@ -2,12 +2,12 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.4.5",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": "0.4.5",
+    "runtimeVersion": "0.5.0",
     "updates": {
       "url": "https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e"
     },
@@ -29,7 +29,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/foreground.png",
         "monochromeImage": "./assets/icons/monochromatic.png",
-        "backgroundColor": "#ffffff"
+        "backgroundImage": "./assets/icons/background.png",
+        "backgroundColor": "#4284F3"
       },
       "package": "fi.otamaps.app",
       "versionCode": 18,
@@ -59,6 +60,8 @@
       "./plugins/withNotifeeAndroid",
       "./plugins/withIosGoogleModularHeaders",
       "./plugins/withIosForceQuitNotification",
+      "./plugins/withIosSegmentedControlFont",
+      "./plugins/withIosSceneLifecycle",
       "@bacons/apple-targets",
       [
         "expo-splash-screen",
@@ -66,7 +69,11 @@
           "image": "./assets/images/otamaps-logo.png",
           "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#ffffff",
+          "android": {
+            "image": "./assets/images/splash-logo-android.png",
+            "imageWidth": 192
+          }
         }
       ],
       "@rnmapbox/maps",

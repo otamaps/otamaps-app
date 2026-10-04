@@ -1,8 +1,10 @@
+import { SegmentedControl, useNativeHeader, useSelectorSwipe } from "@/components/ui";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { GestureDetector } from "react-native-gesture-handler";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +17,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 type FriendUser = {
   id: string;
@@ -43,7 +46,6 @@ const AddFriendScreen = () => {
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
 
   const isDark = useColorScheme() === "dark";
-  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -195,75 +197,52 @@ const AddFriendScreen = () => {
       );
   };
 
+  // Compact, not large: there is no scroll view at the root for a large
+  // title to collapse against. "flat" is the white/near-black this page
+  // already uses, so the bar blends into it.
+  const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: activeTab === "add",
+    title: "Kaverit",
+    background: "flat",
+    large: false,
+  });
+
+  const tabOptions = [
+    ["add", "Lisää kaveri"],
+    [
+      "requests",
+      requesters.length > 0
+        ? `Kaveripyynnöt (${requesters.length})`
+        : "Kaveripyynnöt",
+    ],
+  ] as const;
+  const swipe = useSelectorSwipe(tabOptions, activeTab, setActiveTab);
+
   return (
+    <GestureDetector gesture={swipe}>
     <KeyboardAvoidingView
       style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
-      <Stack.Screen
-        options={{
-          title: "Kaverit",
-          headerStyle: { backgroundColor: isDark ? "#18191B" : "#fff" },
-          headerTitleStyle: { color: isDark ? "#fff" : "#000" },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                style={{ marginRight: 8 }}
-                color={isDark ? "#fff" : "#000"}
-              />
-            </Pressable>
-          ),
-        }}
+      <Stack.Screen options={header} />
+
+      {/* The app's selector: the system segmented control, under the bar. */}
+      <SegmentedControl
+        value={activeTab}
+        onChange={setActiveTab}
+        options={tabOptions}
       />
 
-      <View
-        style={[
-          styles.tabBar,
-          isDark && { borderBottomColor: "#404040", backgroundColor: "#18191B" },
-        ]}
-      >
-        <Pressable
-          style={[styles.tab, activeTab === "add" && styles.activeTab]}
-          onPress={() => setActiveTab("add")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              isDark && { color: "#AAA" },
-              activeTab === "add" && styles.activeTabText,
-            ]}
-          >
-            Lisää kaveri
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === "requests" && styles.activeTab]}
-          onPress={() => setActiveTab("requests")}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text
-              style={[
-                styles.tabText,
-                isDark && { color: "#AAA" },
-                activeTab === "requests" && styles.activeTabText,
-              ]}
-            >
-              Kaveripyynnöt
-            </Text>
-            {requesters.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{requesters.length}</Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
-      </View>
-
       {activeTab === "add" && (
-        <View style={[styles.content, isDark && { backgroundColor: "#18191B" }]}>
+        <View
+          style={[
+            styles.content,
+            isDark && { backgroundColor: "#18191B" },
+          ]}
+        >
           <Text style={[styles.title, isDark && { color: "#fff" }]}>
             Anna kaverisi koodi
           </Text>
@@ -378,7 +357,7 @@ const AddFriendScreen = () => {
                 <Text
                   style={[
                     styles.resultText,
-                    { fontSize: 24, fontFamily: "Figtree-SemiBold" },
+                    { fontSize: 24, ...fonts.semiBold },
                     isDark && { color: "#fff" },
                   ]}
                 >
@@ -474,6 +453,7 @@ const AddFriendScreen = () => {
         </View>
       )}
     </KeyboardAvoidingView>
+    </GestureDetector>
   );
 };
 
@@ -481,44 +461,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-  },
-  tabBar: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#3478F5",
-  },
-  tabText: {
-    fontSize: 16,
-    fontFamily: "Figtree-Medium",
-    color: "#666",
-  },
-  activeTabText: {
-    color: "#3478F5",
-    fontFamily: "Figtree-SemiBold",
-  },
-  badge: {
-    backgroundColor: "red",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6,
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: "Figtree-SemiBold",
   },
   content: {
     flex: 1,
@@ -532,7 +474,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#222",
     marginBottom: 8,
     textAlign: "center",
@@ -557,7 +499,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 24,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     backgroundColor: "#f8f9fa",
     textAlign: "center",
     letterSpacing: 3,
@@ -568,7 +510,7 @@ const styles = StyleSheet.create({
   },
   resultText: {
     fontSize: 18,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginTop: 16,
     textAlign: "center",
@@ -594,7 +536,7 @@ const styles = StyleSheet.create({
   },
   addFriendText: {
     fontSize: 16,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#fff",
     textAlign: "center",
   },
@@ -615,7 +557,7 @@ const styles = StyleSheet.create({
   },
   requestName: {
     fontSize: 20,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#333",
     marginBottom: 4,
   },
@@ -655,7 +597,7 @@ const styles = StyleSheet.create({
   },
   noRequestsText: {
     fontSize: 22,
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     color: "#444",
     marginBottom: 12,
   },

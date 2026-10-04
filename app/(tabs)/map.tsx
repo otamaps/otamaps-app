@@ -1,19 +1,19 @@
 import CanteenStatusModal from "@/components/canteen/CanteenStatusModal";
 import FriendProfileSheetContent from "@/components/friends/FriendProfileSheetContent";
+import { FriendsSectionHeader, MeRow } from "@/components/friends/MeRow";
 import useBLEScanner, {
   LocalUserLocation,
 } from "@/components/functions/bleScanner";
-import GlobalSearch from "@/components/globalSearch";
+import GlobalSearch, { SEARCH_HEIGHT } from "@/components/globalSearch";
 import RoomItem from "@/components/hRoomItem";
-import { sheetPalette } from "@/components/sheets/sheetTheme";
-import { colors, radii } from "@/constants/theme";
-import { BlurView } from "expo-blur";
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
+import { FloorStepper } from "@/components/map/FloorStepper";
+import {
+  GlassSurface,
+  HAS_LIQUID_GLASS,
+  MapBlurProvider,
+  MapBlurTarget,
+} from "@/components/map/GlassSurface";
+import { MapGlassPill } from "@/components/map/MapGlassPill";
 import MapBottomSheet, {
   BottomSheetMethods,
 } from "@/components/mapBottomSheet";
@@ -24,7 +24,10 @@ import FriendModalSheet, {
 import RoomModalSheet, {
   RoomModalSheetMethods,
 } from "@/components/sheets/roomModalSheet";
+import { nativeListColors, sheetPalette } from "@/components/sheets/sheetTheme";
+import { colors, DEFAULT_USER_COLOR } from "@/constants/theme";
 import { BLELocationService } from "@/lib/bleLocationService";
+import { getReadableLabelColor } from "@/lib/color";
 import {
   Friend,
   getFriends,
@@ -32,7 +35,7 @@ import {
   handleBlockFriend,
   handleRemoveFriend,
 } from "@/lib/friendsHandler";
-import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
+import { getUser } from "@/lib/getUserHandle";
 import {
   formatElapsedSince,
   formatReportingWindow,
@@ -41,11 +44,14 @@ import {
   getQueueStatuses,
   QueueStatus,
 } from "@/lib/queueService";
+import { Room, useFeatureStore, useRoomStore } from "@/lib/roomService";
 import { supabase } from "@/lib/supabase";
 import {
   BottomSheetFlatList,
   BottomSheetModalProvider,
   BottomSheetView,
+  useScrollEventsHandlersDefault,
+  type ScrollEventsHandlersHookType,
 } from "@gorhom/bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -84,8 +90,18 @@ import {
   View,
 } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
-import FriendItem from "../../components/friendItem";
+import Animated, {
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
+import FriendItem, {
+  FRIEND_ROW_SEPARATOR_INSET,
+} from "../../components/friendItem";
 import FriendListSkeleton from "../../components/FriendItemSkeleton";
+import { fonts } from "@/constants/typography";
 
 // Define the shape of our room feature properties
 type RoomFeatureProperties = {
@@ -217,9 +233,61 @@ function getRoomNumberMaxTextSize(
   );
 }
 
+/** How long the map must be still before the queue pill returns. */
+const PILLS_REAPPEAR_MS = 250;
+
+/** How close the camera must rest to your marker to count as on you. */
+const CENTERED_WITHIN_M = 5;
+
+/** Ground distance between two [lng, lat] points; flat-earth is plenty at this scale. */
+function metersBetween(a: [number, number], b: [number, number]): number {
+  const toRad = Math.PI / 180;
+  const x = (b[0] - a[0]) * toRad * Math.cos(((a[1] + b[1]) / 2) * toRad);
+  const y = (b[1] - a[1]) * toRad;
+  return Math.hypot(x, y) * 6_371_000;
+}
+
+/** How long after the last beacon was heard the "Minä" row still names a room. */
+const BEACON_RECENT_MS = 5 * 60_000;
+
+/**
+ * The queue pill's whole text: the level while reporting is open — "Jono ·
+ * Lyhyt" — and the reporting hours when it is not, since there is no queue
+ * to report on then.
+ */
+function queuePillLabel(status: QueueStatus): string {
+  if (!status.reporting_open)
+    return `Linjasto ${formatReportingWindow(status)}`;
+  return status.status_level == null
+    ? "Jono · ei tietoa"
+    : `Jono · ${getQueueLabel(status.status_level)}`;
+}
+
+/**
+ * The sheet's default scroll handling, plus a copy of the list's offset into
+ * `offset` for something outside it to read. Named as a hook because the sheet
+ * calls it as one.
+ */
+const scrollOffsetHook = (
+  offset: SharedValue<number>,
+): ScrollEventsHandlersHookType =>
+  function useScrollOffset(ref, contentOffsetY) {
+    const defaults = useScrollEventsHandlersDefault(ref, contentOffsetY);
+    return {
+      ...defaults,
+      handleOnScroll: (event, context) => {
+        "worklet";
+        offset.value = event.contentOffset.y;
+        defaults.handleOnScroll?.(event, context);
+      },
+    };
+  };
+
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const sheetColors = sheetPalette(isDark);
+  const listColors = nativeListColors(isDark);
+  const accentColor = isDark ? colors.accentDark : colors.accent;
   const mapTilerKey = process.env.EXPO_PUBLIC_MAPTILER_KEY?.trim();
 
   // MapTiler's hosted styles ship POI labels (shops, schools, etc.) turned on.
@@ -335,23 +403,33 @@ export default function HomeScreen() {
     useState<LocalUserLocation | null>(null);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
 
-  // The beacon pill rides just above the sheet's top edge, so it tracks the
-  // sheet continuously rather than only at its resting height, and fades out
-  // as the sheet approaches full height where there is no room left for it.
+  // The pill row — queue on the left, your location on the right — rides
+  // just above the sheet's top edge, so it tracks the sheet continuously
+  // rather than only at its resting height, and fades out as the sheet
+  // approaches full height where there is no room left for it.
   const sheetPosition = useSharedValue(0);
   const sheetIndex = useSharedValue(1);
-  const beaconPillHeight = useSharedValue(28);
-  const beaconPillStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: sheetPosition.value - beaconPillHeight.value - 12 },
-    ],
-    opacity: interpolate(
-      sheetIndex.value,
-      [1.6, 1.95],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
+  // How far the friends list is scrolled, so a swipe down on the sheet can tell
+  // whether it is the list scrolling back up or the sheet being collapsed.
+  const friendsScrollOffset = useSharedValue(0);
+  const friendsScrollHandlers = useMemo(
+    () => scrollOffsetHook(friendsScrollOffset),
+    [friendsScrollOffset],
+  );
+  const pillRowHeight = useSharedValue(30);
+  const pillRowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetPosition.value - pillRowHeight.value - 12 }],
   }));
+  // Past this point the row has no room left, so its controls hide — through
+  // `visible`, never an animated opacity on the row: that would stop their
+  // glass drawing (see `GlassSurface`). Hidden, they take no taps either.
+  const [pillsTappable, setPillsTappable] = useState(true);
+  useAnimatedReaction(
+    () => sheetIndex.value < 1.6,
+    (tappable, previous) => {
+      if (tappable !== previous) scheduleOnRN(setPillsTappable, tappable);
+    },
+  );
   const [canteenVisible, setCanteenVisible] = useState(false);
 
   // Camera state for dynamic positioning
@@ -368,10 +446,48 @@ export default function HomeScreen() {
     return BLELocationService.getCurrentLocation();
   }, []);
 
+  // When a beacon was last heard, and whether that was recent enough for the
+  // "Minä" row to name a room. The tracker itself keeps its last position
+  // indefinitely — across restarts too — and only remembers beacons for 15s,
+  // so neither says how long it has really been since anything was heard.
+  const lastBeaconSeenAt = useRef(0);
+  const [beaconsRecent, setBeaconsRecent] = useState(false);
+  const recentLocation = beaconsRecent ? localUserLocation : null;
+
+  // Your own name and colour for the "Minä" row heading the friends list.
+  // Read straight from the database, as the Me tab does: UserContext is only
+  // filled in once the profile has been edited, so it is empty on most launches.
+  const [me, setMe] = useState<{ name: string; color: string } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void (async () => {
+        const user = await getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("users")
+          .select("name, color")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!active) return;
+        setMe({
+          name: data?.name || user.user_metadata?.full_name || "?",
+          color: data?.color || user.user_metadata?.color || DEFAULT_USER_COLOR,
+        });
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   // Fetch local user location from BLE scanner
   const fetchLocalUserLocation = useCallback(async () => {
     try {
       const location = await getCurrentLocation();
+      const now = Date.now();
+      if (location?.beacons.length) lastBeaconSeenAt.current = now;
+      setBeaconsRecent(now - lastBeaconSeenAt.current <= BEACON_RECENT_MS);
       if (location) {
         setLocalUserLocation(location);
         if (process.env.EXPO_PUBLIC_DEBUG_BLE === "true")
@@ -1059,6 +1175,7 @@ export default function HomeScreen() {
             status: friend.status || "at school",
             color: friend.color,
             initial: friend.name.charAt(0).toUpperCase(),
+            textColor: getReadableLabelColor(friend.color || "#2b7fff"),
           },
         });
       } else {
@@ -1082,6 +1199,7 @@ export default function HomeScreen() {
               status: friend.status || "at school",
               color: friend.color,
               initial: friend.name.charAt(0).toUpperCase(),
+              textColor: getReadableLabelColor(friend.color || "#2b7fff"),
             },
           });
         });
@@ -1168,14 +1286,114 @@ export default function HomeScreen() {
     });
   }, [localUserLocation]);
 
+  // The queue pill steps aside while the map is being moved, and comes
+  // back once it has been still for a moment.
+  const [pillsResting, setPillsResting] = useState(true);
+  const mapMoving = useRef(false);
+  const restTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onMapGesture = useCallback(() => {
+    if (restTimer.current) clearTimeout(restTimer.current);
+    restTimer.current = null;
+    if (mapMoving.current) return;
+    mapMoving.current = true;
+    setPillsResting(false);
+  }, []);
+
+  // Idle comes after any glide that follows the finger lifting, so the
+  // wait starts once the map has truly stopped.
+  const onMapRest = useCallback(() => {
+    if (!mapMoving.current) return;
+    if (restTimer.current) clearTimeout(restTimer.current);
+    restTimer.current = setTimeout(() => {
+      restTimer.current = null;
+      mapMoving.current = false;
+      setPillsResting(true);
+    }, PILLS_REAPPEAR_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (restTimer.current) clearTimeout(restTimer.current);
+    },
+    [],
+  );
+
+  // Whether the camera is resting on your marker. Measured where the map
+  // settles rather than flagged by `recenterOnUser`, so anything else that
+  // moves it — a pan, opening a room — clears it without being told to.
+  const [cameraCenter, setCameraCenter] = useState<[number, number] | null>(
+    null,
+  );
+  const userCoordinates = localUserLocation?.coordinates ?? null;
+  const isCentered =
+    !!cameraCenter &&
+    !!userCoordinates &&
+    metersBetween(cameraCenter, userCoordinates) < CENTERED_WITHIN_M;
+
+  // A function of whether the search shows it, so its glass can hide itself.
+  const recenterButton = (visible: boolean) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Keskitä kartta omaan sijaintiin"
+      accessibilityState={{ disabled: !userCoordinates, selected: isCentered }}
+      disabled={!userCoordinates || !visible}
+      onPress={recenterOnUser}
+      // Real glass answers a touch itself; the blur fallback needs a cue.
+      style={({ pressed }) => [
+        !HAS_LIQUID_GLASS && pressed && { opacity: 0.6 },
+      ]}
+    >
+      <GlassSurface
+        radius={SEARCH_HEIGHT / 2}
+        interactive
+        visible={visible}
+        style={styles.recenterButton}
+      >
+        {/* Filled while the map is on you, an outline once it isn't — the
+          same cue Apple Maps gives with its own location button. */}
+        <PlatformSymbol
+          ios={isCentered ? "location.fill" : "location"}
+          android={isCentered ? "my_location" : "location_searching"}
+          size={20}
+          tintColor={
+            isCentered
+              ? isDark
+                ? colors.accentDark
+                : colors.accent
+              : userCoordinates
+                ? colors.textMuted
+                : colors.textFaint
+          }
+        />
+      </GlassSurface>
+    </Pressable>
+  );
+
   return (
     <GestureHandlerRootView style={styles.container}>
+      <MapBlurProvider>
       <BottomSheetModalProvider>
         <View style={{ flex: 1 }}>
           <StatusBar style={isDark ? "light" : "dark"} />
+          <MapBlurTarget style={styles.map}>
           <MapView
             ref={mapRef}
             style={styles.map}
+            // A SurfaceView, the default, cannot be captured for the glass's
+            // blur on Android; a TextureView can. Ignored on iOS.
+            surfaceView={false}
+            onMapIdle={(state) => {
+              const [lng, lat] = state.properties.center;
+              setCameraCenter([lng, lat]);
+              onMapRest();
+            }}
+            onCameraChanged={(state) => {
+              if (!state.gestures.isGestureActive) return;
+              onMapGesture();
+              // Drop the filled state as soon as a pan starts, not once it ends.
+              if (cameraCenter) setCameraCenter(null);
+            }}
             styleJSON={mapStyleJSON}
             compassViewMargins={{ x: 10, y: 40 }}
             pitchEnabled={true}
@@ -1471,7 +1689,7 @@ export default function HomeScreen() {
                   style={{
                     textField: ["get", "initial"],
                     textSize: 15,
-                    textColor: "white",
+                    textColor: ["get", "textColor"],
                     textAnchor: "center",
                     textHaloColor: ["get", "color"],
                     textHaloWidth: 1,
@@ -1560,95 +1778,83 @@ export default function HomeScreen() {
               </ShapeSource>
             )}
           </MapView>
-
-          <View style={styles.mapControls} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Keskitä kartta omaan sijaintiin"
-              disabled={!localUserLocation?.coordinates}
-              onPress={recenterOnUser}
-              style={({ pressed }) => [
-                styles.recenterButton,
-                { backgroundColor: isDark ? "#232427F2" : "#FFFFFFF2" },
-                !localUserLocation?.coordinates && styles.recenterDisabled,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <PlatformSymbol
-                ios="location.fill"
-                android="my_location"
-                size={21}
-                tintColor={
-                  localUserLocation?.coordinates
-                    ? isDark
-                      ? "#FFFFFF"
-                      : "#3478F5"
-                    : "#969DA7"
-                }
-              />
-            </Pressable>
-          </View>
+          </MapBlurTarget>
 
           {!canteenVisible && (
             <Animated.View
-              pointerEvents="none"
-              accessibilityRole="text"
+              pointerEvents={pillsTappable ? "box-none" : "none"}
               onLayout={(event) => {
-                beaconPillHeight.value = event.nativeEvent.layout.height;
+                pillRowHeight.value = event.nativeEvent.layout.height;
               }}
-              style={[styles.beaconPillShadow, beaconPillStyle]}
-              accessibilityLabel={
-                localUserLocation
-                  ? `Sijaintisi majakoiden mukaan: ${
-                      localUserLocation.currentRoom ?? "tuntematon tila"
-                    }`
-                  : "Sijaintia ei tunnistettu majakoista"
-              }
+              style={[styles.pillRow, pillRowStyle]}
             >
-              <BlurView
-                intensity={isDark ? 60 : 80}
-                tint={
-                  isDark
-                    ? "systemThickMaterialDark"
-                    : "systemThickMaterialLight"
-                }
-                // Android has no live blur by default; without this it renders
-                // a flat translucent view. SDK 31+ only, older falls back.
-                blurMethod="dimezisBlurViewSdk31Plus"
-                style={styles.beaconPill}
-              >
+              {queueStatus ? (
                 <View
-                  style={[
-                    styles.beaconPillDot,
-                    {
-                      backgroundColor: localUserLocation
-                        ? isDark
-                          ? colors.accentDark
-                          : colors.accent
-                        : colors.textFaint,
-                    },
-                  ]}
-                />
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.beaconPillLabel,
-                    { color: isDark ? colors.textOnDark : colors.text },
-                    !localUserLocation && { color: colors.textMuted },
-                  ]}
+                  style={styles.pillShrink}
+                  pointerEvents={pillsResting ? "auto" : "none"}
                 >
-                  {localUserLocation
-                    ? [
-                        localUserLocation.currentRoom ?? "Tuntematon tila",
-                        localUserLocation.floor != null
-                          ? `${localUserLocation.floor}. krs`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
-                    : "Ei sijaintia"}
-                </Text>
-              </BlurView>
+                  <MapGlassPill
+                    visible={pillsTappable && pillsResting}
+                    onPress={() => setCanteenVisible(true)}
+                    accessibilityLabel={`Ruokalinjasto: ${queuePillLabel(queueStatus)}. Avaa vilkkaus ja ruokalista.`}
+                    style={styles.pillShrink}
+                  >
+                    {/* Dressed as a button rather than a label: a filled badge
+                        leading, a semibold title, a chevron trailing. */}
+                    <View
+                      style={[
+                        styles.queueBadge,
+                        {
+                          backgroundColor: queueStatus.reporting_open
+                            ? getQueueColor(queueStatus.status_level)
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      <PlatformSymbol
+                        ios="fork.knife"
+                        android="restaurant"
+                        size={11}
+                        tintColor="#fff"
+                      />
+                    </View>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.pillLabel,
+                        styles.queuePillLabel,
+                        { color: isDark ? colors.textOnDark : colors.text },
+                        // A stale or closed reading is shown, but quieter.
+                        (!queueStatus.reporting_open ||
+                          queueStatus.status_is_stale) && {
+                          color: colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {queuePillLabel(queueStatus)}
+                    </Text>
+                    <PlatformSymbol
+                      ios="chevron.right"
+                      android="chevron_right"
+                      size={11}
+                      weight="semibold"
+                      tintColor={colors.textMuted}
+                    />
+                  </MapGlassPill>
+                </View>
+              ) : (
+                <View />
+              )}
+
+              <View style={styles.pillRowEnd} pointerEvents="box-none">
+                <FloorStepper
+                  visible={pillsTappable}
+                  value={selectedFloor}
+                  onChange={setSelectedFloor}
+                  min={0}
+                  max={4}
+                />
+              </View>
             </Animated.View>
           )}
 
@@ -1660,6 +1866,7 @@ export default function HomeScreen() {
             onBlur={() => mapBottomSheetRef.current?.snapToMid()}
             selectedFloor={selectedFloor}
             onFloorChange={setSelectedFloor}
+            accessory={recenterButton}
             onRoomSelect={(roomId: string) =>
               handleRoomPress(roomId, { focusMap: true })
             }
@@ -1703,6 +1910,11 @@ export default function HomeScreen() {
             ref={mapBottomSheetRef}
             initialSnap="mid"
             hidden={canteenVisible}
+            // The friends list scrolls freely at every height; a swipe down
+            // while it is at the top steps the sheet to a smaller size.
+            swipeDownScrollOffset={
+              selectedTab === "people" ? friendsScrollOffset : undefined
+            }
             animatedPosition={sheetPosition}
             animatedIndex={sheetIndex}
           >
@@ -1710,7 +1922,10 @@ export default function HomeScreen() {
               <BottomSheetView
                 style={{
                   flex: 1,
-                  backgroundColor: sheetColors.surface,
+                  // Clear over glass, so the sheet's material shows through.
+                  backgroundColor: HAS_LIQUID_GLASS
+                    ? "transparent"
+                    : sheetColors.surface,
                   height: "100%",
                 }}
               >
@@ -1772,92 +1987,41 @@ export default function HomeScreen() {
 
                 {selectedTab === "people" && (
                   <BottomSheetFlatList
+                    scrollEventsHandlersHook={friendsScrollHandlers}
                     keyboardShouldPersistTaps="handled"
                     ListHeaderComponent={
-                      <View style={styles.friendsListHeader}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel="Avaa Ruokalinjaston vilkkaus ja ruokalista"
-                          disabled={!queueStatus}
-                          onPress={() => {
-                            setCanteenVisible(true);
-                          }}
-                          style={({ pressed }) => [
-                            styles.queueListCard,
-                            {
-                              backgroundColor: sheetColors.card,
-                              borderColor: isDark ? "#3A3D42" : "#E1E6ED",
-                            },
-                            !queueStatus && styles.queueListCardDisabled,
-                            pressed && { opacity: 0.75 },
-                          ]}
-                        >
+                      <>
+                        {/* A native search field — system fill, magnifying
+                            glass, clear button — with adding a friend as a
+                            plain accent glyph beside it, as iOS sets an add
+                            action next to a list's search. */}
+                        <View style={styles.friendsListHeader}>
                           <View
                             style={[
-                              styles.queuePillDot,
-                              {
-                                backgroundColor: getQueueColor(
-                                  queueStatus?.status_level ?? null,
-                                ),
-                              },
+                              styles.friendSearchField,
+                              { backgroundColor: listColors.fill },
                             ]}
-                          />
-                          <View style={styles.queuePillTextContainer}>
-                            <Text
-                              style={[
-                                styles.queuePillTitle,
-                                isDark && { color: "#FFF" },
-                              ]}
-                            >
-                              Ruokalinjasto
-                            </Text>
-                            <Text
-                              style={[
-                                styles.queuePillSubtitle,
-                                isDark && { color: "#BFC5CE" },
-                              ]}
-                            >
-                              Vilkkaus ·{" "}
-                              {queueStatus
-                                ? queueStatus.reporting_open
-                                  ? getQueueLabel(queueStatus.status_level) +
-                                    (queueStatus.status_is_stale
-                                      ? ` · ${formatElapsedSince(
-                                          queueStatus.status_observed_at,
-                                        )}`
-                                      : "")
-                                  : formatReportingWindow(queueStatus)
-                                : "Ladataan…"}
-                            </Text>
-                          </View>
-                          <PlatformSymbol
-                            ios="chevron.right"
-                            android="chevron_right"
-                            size={22}
-                            tintColor={isDark ? "#BFC5CE" : "#68717D"}
-                          />
-                        </Pressable>
-
-                        <View style={styles.friendSearchRow}>
-                          <View style={styles.friendSearchInputWrap}>
+                          >
+                            <PlatformSymbol
+                              ios="magnifyingglass"
+                              android="search"
+                              size={16}
+                              weight="medium"
+                              tintColor={listColors.secondaryLabel}
+                            />
                             <TextInput
-                              placeholder="Hae kavereita..."
+                              placeholder="Hae kavereita"
                               value={searchQuery}
                               onChangeText={setSearchQuery}
-                              placeholderTextColor={
-                                isDark ? "#B5B5B5" : "#a1a1a1"
-                              }
+                              placeholderTextColor={listColors.secondaryLabel}
+                              selectionColor={accentColor}
+                              returnKeyType="search"
                               onFocus={() => {
                                 mapBottomSheetRef.current?.snapToMax();
                               }}
                               style={[
                                 styles.friendSearchInput,
-                                {
-                                  backgroundColor: sheetColors.card,
-                                  color: isDark ? "white" : "black",
-                                },
-                                !!searchQuery &&
-                                  styles.friendSearchInputWithClear,
+                                { color: listColors.label },
                               ]}
                             />
                             {!!searchQuery && (
@@ -1866,26 +2030,36 @@ export default function HomeScreen() {
                                 accessibilityLabel="Tyhjennä haku"
                                 hitSlop={10}
                                 onPress={() => setSearchQuery("")}
-                                style={styles.friendSearchClearButton}
                               >
                                 <PlatformSymbol
                                   ios="xmark.circle.fill"
                                   android="cancel"
-                                  size={18}
-                                  tintColor={isDark ? "#B5B5B5" : "#a1a1a1"}
+                                  size={16}
+                                  tintColor={listColors.tertiaryLabel}
                                 />
                               </Pressable>
                             )}
                           </View>
                           <Pressable
                             onPress={() => router.push("/friends/add")}
-                            style={[
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              requests.length > 0
+                                ? `Lisää kaveri, ${requests.length} kaveripyyntöä`
+                                : "Lisää kaveri"
+                            }
+                            hitSlop={8}
+                            style={({ pressed }) => [
                               styles.addFriendIconButton,
-                              {
-                                backgroundColor: sheetColors.card,
-                              },
+                              pressed && { opacity: 0.4 },
                             ]}
                           >
+                            <PlatformSymbol
+                              ios="person.badge.plus"
+                              android="person_add"
+                              size={22}
+                              tintColor={accentColor}
+                            />
                             {requests.length > 0 && (
                               <View style={styles.friendRequestBadge}>
                                 <Text style={styles.friendRequestBadgeText}>
@@ -1893,15 +2067,35 @@ export default function HomeScreen() {
                                 </Text>
                               </View>
                             )}
-                            <PlatformSymbol
-                              ios="person.badge.plus"
-                              android="person_add"
-                              size={22}
-                              tintColor={isDark ? "#e5e5e5" : "#737373"}
-                            />
                           </Pressable>
                         </View>
-                      </View>
+                        {/* You, first — as Find My leads its list with "Me".
+                            Tapping takes the map to you. Out of the way while
+                            searching, where it would only ever be noise. */}
+                        {me && !searchQuery && (
+                          <MeRow
+                            name={me.name}
+                            color={me.color}
+                            location={
+                              recentLocation
+                                ? [
+                                    recentLocation.currentRoom ??
+                                      "Tuntematon tila",
+                                    recentLocation.floor != null
+                                      ? `${recentLocation.floor}. krs`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                : null
+                            }
+                            onPress={
+                              userCoordinates ? recenterOnUser : undefined
+                            }
+                          />
+                        )}
+                        {me && !searchQuery && <FriendsSectionHeader />}
+                      </>
                     }
                     data={filteredFriends}
                     keyExtractor={(item) => item.id}
@@ -1933,48 +2127,51 @@ export default function HomeScreen() {
                         }}
                       />
                     )}
-                    scrollEnabled={currentSnapIndex === 2} // Always enable scrolling
-                    contentContainerStyle={{
-                      paddingBottom: 80,
-                      // Remove restrictive height and flex settings
-                    }}
+                    // Hairlines between rows, inset to start under the
+                    // name as UIKit's are, and never after the last.
+                    ItemSeparatorComponent={() => (
+                      <View
+                        style={[
+                          styles.friendSeparator,
+                          { backgroundColor: listColors.separator },
+                        ]}
+                      />
+                    )}
+                    scrollEnabled={currentSnapIndex === 2}
+                    contentContainerStyle={{ paddingBottom: 80 }}
                     ListEmptyComponent={
                       friendsLoading ? (
                         <FriendListSkeleton />
                       ) : (
-                        <View style={{ padding: 20, alignItems: "center" }}>
-                          <Text style={isDark && { color: "#e5e5e5" }}>
-                            Kavereita ei löytynyt
-                          </Text>
-                        </View>
+                        <Text
+                          style={[
+                            styles.friendsEmpty,
+                            { color: listColors.secondaryLabel },
+                          ]}
+                        >
+                          Kavereita ei löytynyt
+                        </Text>
                       )
                     }
                     ListFooterComponent={
+                      // A plain accent row, as iOS ends a list with its
+                      // "Add…" action, rather than a boxed button.
                       <Pressable
+                        accessibilityRole="button"
                         style={({ pressed }) => [
-                          styles.addFriendButton,
-                          pressed && styles.addFriendButtonPressed,
-                          isDark && {
-                            backgroundColor: "#2b7fff50",
-                            borderColor: "#51A2FF50",
-                          },
+                          styles.addFriendRow,
+                          pressed && { backgroundColor: listColors.highlight },
                         ]}
-                        onPress={() => {
-                          console.log("Add friend pressed");
-                          router.push("/friends/add");
-                        }}
+                        onPress={() => router.push("/friends/add")}
                       >
                         <PlatformSymbol
                           ios="person.badge.plus"
                           android="person_add"
                           size={20}
-                          tintColor={isDark ? "#51A2FF" : "#3478F5"}
+                          tintColor={accentColor}
                         />
                         <Text
-                          style={[
-                            styles.addFriendText,
-                            isDark && { color: "#51A2FF" },
-                          ]}
+                          style={[styles.addFriendText, { color: accentColor }]}
                         >
                           Lisää kaveri
                         </Text>
@@ -2100,170 +2297,120 @@ export default function HomeScreen() {
           </MapBottomSheet>
         </View>
       </BottomSheetModalProvider>
+      </MapBlurProvider>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  addFriendButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0F5FF",
-    borderRadius: 8,
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#D6E3FF",
-    borderStyle: "dashed",
-  },
-  addFriendButtonPressed: {
-    opacity: 0.7,
-  },
-  addFriendText: {
-    color: "#3478F5",
-    marginLeft: 8,
-    fontSize: 16,
-    fontFamily: "Figtree-Medium",
-  },
   container: {
     flex: 1,
   },
-  map: {
-    flex: 1,
-  },
-  mapControls: {
-    position: "absolute",
-    top: 108,
-    right: 14,
-    alignItems: "flex-end",
-    gap: 9,
-  },
+  // The friends list, laid out as a native iOS list: system font, system
+  // fills and separators, sizes from UIKit's own search field and rows.
   friendsListHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    // Small, because the button's box already pads its glyph by 9pt.
+    gap: 6,
     paddingHorizontal: 16,
     paddingTop: 4,
-    marginBottom: 12,
+    paddingBottom: 12,
   },
-  queueListCard: {
-    width: "100%",
-    minHeight: 54,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  queueListCardDisabled: { opacity: 0.65 },
-  queuePillDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    marginRight: 10,
-  },
-  queuePillTextContainer: { flex: 1 },
-  queuePillTitle: {
-    color: "#20242A",
-    fontSize: 14,
-    fontFamily: "Figtree-SemiBold",
-  },
-  queuePillSubtitle: {
-    marginTop: 2,
-    color: "#666",
-    fontSize: 12,
-    fontFamily: "Figtree-Medium",
-  },
-  friendSearchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  friendSearchInputWrap: {
+  // A capsule, as iOS 26 shapes a search field inside a glass sheet, so it
+  // echoes the sheet's own rounded corners instead of iOS 18's rectangle.
+  friendSearchField: {
     flex: 1,
-    justifyContent: "center",
-  },
-  friendSearchInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    flex: 1,
-  },
-  friendSearchInputWithClear: {
-    paddingRight: 36,
-  },
-  friendSearchClearButton: {
-    position: "absolute",
-    right: 8,
-    padding: 4,
-  },
-  addFriendIconButton: {
-    marginLeft: 6,
-    padding: 8,
-    borderRadius: 8,
-  },
-  friendRequestBadge: {
-    backgroundColor: "red",
-    width: 15,
-    height: 15,
+    height: 40,
     borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "absolute",
-    top: -3,
-    right: -3,
-  },
-  friendRequestBadgeText: {
-    color: "white",
-    fontSize: 12,
-  },
-  recenterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  recenterDisabled: { opacity: 0.5 },
-  // The shadow lives on a wrapper: `overflow: "hidden"` is needed to clip the
-  // blur to the pill, and on iOS it would clip the shadow away too.
-  beaconPillShadow: {
-    position: "absolute",
-    top: 0,
-    right: 14,
-    maxWidth: 190,
-    borderRadius: radii.pill,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  beaconPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderRadius: radii.pill,
-    overflow: "hidden",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  beaconPillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  friendSearchInput: { ...fonts.regular, flex: 1, fontSize: 17, paddingVertical: 0 },
+  // The search field's own height, with the glyph centred in it, so the
+  // two share a centre line rather than the glyph riding on its padding.
+  addFriendIconButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  beaconPillLabel: {
-    fontFamily: "Figtree-Medium",
+  // iOS's own badge: systemRed, a capsule that grows with the count.
+  // Placed against the 22pt glyph centred in the 40pt button.
+  friendRequestBadge: {
+    position: "absolute",
+    top: 1,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  friendRequestBadgeText: { ...fonts.semiBold, color: "#fff", fontSize: 12 },
+  friendSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: FRIEND_ROW_SEPARATOR_INSET,
+  },
+  friendsEmpty: { ...fonts.regular, fontSize: 15, textAlign: "center", padding: 20 },
+  addFriendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  addFriendText: { ...fonts.regular, fontSize: 17 },
+  map: {
+    flex: 1,
+  },
+  // A glass circle the height of the search field, as its twin.
+  recenterButton: {
+    width: SEARCH_HEIGHT,
+    height: SEARCH_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillRow: {
+    position: "absolute",
+    top: 0,
+    left: 14,
+    right: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    // Bottoms aligned: the floor stepper is taller than the pills, and
+    // everything in the row should sit the same distance above the sheet.
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  pillRowEnd: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    flexShrink: 1,
+  },
+  // Either pill gives way rather than pushing the other off screen.
+  pillShrink: { flexShrink: 1 },
+  pillLabel: {
+    ...fonts.medium,
     fontSize: 13,
     flexShrink: 1,
+  },
+  queuePillLabel: { ...fonts.medium, fontSize: 14 },
+  queueBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    // Pulls the badge toward the pill's rounded end, as a leading glyph on
+    // a capsule button sits.
+    marginLeft: -4,
   },
   fab: {
     position: "absolute",
@@ -2282,6 +2429,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   fabText: {
+    ...fonts.regular,
     color: "white",
     fontSize: 24,
     lineHeight: 28,
@@ -2293,7 +2441,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     marginBottom: 20,
   },
   bottomSheetContainer: {
@@ -2307,7 +2455,7 @@ const styles = StyleSheet.create({
   },
   bottomSheetTitle: {
     fontSize: 20,
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
     marginBottom: 24,
   },
   bottomSheetButton: {
@@ -2319,7 +2467,7 @@ const styles = StyleSheet.create({
   bottomSheetButtonText: {
     color: "white",
     fontSize: 16,
-    fontFamily: "Figtree-Bold",
+    ...fonts.bold,
   },
   bleStatusRow: {
     flexDirection: "row",
@@ -2339,14 +2487,14 @@ const styles = StyleSheet.create({
   },
   bleStatusText: {
     fontSize: 14,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     color: "#333",
     flex: 1,
   },
   bleBeaconCount: {
     fontSize: 12,
     color: "#666",
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
   },
   bleCoordinates: {
     fontSize: 11,

@@ -21,25 +21,24 @@ import {
   updateConsentChoices,
 } from "@/lib/userPreferences";
 import { fetchSchedule } from "@/lib/wilma/graphqlClient";
-import { MaterialIcons } from "@expo/vector-icons";
+import { PlatformSymbol } from "@/components/PlatformSymbol";
+import { radii } from "@/constants/theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
+import {
+  AppText,
+  Row,
+  StateView,
+  Surface,
+  useNativeHeader,
+  useTheme,
+} from "@/components/ui";
 import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+
+type Banner = { message: string; actionLabel?: string; onAction?: () => void };
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -53,8 +52,18 @@ export default function Settings() {
   const [shareSchedule, setShareSchedule] = useState(false);
   const [anonymousAnalytics, setAnonymousAnalytics] = useState(false);
   const [backgroundTracking, setBackgroundTracking] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null);
-  const isDark = useColorScheme() === "dark";
+  const [banner, setBanner] = useState<Banner | null>(null);
+
+  const showError = (
+    message: string,
+    action?: { label: string; onPress: () => void },
+  ) => setBanner({ message, actionLabel: action?.label, onAction: action?.onPress });
+
+  useEffect(() => {
+    if (!banner) return;
+    const timer = setTimeout(() => setBanner(null), 6000);
+    return () => clearTimeout(timer);
+  }, [banner]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,72 +113,74 @@ export default function Settings() {
     return (await startForegroundTracking()).success;
   };
 
-  const changeFriendLocation = async (enabled: boolean) => {
-    setUpdating("friend");
-    try {
-      const preferences = await updateConsentChoices({
-        friend_location_enabled: enabled,
-      });
-      setFriendLocation(preferences.friend_location_enabled);
-      if (!enabled) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.from("locations").delete().eq("user_id", session.user.id);
+  // Every consent toggle below is optimistic: the switch flips the instant
+  // the user taps it, the Supabase write happens in the background, and only
+  // a failure touches the switch again — snapping it back to the value the
+  // server actually has and surfacing a banner instead of blocking on it.
+  const changeFriendLocation = (enabled: boolean) => {
+    const previous = friendLocation;
+    setFriendLocation(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ friend_location_enabled: enabled });
+        if (!enabled) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session) {
+            await supabase.from("locations").delete().eq("user_id", session.user.id);
+          }
         }
+        if (enabled) await ensureForegroundTracking();
+        if (!enabled && !anonymousAnalytics) await disableAllTracking();
+      } catch (error) {
+        setFriendLocation(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
       }
-      if (enabled) await ensureForegroundTracking();
-      if (!enabled && !anonymousAnalytics) await disableAllTracking();
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
-  const changeAnonymousAnalytics = async (enabled: boolean) => {
-    setUpdating("analytics");
-    try {
-      const preferences = await updateConsentChoices({
-        anonymous_analytics_enabled: enabled,
-      });
-      setAnonymousAnalytics(preferences.anonymous_analytics_enabled);
-      if (enabled) await ensureForegroundTracking();
-      if (!enabled && !friendLocation) await disableAllTracking();
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+  const changeAnonymousAnalytics = (enabled: boolean) => {
+    const previous = anonymousAnalytics;
+    setAnonymousAnalytics(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ anonymous_analytics_enabled: enabled });
+        if (enabled) await ensureForegroundTracking();
+        if (!enabled && !friendLocation) await disableAllTracking();
+      } catch (error) {
+        setAnonymousAnalytics(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
+      }
+    })();
   };
 
-  const changeScheduleSharing = async (enabled: boolean) => {
-    setUpdating("schedule");
-    try {
-      const preferences = await updateConsentChoices({
-        schedule_sharing_enabled: enabled,
-      });
-      setShareSchedule(preferences.schedule_sharing_enabled);
-      if (!enabled) {
-        await clearSharedWeeklySchedules();
-      } else {
-        try {
-          const schedule = await fetchSchedule(undefined, { forceRefresh: true });
-          await syncSharedWeeklySchedule(schedule.schedule);
-        } catch (syncError) {
-          Alert.alert(
-            "Jakaminen on päällä",
-            "Asetus tallennettiin, mutta tämän viikon lukujärjestystä ei saatu vielä ladattua. Avaa Wilma-välilehti ja yritä uudelleen."
-          );
-          console.warn("Shared schedule initial sync failed", syncError);
+  const changeScheduleSharing = (enabled: boolean) => {
+    const previous = shareSchedule;
+    setShareSchedule(enabled);
+    void (async () => {
+      try {
+        await updateConsentChoices({ schedule_sharing_enabled: enabled });
+        if (!enabled) {
+          await clearSharedWeeklySchedules();
+        } else {
+          try {
+            const schedule = await fetchSchedule(undefined, { forceRefresh: true });
+            await syncSharedWeeklySchedule(schedule.schedule);
+          } catch (syncError) {
+            // The consent itself saved fine — only this week's schedule sync
+            // failed, so the switch stays on rather than being reverted.
+            showError(
+              "Jakaminen on päällä, mutta tämän viikon lukujärjestystä ei saatu vielä ladattua. Avaa Wilma-välilehti ja yritä uudelleen."
+            );
+            console.warn("Shared schedule initial sync failed", syncError);
+          }
         }
+      } catch (error) {
+        setShareSchedule(previous);
+        showError(`Asetusta ei voitu tallentaa. ${errorMessage(error)}`);
       }
-    } catch (error) {
-      Alert.alert("Asetusta ei voitu tallentaa", errorMessage(error));
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
   const disableAllTracking = async () => {
@@ -179,38 +190,37 @@ export default function Settings() {
     await stopAllTracking(true);
   };
 
-  const changeBackgroundTracking = async (enabled: boolean) => {
+  const changeBackgroundTracking = (enabled: boolean) => {
     if (!friendLocation && !anonymousAnalytics) return;
-    setUpdating("background");
-    try {
-      if (!enabled) {
-        await setBLEBackgroundEnabled(false);
-        await updateConsentChoices({ background_tracking_enabled: false });
-        setBackgroundTracking(false);
-        return;
-      }
-      const result = await setBLEBackgroundEnabled(true);
-      if (!result?.success) {
-        throw new Error(
-          result?.reason === "bluetooth_off"
-            ? "Kytke Bluetooth päälle ja yritä uudelleen."
-            : "Tarkista Bluetooth- ja sijaintioikeudet laitteen asetuksista."
+    const previous = backgroundTracking;
+    setBackgroundTracking(enabled);
+    void (async () => {
+      try {
+        if (!enabled) {
+          await setBLEBackgroundEnabled(false);
+          await updateConsentChoices({ background_tracking_enabled: false });
+          return;
+        }
+        const result = await setBLEBackgroundEnabled(true);
+        if (!result?.success) {
+          throw new Error(
+            result?.reason === "bluetooth_off"
+              ? "Kytke Bluetooth päälle ja yritä uudelleen."
+              : "Tarkista Bluetooth- ja sijaintioikeudet laitteen asetuksista."
+          );
+        }
+        await updateConsentChoices({ background_tracking_enabled: true });
+      } catch (error) {
+        setBackgroundTracking(previous);
+        await updateConsentChoices({ background_tracking_enabled: false }).catch(
+          () => undefined
+        );
+        showError(
+          `Taustapaikannusta ei voitu ottaa käyttöön. ${errorMessage(error)}`,
+          { label: "Avaa asetukset", onPress: () => Linking.openSettings() }
         );
       }
-      await updateConsentChoices({ background_tracking_enabled: true });
-      setBackgroundTracking(true);
-    } catch (error) {
-      setBackgroundTracking(false);
-      await updateConsentChoices({ background_tracking_enabled: false }).catch(
-        () => undefined
-      );
-      Alert.alert("Taustapaikannusta ei voitu ottaa käyttöön", errorMessage(error), [
-        { text: "Avaa asetukset", onPress: () => Linking.openSettings() },
-        { text: "Sulje", style: "cancel" },
-      ]);
-    } finally {
-      setUpdating(null);
-    }
+    })();
   };
 
   const changeNotifications = async (enabled: boolean) => {
@@ -235,143 +245,165 @@ export default function Settings() {
     await AsyncStorage.setItem("isDebugMode", enabled.toString());
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#3478F5" />
-      </View>
-    );
-  }
+  const header = useNativeHeader({ title: "Asetukset", background: "page" });
 
-  const surface = isDark ? "#232427" : "#FFFFFF";
-  const background = isDark ? "#18191B" : "#F5F7FA";
-  const titleColor = isDark ? "#FFFFFF" : "#101828";
-  const descriptionColor = isDark ? "#B3B3B3" : "#667085";
-
+  // The scroll view is the screen's root and stays mounted through loading,
+  // so the large title has something to attach to from the first frame.
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: background }]}>
-      <Stack.Screen
-        options={{
-          title: "Asetukset",
-          headerStyle: { backgroundColor: surface },
-          headerTitleStyle: { color: titleColor },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons name="arrow-back" size={24} color={titleColor} />
-            </Pressable>
-          ),
-        }}
-      />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>TIETOSUOJA</Text>
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <SettingSwitch
-            title="Sijainti kavereille"
-            description="Näytä sijaintisi vain hyväksytyille kavereillesi."
-            value={friendLocation}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeFriendLocation(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          <SettingSwitch
-            title="Viikkolukujärjestys kavereille"
-            description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
-            value={shareSchedule}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeScheduleSharing(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          <SettingSwitch
-            title="Anonyymit ruuhka-arviot"
-            description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
-            value={anonymousAnalytics}
-            disabled={updating !== null}
-            onValueChange={(value) => void changeAnonymousAnalytics(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          {(Platform.OS === "android" || Platform.OS === "ios") && (
-            <>
-              <Divider isDark={isDark} />
+    <>
+      <Stack.Screen options={header} />
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
+        {loading ? (
+          <StateView loading />
+        ) : (
+          <>
+            {banner ? (
+              <ErrorBanner
+                message={banner.message}
+                actionLabel={banner.actionLabel}
+                onAction={banner.onAction}
+                onDismiss={() => setBanner(null)}
+              />
+            ) : null}
+
+            <Surface title="Tietosuoja">
               <SettingSwitch
-                title="Taustapaikannus"
-                description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
-                value={backgroundTracking}
-                disabled={
-                  updating !== null || (!friendLocation && !anonymousAnalytics)
+                title="Sijainti kavereille"
+                description="Näytä sijaintisi vain hyväksytyille kavereillesi."
+                value={friendLocation}
+                onValueChange={changeFriendLocation}
+              />
+              <SettingSwitch
+                title="Viikkolukujärjestys kavereille"
+                description="Jaa tämän viikon oppitunnit vain hyväksytyille kavereillesi."
+                value={shareSchedule}
+                onValueChange={changeScheduleSharing}
+              />
+              <SettingSwitch
+                title="Anonyymit ruuhka-arviot"
+                description="Lähetä karkea tila- ja aikatieto ilman käyttäjätunnusta, luokkaa tai tarkkoja koordinaatteja."
+                value={anonymousAnalytics}
+                onValueChange={changeAnonymousAnalytics}
+              />
+              {Platform.OS === "android" || Platform.OS === "ios" ? (
+                <SettingSwitch
+                  title="Taustapaikannus"
+                  description="Tunnista koulun majakoita myös silloin, kun OtaMaps ei ole näkyvissä."
+                  value={backgroundTracking}
+                  disabled={!friendLocation && !anonymousAnalytics}
+                  onValueChange={changeBackgroundTracking}
+                />
+              ) : null}
+            </Surface>
+
+            <Surface title="Sovellus">
+              <SettingSwitch
+                title="Ilmoitukset"
+                description="Wilma-viestit, muutokset ja kaveripyynnöt."
+                value={notificationPermission}
+                onValueChange={(value) => void changeNotifications(value)}
+              />
+              {liveActivitySupported ? (
+                <SettingSwitch
+                  title="Tunti lukitusnäytöllä"
+                  description="Näytä meneillään oleva tunti, sen päättymisaika ja seuraava tunti tai lounas. Päivittyy, kun avaat sovelluksen."
+                  value={liveActivity}
+                  onValueChange={(value) => void changeLiveActivity(value)}
+                />
+              ) : null}
+              <SettingSwitch
+                title="Debug-tila"
+                description="Näytä kehittäjätoiminnot."
+                value={isDebugMode}
+                onValueChange={(value) => void changeDebugMode(value)}
+              />
+            </Surface>
+
+            <Surface>
+              <Row onPress={() => router.push("/welcome/(post)/permissions")}>
+                <AppText variant="body" style={styles.rowLabel}>
+                  Käy onboarding uudelleen
+                </AppText>
+              </Row>
+              <Row
+                onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
+              >
+                <AppText variant="body" style={styles.rowLabel}>
+                  Tietosuoja
+                </AppText>
+              </Row>
+              <Row
+                onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
+              >
+                <AppText variant="body" style={styles.rowLabel}>
+                  Käyttöehdot
+                </AppText>
+              </Row>
+            </Surface>
+
+            <Surface>
+              <Row
+                onPress={() =>
+                  void openExternalUrl("https://otamaps.fi/remove-me")
                 }
-                onValueChange={(value) => void changeBackgroundTracking(value)}
-                colors={{ titleColor, descriptionColor }}
-              />
-            </>
-          )}
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: descriptionColor }]}>SOVELLUS</Text>
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <SettingSwitch
-            title="Ilmoitukset"
-            description="Wilma-viestit, muutokset ja kaveripyynnöt."
-            value={notificationPermission}
-            onValueChange={(value) => void changeNotifications(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-          <Divider isDark={isDark} />
-          {liveActivitySupported && (
-            <>
-              <SettingSwitch
-                title="Tunti lukitusnäytöllä"
-                description="Näytä meneillään oleva tunti, sen päättymisaika ja seuraava tunti tai lounas. Päivittyy, kun avaat sovelluksen."
-                value={liveActivity}
-                onValueChange={(value) => void changeLiveActivity(value)}
-                colors={{ titleColor, descriptionColor }}
-              />
-              <Divider isDark={isDark} />
-            </>
-          )}
-          <SettingSwitch
-            title="Debug-tila"
-            description="Näytä kehittäjätoiminnot."
-            value={isDebugMode}
-            onValueChange={(value) => void changeDebugMode(value)}
-            colors={{ titleColor, descriptionColor }}
-          />
-        </View>
-
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <LinkRow
-            title="Käy onboarding uudelleen"
-            onPress={() => router.push("/welcome/(post)/permissions")}
-            color={titleColor}
-          />
-          <Divider isDark={isDark} />
-          <LinkRow
-            title="Tietosuoja"
-            onPress={() => void openExternalUrl("https://otamaps.fi/privacy")}
-            color={titleColor}
-          />
-          <Divider isDark={isDark} />
-          <LinkRow
-            title="Käyttöehdot"
-            onPress={() => void openExternalUrl("https://otamaps.fi/terms")}
-            color={titleColor}
-          />
-        </View>
-
-        <Pressable
-          style={styles.deleteButton}
-          onPress={() => void openExternalUrl("https://otamaps.fi/remove-me")}
-        >
-          <Text style={styles.deleteText}>Poista tili</Text>
-        </Pressable>
+                chevron={false}
+              >
+                <AppText variant="body" color="danger">
+                  Poista tili
+                </AppText>
+              </Row>
+            </Surface>
+          </>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </>
   );
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Yritä hetken kuluttua uudelleen.";
+}
+
+function ErrorBanner({
+  message,
+  actionLabel,
+  onAction,
+  onDismiss,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={styles.errorBanner}>
+      <PlatformSymbol
+        ios="exclamationmark.triangle.fill"
+        android="error"
+        size={18}
+        tintColor="#D92D20"
+        style={styles.errorIcon}
+      />
+      <View style={styles.errorTextContainer}>
+        <AppText variant="meta" color="danger">
+          {message}
+        </AppText>
+        {actionLabel && onAction ? (
+          <Pressable onPress={onAction} hitSlop={8}>
+            <AppText variant="rowTitle" color="danger" style={styles.errorAction}>
+              {actionLabel}
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable onPress={onDismiss} hitSlop={8} accessibilityLabel="Piilota">
+        <PlatformSymbol ios="xmark" android="close" size={16} tintColor="#D92D20" />
+      </Pressable>
+    </View>
+  );
 }
 
 function SettingSwitch({
@@ -380,89 +412,60 @@ function SettingSwitch({
   value,
   disabled = false,
   onValueChange,
-  colors,
 }: {
   title: string;
   description: string;
   value: boolean;
   disabled?: boolean;
   onValueChange: (value: boolean) => void;
-  colors: { titleColor: string; descriptionColor: string };
 }) {
+  const theme = useTheme();
   return (
-    <View style={[styles.row, disabled && styles.disabled]}>
+    <Row style={disabled ? styles.disabled : undefined}>
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.titleColor }]}>{title}</Text>
-        <Text style={[styles.rowDescription, { color: colors.descriptionColor }]}>
+        <AppText variant="rowTitle">{title}</AppText>
+        <AppText variant="meta" color="textMuted" style={styles.rowDescription}>
           {description}
-        </Text>
+        </AppText>
       </View>
+      {/* The off state is left to the platform, which already draws the grey
+          iOS uses for it; only the "on" tint is ours. On Android a solid blue
+          track made the thumb sit badly on it, so the thumb takes the accent
+          and the track a tint of it — the whole switch reads blue, with the
+          thumb still visible. */}
       <Switch
         value={value}
         disabled={disabled}
         onValueChange={onValueChange}
-        // The thumb stays white in both states — tinting it with the same blue
-        // as the "on" track made the whole control read as one solid blob.
-        ios_backgroundColor="#D0D5DD"
-        trackColor={{ false: "#D0D5DD", true: "#3478F5" }}
-        thumbColor="#FFFFFF"
+        trackColor={{
+          false: undefined,
+          true: Platform.OS === "ios" ? theme.accent : theme.accentTint,
+        }}
+        thumbColor={Platform.OS === "android" && value ? theme.accent : undefined}
       />
-    </View>
-  );
-}
-
-function Divider({ isDark }: { isDark: boolean }) {
-  return <View style={[styles.divider, { backgroundColor: isDark ? "#2E3034" : "#EAECF0" }]} />;
-}
-
-function LinkRow({
-  title,
-  onPress,
-  color,
-}: {
-  title: string;
-  onPress: () => void;
-  color: string;
-}) {
-  return (
-    <Pressable style={styles.linkRow} onPress={onPress}>
-      <Text style={[styles.rowTitle, { color }]}>{title}</Text>
-      <MaterialIcons name="chevron-right" size={22} color="#98A2B3" />
-    </Pressable>
+    </Row>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: 16, paddingBottom: 40 },
-  sectionLabel: {
-    fontFamily: "Figtree-SemiBold",
-    fontSize: 12,
-    letterSpacing: 0.7,
-    marginBottom: 8,
-    marginLeft: 4,
-    marginTop: 10,
-  },
-  card: { borderRadius: 14, marginBottom: 18, overflow: "hidden" },
-  row: { alignItems: "center", flexDirection: "row", gap: 14, padding: 16 },
+  content: { flexGrow: 1, paddingBottom: 40 },
   rowText: { flex: 1 },
-  rowTitle: { fontFamily: "Figtree-SemiBold", fontSize: 16 },
-  rowDescription: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
+  rowLabel: { flex: 1 },
+  rowDescription: { marginTop: 4 },
   disabled: { opacity: 0.45 },
-  divider: { height: 1, marginLeft: 16 },
-  linkRow: {
-    alignItems: "center",
+  errorBanner: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 54,
-    paddingHorizontal: 16,
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FEF3F2",
+    borderColor: "#FEE4E2",
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
   },
-  deleteButton: { alignItems: "center", paddingVertical: 16 },
-  deleteText: { color: "#D92D20", fontFamily: "Figtree-SemiBold", fontSize: 15 },
+  errorIcon: { marginTop: 2 },
+  errorTextContainer: { flex: 1, gap: 6 },
+  errorAction: { marginTop: 2 },
 });

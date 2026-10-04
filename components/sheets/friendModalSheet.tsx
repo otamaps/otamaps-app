@@ -1,8 +1,5 @@
-import {
-  sheetChrome,
-  sheetPalette,
-  sheetShadow,
-} from "@/components/sheets/sheetTheme";
+import { HAS_LIQUID_GLASS } from "@/components/map/GlassSurface";
+import { glassSheetChrome, sheetPalette } from "@/components/sheets/sheetTheme";
 import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, {
   forwardRef,
@@ -35,7 +32,10 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
     const [currentSnapIndex, setCurrentSnapIndex] = useState(-1);
 
     const isDark = useColorScheme() === "dark";
-    const { surface } = sheetPalette(isDark);
+    // Over the map, on the same glass as the map's own sheet. The content is
+    // left clear where that glass is real, so the material shows through.
+    const sheetLook = glassSheetChrome(isDark);
+    const surface = HAS_LIQUID_GLASS ? "transparent" : sheetPalette(isDark).surface;
 
     const snapPoints = useMemo(() => ["42%", "68%", "94%"], []);
 
@@ -73,8 +73,8 @@ const FriendModalSheet = forwardRef<FriendModalSheetRef, FriendModalSheetProps>(
           onDismiss();
         }}
         onChange={setCurrentSnapIndex}
-        style={sheetShadow}
-        {...sheetChrome(isDark)}
+        style={sheetLook.style}
+        {...sheetLook.chrome}
       >
         <BottomSheetScrollView
           contentContainerStyle={[

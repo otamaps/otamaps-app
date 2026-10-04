@@ -1,25 +1,25 @@
+import { AppText, useNativeHeader, useTheme } from "@/components/ui";
+import { typography } from "@/constants/typography";
 import { replyToWilmaMessage } from "@/lib/wilma/graphqlClient";
-import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
-  Text,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ReplyMessageScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === "dark";
-  const { messageId, subject, sender } = useLocalSearchParams<{ messageId: string; subject?: string; sender?: string }>();
+  const theme = useTheme();
+  const { messageId, subject, sender } = useLocalSearchParams<{
+    messageId: string;
+    subject?: string;
+    sender?: string;
+  }>();
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const id = Number(messageId);
@@ -27,85 +27,93 @@ export default function ReplyMessageScreen() {
 
   const send = () => {
     if (!canSend) return;
-    Alert.alert("Lähetä vastaus?", sender ? `Vastaat lähettäjälle ${sender}.` : "Vastaus lähetetään Wilman vastaanottajalle.", [
-      { text: "Peruuta", style: "cancel" },
-      {
-        text: "Lähetä",
-        onPress: async () => {
-          setSending(true);
-          try {
-            await replyToWilmaMessage(id, body.trim());
-            Alert.alert("Vastaus lähetetty", "Wilma vahvisti vastauksen lähetyksen.", [
-              { text: "OK", onPress: () => router.back() },
-            ]);
-          } catch (caught: unknown) {
-            Alert.alert("Lähetys epäonnistui", caught instanceof Error ? caught.message : "Yritä myöhemmin uudelleen.");
-          } finally {
-            setSending(false);
-          }
+    Alert.alert(
+      "Lähetä vastaus?",
+      sender ? `Vastaat lähettäjälle ${sender}.` : "Vastaus lähetetään Wilman vastaanottajalle.",
+      [
+        { text: "Peruuta", style: "cancel" },
+        {
+          text: "Lähetä",
+          onPress: async () => {
+            setSending(true);
+            try {
+              await replyToWilmaMessage(id, body.trim());
+              Alert.alert("Vastaus lähetetty", "Wilma vahvisti vastauksen lähetyksen.", [
+                { text: "OK", onPress: () => router.back() },
+              ]);
+            } catch (caught: unknown) {
+              Alert.alert(
+                "Lähetys epäonnistui",
+                caught instanceof Error ? caught.message : "Yritä myöhemmin uudelleen.",
+              );
+            } finally {
+              setSending(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
+  const header = useNativeHeader({
+    title: "Vastaa",
+    background: "flat",
+    large: false,
+    action: {
+      icon: "paperplane",
+      androidIcon: "send",
+      accessibilityLabel: "Lähetä vastaus",
+      onPress: send,
+      disabled: !canSend,
+    },
+  });
+
   return (
-    // The safe-area inset above the header is otherwise painted with the
-    // screen's body background, so the status bar sits on a visibly
-    // different color than the nav bar right below it. Painting the inset
-    // with the header's own background keeps the two matched.
-    <SafeAreaView style={[styles.statusBarArea, isDark && styles.statusBarAreaDark]} edges={["top"]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <MaterialIcons name="close" size={25} color={isDark ? "#51a2ff" : "#3478F5"} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={[styles.headerTitle, isDark && styles.textLight]}>Vastaa</Text>
-          <Text style={[styles.subtitle, isDark && styles.mutedDark]} numberOfLines={1}>{subject ?? "Wilma-viesti"}</Text>
-        </View>
-        {sending ? <ActivityIndicator size="small" color="#3478F5" /> : (
-          <Pressable onPress={send} disabled={!canSend} hitSlop={8}>
-            <MaterialIcons name="send" size={23} color={canSend ? (isDark ? "#51a2ff" : "#3478F5") : "#aaa"} />
-          </Pressable>
-        )}
-      </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <>
+      <Stack.Screen options={header} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.content}>
-          {!!sender && <Text style={[styles.recipient, isDark && styles.mutedDark]}>Vastaanottaja: {sender}</Text>}
+          {!!subject && (
+            <AppText variant="meta" color="textMuted" numberOfLines={1}>
+              {subject}
+            </AppText>
+          )}
+          {!!sender && (
+            <AppText variant="meta" color="textMuted" style={styles.recipient}>
+              Vastaanottaja: {sender}
+            </AppText>
+          )}
           <TextInput
-            style={[styles.bodyInput, isDark && styles.bodyInputDark, isDark && styles.textLight]}
+            style={[styles.bodyInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
             value={body}
             onChangeText={setBody}
             maxLength={10000}
             placeholder="Kirjoita vastaus"
-            placeholderTextColor={isDark ? "#777" : "#aaa"}
+            placeholderTextColor={theme.placeholder}
             multiline
             autoFocus
             textAlignVertical="top"
           />
         </View>
       </KeyboardAvoidingView>
-      </View>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  statusBarArea: { flex: 1, backgroundColor: "#fff" },
-  statusBarAreaDark: { backgroundColor: "#18191B" },
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  containerDark: { backgroundColor: "#18191B" },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eee" },
-  headerDark: { backgroundColor: "#18191B", borderBottomColor: "#333" },
-  headerText: { flex: 1 },
-  headerTitle: { fontFamily: "Figtree-SemiBold", fontSize: 17, color: "#222" },
-  subtitle: { marginTop: 1, fontFamily: "Figtree-Regular", fontSize: 12, color: "#888" },
-  content: { flex: 1, padding: 16, gap: 10 },
-  recipient: { fontFamily: "Figtree-Regular", fontSize: 13, color: "#666" },
-  bodyInput: { flex: 1, minHeight: 220, padding: 14, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd", fontFamily: "Figtree-Regular", fontSize: 16, color: "#222" },
-  bodyInputDark: { backgroundColor: "#2b2b2b", borderColor: "#444" },
-  textLight: { color: "#fff" },
-  mutedDark: { color: "#aaa" },
+  content: { flex: 1, padding: 16, gap: 6 },
+  recipient: { marginBottom: 4 },
+  bodyInput: {
+    flex: 1,
+    minHeight: 220,
+    marginTop: 4,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...typography.input,
+  },
 });

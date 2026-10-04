@@ -1,39 +1,45 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { AppText, Row, Surface, useNativeHeader } from "@/components/ui";
 import Constants from "expo-constants";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet } from "react-native";
 
-const About = () => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const backgroundColor = isDark ? "#18191B" : "#fff";
+const SPONSORS = [
+  { name: "Otaniemen lukion vanhempainyhdistys", logo: null },
+  {
+    name: "Otaniemen lukion opiskelijakunnan hallitus",
+    logo: require("@/assets/images/Hallitus_Logo.png"),
+  },
+  {
+    name: "Streetsmarts Autokoulu",
+    logo: require("@/assets/images/streetsmarts.png"),
+  },
+];
+
+export default function About() {
   const router = useRouter();
+  const header = useNativeHeader({ title: "Tietoja", background: "page" });
 
-  const [logoTapCount, setLogoTapCount] = React.useState(0);
+  // A ref, not state: nothing renders the count, and as state every tap
+  // re-rendered the screen to no purpose.
+  const logoTapCount = React.useRef(0);
   const logoTapTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
 
+  // Ten taps on the logo opens the hidden screen; the count lapses after a
+  // pause so an idle streak cannot be finished days later.
   const handleLogoTap = () => {
-    setLogoTapCount((prev) => {
-      const next = prev + 1;
-      if (next === 10) {
-        setLogoTapCount(0);
-        router.push("/me/secret");
-        return 0;
-      }
-      if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
-      logoTapTimeout.current = setTimeout(() => setLogoTapCount(0), 1500);
-      return next;
-    });
+    logoTapCount.current += 1;
+    if (logoTapCount.current === 10) {
+      logoTapCount.current = 0;
+      router.push("/me/secret");
+      return;
+    }
+    if (logoTapTimeout.current) clearTimeout(logoTapTimeout.current);
+    logoTapTimeout.current = setTimeout(() => {
+      logoTapCount.current = 0;
+    }, 1500);
   };
 
   React.useEffect(() => {
@@ -42,151 +48,73 @@ const About = () => {
     };
   }, []);
 
+  const version = Constants.expoConfig?.version || "0.0.1";
+  const build = Constants.expoConfig?.android?.versionCode;
+
   return (
-    <View style={[styles.container, { backgroundColor }]}>
-      <Stack.Screen
-        options={{
-          title: "Tietoja",
-          headerStyle: {
-            backgroundColor: isDark ? "#18191B" : "#fff",
-          },
-          headerTitleStyle: {
-            color: isDark ? "#fff" : "#000",
-          },
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                style={{ marginRight: 0 }}
-                color={isDark ? "#fff" : "#000"}
-              />
-            </Pressable>
-          ),
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: "white",
-          paddingHorizontal: 16,
-          borderRadius: 16,
-          marginBottom: 16,
-        }}
+    <>
+      <Stack.Screen options={header} />
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
       >
-        <Pressable onPress={handleLogoTap} hitSlop={20}>
+        <Pressable
+          onPress={handleLogoTap}
+          hitSlop={20}
+          accessibilityLabel="OtaMaps"
+          style={styles.logoWrap}
+        >
           <Image
             source={require("@/assets/images/otamaps-logo.png")}
-            style={{
-              resizeMode: "contain",
-              width: 200,
-              height: 100,
-            }}
+            style={styles.logo}
+            resizeMode="contain"
           />
         </Pressable>
-      </View>
 
-      <Text
-        style={{
-          marginBottom: 3,
-          ...(isDark ? { color: "white" } : { color: "black" }),
-          fontSize: 16,
-        }}
-      >
-        Versio {Constants.expoConfig?.version || "0.0.1"} (
-        {Constants.expoConfig?.android?.versionCode || ""})
-      </Text>
-      <Text
-        style={{
-          marginBottom: 50,
-          ...(isDark ? { color: "white" } : { color: "black" }),
-          fontSize: 16,
-        }}
-      >
-        Copyright © 2025 Otamaps
-      </Text>
-      <Text
-        style={{
-          marginBottom: 20,
-          ...(isDark ? { color: "#ffffff70" } : { color: "black" }),
-          fontSize: 18,
-        }}
-      >
-        Sponsorit
-      </Text>
-      <Image
-        source={require("@/assets/images/Hallitus_Logo.png")}
-        style={{ width: 100, height: 100 }}
-        tintColor="gray"
-        resizeMode="contain"
-      />
-      <Text
-        style={{
-          fontSize: 14,
-          marginBottom: 8,
-          marginTop: 8,
-          fontFamily: "Figtree-Medium",
-          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
-        }}
-      >
-        Otaniemen lukion opiskelijakunnan hallitus
-      </Text>
-      <View
-        style={{
-          height: 1,
-          backgroundColor: "#eeeeee15",
-          marginVertical: 8,
-          width: "100%",
-          marginBottom: 20,
-        }}
-      />
+        <Surface>
+          <Row>
+            <AppText variant="body" style={styles.label}>
+              Versio
+            </AppText>
+            <AppText variant="body" color="textMuted">
+              {build ? `${version} (${build})` : version}
+            </AppText>
+          </Row>
+          <Row>
+            <AppText variant="body" style={styles.label}>
+              Tekijänoikeus
+            </AppText>
+            <AppText variant="body" color="textMuted">
+              © {new Date().getFullYear()} OtaMaps
+            </AppText>
+          </Row>
+        </Surface>
 
-      <Image
-        source={require("@/assets/images/streetsmarts.png")}
-        style={{ width: 100, height: 100 }}
-        tintColor="gray"
-        resizeMode="contain"
-      />
-      <Text
-        style={{
-          fontSize: 14,
-          marginBottom: 8,
-          marginTop: 8,
-          fontFamily: "Figtree-Medium",
-          ...(isDark ? { color: "#ffffff40" } : { color: "black" }),
-        }}
-      >
-        Streetsmarts Autokoulu
-      </Text>
-      <View
-        style={{
-          height: 1,
-          backgroundColor: "#eeeeee15",
-          marginVertical: 8,
-          width: "100%",
-          marginBottom: 20,
-        }}
-      />
-      <Text
-        style={{
-          fontSize: 16,
-          marginBottom: 8,
-          fontFamily: "Figtree-Bold",
-          ...(isDark ? { color: "#ffffff70" } : { color: "black" }),
-        }}
-      >
-        Otaniemen lukion vanhempainyhdistys
-      </Text>
-    </View>
+        <Surface title="Sponsorit">
+          {SPONSORS.map((sponsor) => (
+            <Row key={sponsor.name}>
+              {sponsor.logo ? (
+                <Image
+                  source={sponsor.logo}
+                  style={styles.sponsorLogo}
+                  resizeMode="contain"
+                />
+              ) : null}
+              <AppText variant="body" style={styles.label}>
+                {sponsor.name}
+              </AppText>
+            </Row>
+          ))}
+        </Surface>
+      </ScrollView>
+    </>
   );
-};
-
-export default About;
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-  },
+  content: { flexGrow: 1, paddingBottom: 40 },
+  logoWrap: { alignItems: "center", paddingTop: 8 },
+  logo: { width: 200, height: 96 },
+  label: { flex: 1 },
+  sponsorLogo: { width: 40, height: 40 },
 });

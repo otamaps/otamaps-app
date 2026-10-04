@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { fonts } from "@/constants/typography";
 
 interface RoomItemProps {
   room: {
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
   },
   roomName: {
     fontSize: 16,
-    fontFamily: 'Figtree-SemiBold',
+    ...fonts.semiBold,
     color: '#333',
     marginBottom: 4,
   },
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
     color: '#666',
     marginLeft: 4,
   },

@@ -1,6 +1,6 @@
-import { AppHeader, AppText, Row, Screen, SearchField, StateView, useTheme } from "@/components/ui";
+import { AppText, Row, StateView, useNativeHeader, useTheme } from "@/components/ui";
 import { fetchWilmaRooms, WilmaRoomProfile } from "@/lib/wilma/graphqlClient";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
@@ -40,76 +40,87 @@ export default function WilmaRoomsScreen() {
     );
   }, [query, rooms]);
 
+  const header = useNativeHeader({
+    title: "Tilojen lukujärjestykset",
+    background: "card",
+    searchPlaceholder: "Hae tilan numerolla tai nimellä",
+    onSearch: setQuery,
+  });
+
+  // The list is the screen's root element, and stays mounted through every
+  // state: UIKit attaches the large title to the scroll view directly under
+  // the screen, so both a wrapper view and a plain View rendered while
+  // loading leave it with nothing to track.
   return (
-    <Screen background="flat">
-      <AppHeader title="Tilojen lukujärjestykset" />
-
-      <SearchField
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Hae tilan numerolla tai nimellä"
-      />
-
-      {loading ? (
-        <StateView loading />
-      ) : error ? (
-        <StateView
-          icon="error-outline"
-          message={error}
-          actionLabel="Yritä uudelleen"
-          onAction={() => void load()}
-        />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => String(item.id)}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                void load(true);
-              }}
-              tintColor={theme.accent}
+    <>
+      <Stack.Screen options={header} />
+      <FlatList
+        data={loading || error ? [] : filtered}
+        keyExtractor={(item) => String(item.id)}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load(true);
+            }}
+            tintColor={theme.accent}
+          />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <StateView loading />
+          ) : error ? (
+            <StateView
+              icon="error-outline"
+              message={error}
+              actionLabel="Yritä uudelleen"
+              onAction={() => void load()}
             />
-          }
-          ListEmptyComponent={<StateView message="Tiloja ei löytynyt." />}
-          renderItem={({ item }) => (
-            <Row
-              accessibilityLabel={`Näytä tilan ${item.code} lukujärjestys`}
-              onPress={() =>
-                router.push({
-                  pathname: "/wilma/room-schedule" as never,
-                  params: {
-                    roomId: String(item.id),
-                    code: item.code,
-                    name: item.name,
-                  },
-                })
-              }
-            >
-              <View style={styles.rowText}>
-                <AppText variant="rowTitle" numberOfLines={1}>
-                  {item.code}
-                </AppText>
-                <AppText
-                  variant="caption"
-                  color="textMuted"
-                  style={styles.category}
-                  numberOfLines={1}
-                >
-                  {item.name || "Ei kuvausta"}
-                </AppText>
-              </View>
-            </Row>
-          )}
-        />
-      )}
-    </Screen>
+          ) : (
+            <StateView message="Tiloja ei löytynyt." />
+          )
+        }
+        renderItem={({ item }) => (
+          <Row
+            accessibilityLabel={`Näytä tilan ${item.code} lukujärjestys`}
+            onPress={() =>
+              router.push({
+                pathname: "/wilma/room-schedule" as never,
+                params: {
+                  roomId: String(item.id),
+                  code: item.code,
+                  name: item.name,
+                },
+              })
+            }
+          >
+            <View style={styles.rowText}>
+              <AppText variant="rowTitle" numberOfLines={1}>
+                {item.code}
+              </AppText>
+              <AppText
+                variant="caption"
+                color="textMuted"
+                style={styles.category}
+                numberOfLines={1}
+              >
+                {item.name || "Ei kuvausta"}
+              </AppText>
+            </View>
+          </Row>
+        )}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  // Lets the loading and empty blocks fill the screen rather than collapsing
+  // to nothing at the top of an empty list.
+  content: { flexGrow: 1 },
   rowText: { flex: 1 },
   category: { marginTop: 2 },
 });

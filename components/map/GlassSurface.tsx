@@ -1,0 +1,173 @@
+import { useTheme } from "@/components/ui";
+import { BlurTargetView, BlurView } from "expo-blur";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import {
+  Platform,
+  StyleSheet,
+  type StyleProp,
+  type View,
+  type ViewStyle,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+
+type Props = {
+  children: ReactNode;
+  /** Corner radius. Half the height makes a capsule, as the map's controls are. */
+  radius: number;
+  /** Ripples and lifts under a touch, as system glass does on a control. */
+  interactive?: boolean;
+  /**
+   * Shows or hides the control. Use this — never an animated `opacity` on
+   * something around it — to make glass come and go; see below.
+   */
+  visible?: boolean;
+  /**
+   * Android only: a flat fill in place of the blur. The blur takes the
+   * colour of whatever is behind it, which on a sheet's own controls is the
+   * map showing through the sheet. Ignored where there is real glass.
+   */
+  solid?: string;
+  /** Size and inner layout of the content. */
+  style?: StyleProp<ViewStyle>;
+};
+
+// Decided once: the answer cannot change while the app is running.
+const LIQUID_GLASS = isLiquidGlassAvailable();
+
+// Android's blur only draws what is inside a `BlurTargetView`, so the map
+// registers itself as one and every `GlassSurface` below the provider blurs it.
+const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
+
+/** Wraps a screen whose glass should blur its map. A no-op off Android. */
+export function MapBlurProvider({ children }: { children: ReactNode }) {
+  const target = useRef<View | null>(null);
+  if (Platform.OS !== "android") return <>{children}</>;
+  return <BlurTargetContext.Provider value={target}>{children}</BlurTargetContext.Provider>;
+}
+
+/**
+ * Wraps the map itself — and only the map, since a blur view cannot sit
+ * inside the target it blurs. A no-op off Android.
+ */
+export function MapBlurTarget({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const target = useContext(BlurTargetContext);
+  if (Platform.OS !== "android" || !target) return <>{children}</>;
+  return (
+    <BlurTargetView ref={target} style={style}>
+      {children}
+    </BlurTargetView>
+  );
+}
+
+const SHOW_MS = 250;
+const HIDE_MS = 150;
+
+/**
+ * The material every control floating over the map is made of. On iOS 26
+ * it is the system's own Liquid Glass (`UIGlassEffect`); on Android and
+ * older iOS, the thick material blur those controls used before.
+ *
+ * ⚠️ Glass must not be faded from outside. A native effect view whose
+ * ancestor's opacity is animated through zero stops drawing its effect, and
+ * stays blank — a bare label floating over the map — until it is attached
+ * afresh, as switching tabs and back does. So `visible` hides the glass the
+ * way UIKit means it to be hidden: the effect itself animates to `none`
+ * and back, dematerialising and materialising, while only the content
+ * inside it fades.
+ */
+export function GlassSurface({
+  children,
+  radius,
+  interactive,
+  visible = true,
+  solid,
+  style,
+}: Props) {
+  const theme = useTheme();
+  const blurTarget = useContext(BlurTargetContext);
+  const shown = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    shown.value = withTiming(visible ? 1 : 0, {
+      duration: visible ? SHOW_MS : HIDE_MS,
+    });
+  }, [visible, shown]);
+
+  const contentStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
+
+  if (LIQUID_GLASS) {
+    return (
+      <GlassView
+        glassEffectStyle={{
+          style: visible ? "regular" : "none",
+          animate: true,
+          animationDuration: (visible ? SHOW_MS : HIDE_MS) / 1000,
+        }}
+        isInteractive={interactive}
+        colorScheme={theme.isDark ? "dark" : "light"}
+        style={{ borderRadius: radius, borderCurve: "continuous" }}
+      >
+        {/* The content carries the layout, so the glass sizes to it. */}
+        <Animated.View style={[style, contentStyle]}>{children}</Animated.View>
+      </GlassView>
+    );
+  }
+
+  if (Platform.OS === "android" && solid) {
+    return (
+      <Animated.View
+        style={[{ borderRadius: radius, backgroundColor: solid }, style, contentStyle]}
+      >
+        {children}
+      </Animated.View>
+    );
+  }
+
+  return (
+    // The blur is a layer behind the content rather than its container, so
+    // the shadow on this outer view sits outside the blur's clipping.
+    <Animated.View style={[styles.shadow, { borderRadius: radius }, style, contentStyle]}>
+      <BlurView
+        intensity={theme.isDark ? 60 : 80}
+        tint={theme.isDark ? "systemThickMaterialDark" : "systemThickMaterialLight"}
+        // Android has no live blur by default; without this it renders a
+        // flat translucent view. SDK 31+ only, older falls back.
+        blurMethod="dimezisBlurViewSdk31Plus"
+        blurTarget={blurTarget ?? undefined}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: "hidden" }]}
+      />
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Whether `GlassSurface` is real glass, which gives its own touch response. */
+export const HAS_LIQUID_GLASS = LIQUID_GLASS;
+
+const styles = StyleSheet.create({
+  shadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+});

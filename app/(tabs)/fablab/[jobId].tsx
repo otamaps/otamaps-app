@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fonts } from "@/constants/typography";
 
 const GREEN = '#87b72f';
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? '';
@@ -116,8 +117,8 @@ const st = StyleSheet.create({
     backgroundColor: '#fff',
   },
   line: { width: 2, flex: 1, minHeight: 20, marginVertical: 2 },
-  label: { fontSize: 14, fontFamily: 'Figtree-Regular', paddingTop: 3, flex: 1 },
-  labelActive: { fontFamily: 'Figtree-SemiBold' },
+  label: { fontSize: 14, ...fonts.regular, paddingTop: 3, flex: 1 },
+  labelActive: { ...fonts.semiBold },
 });
 
 // ─── Info Row ────────────────────────────────────────────────────────────────
@@ -486,9 +487,9 @@ const d = StyleSheet.create({
     gap: 10,
   },
   backBtn: { padding: 4 },
-  title: { flex: 1, fontSize: 17, fontFamily: 'Figtree-SemiBold' },
+  title: { flex: 1, fontSize: 17, ...fonts.semiBold },
   badge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 11, fontFamily: 'Figtree-SemiBold' },
+  badgeText: { fontSize: 11, ...fonts.semiBold },
   scroll: { paddingHorizontal: 16, paddingBottom: 48, gap: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 
@@ -499,7 +500,7 @@ const d = StyleSheet.create({
     padding: 18,
     gap: 14,
   },
-  costCardTitle: { fontSize: 16, fontFamily: 'Figtree-SemiBold' },
+  costCardTitle: { fontSize: 16, ...fonts.semiBold },
   costRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   costPill: {
     borderRadius: 10,
@@ -509,8 +510,8 @@ const d = StyleSheet.create({
     flex: 1,
     minWidth: 80,
   },
-  costPillLabel: { fontSize: 11, fontFamily: 'Figtree-Regular' },
-  costPillValue: { fontSize: 15, fontFamily: 'Figtree-Bold' },
+  costPillLabel: { fontSize: 11, ...fonts.regular },
+  costPillValue: { fontSize: 15, ...fonts.bold },
 
   // Info panel
   infoPanel: {
@@ -521,8 +522,8 @@ const d = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
   },
-  panelTitle: { fontSize: 15, fontFamily: 'Figtree-SemiBold' },
-  panelSub: { fontSize: 13, fontFamily: 'Figtree-Regular', marginTop: 2 },
+  panelTitle: { fontSize: 15, ...fonts.semiBold },
+  panelSub: { fontSize: 13, ...fonts.regular, marginTop: 2 },
 
   // Pay inline
   inlinePay: {
@@ -532,14 +533,14 @@ const d = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'center',
   },
-  inlinePayText: { color: '#fff', fontFamily: 'Figtree-SemiBold', fontSize: 14 },
+  inlinePayText: { color: '#fff', ...fonts.semiBold, fontSize: 14 },
 
   // Section card
   section: { borderRadius: 16, padding: 16, gap: 8 },
-  sectionTitle: { fontSize: 15, fontFamily: 'Figtree-SemiBold', marginBottom: 4 },
+  sectionTitle: { fontSize: 15, ...fonts.semiBold, marginBottom: 4 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  infoLabel: { fontSize: 14, fontFamily: 'Figtree-Regular' },
-  infoValue: { fontSize: 14, fontFamily: 'Figtree-SemiBold', maxWidth: '60%', textAlign: 'right' },
+  infoLabel: { fontSize: 14, ...fonts.regular },
+  infoValue: { fontSize: 14, ...fonts.semiBold, maxWidth: '60%', textAlign: 'right' },
   colorDot: { width: 12, height: 12, borderRadius: 6 },
 
   // Shared
@@ -552,7 +553,7 @@ const d = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Figtree-SemiBold' },
+  primaryBtnText: { color: '#fff', fontSize: 15, ...fonts.semiBold },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -564,7 +565,7 @@ const d = StyleSheet.create({
   errText: {
     color: '#ef4444',
     fontSize: 13,
-    fontFamily: 'Figtree-Regular',
+    ...fonts.regular,
     flex: 1,
   },
 });

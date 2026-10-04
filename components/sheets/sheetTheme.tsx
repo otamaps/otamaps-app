@@ -1,8 +1,11 @@
+import { HAS_LIQUID_GLASS } from "@/components/map/GlassSurface";
 import { colors, sheet } from "@/constants/theme";
 import type { BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
+import { GlassView } from "expo-glass-effect";
 import React, { useId, useState } from "react";
 import {
   StyleSheet,
+  useColorScheme,
   View,
   type LayoutChangeEvent,
   type ViewStyle,
@@ -181,3 +184,95 @@ export const sheetShadow = StyleSheet.create({
     elevation: 24,
   },
 }).shadow;
+
+/**
+ * UIKit's own list colours, for content laid out as a native list — the map
+ * sheet's friends list. Translucent on purpose: they are what iOS draws on
+ * top of materials, so they hold up on glass as well as on a solid sheet.
+ */
+export function nativeListColors(isDark: boolean) {
+  return {
+    /** `tertiarySystemFill` — a search field, a filled cell. */
+    fill: isDark ? "rgba(118,118,128,0.24)" : "rgba(118,118,128,0.12)",
+    /** A row while pressed — `systemFill`, a step stronger than `fill`. */
+    highlight: isDark ? "rgba(120,120,128,0.36)" : "rgba(120,120,128,0.2)",
+    /** `separator`. */
+    separator: isDark ? "rgba(84,84,88,0.6)" : "rgba(60,60,67,0.29)",
+    /** `label`, `secondaryLabel`, `tertiaryLabel`. */
+    label: isDark ? "#FFFFFF" : "#000000",
+    secondaryLabel: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
+    tertiaryLabel: isDark ? "rgba(235,235,245,0.3)" : "rgba(60,60,67,0.3)",
+  };
+}
+
+/** iOS 26's sheet corner: a sheet resting part-way up is rounded all round. */
+const GLASS_SHEET_RADIUS = 34;
+
+/**
+ * How solid the glass is: the sheet's own surface colour, tinted into the
+ * material at this opacity. Plain glass let too much of the map through
+ * behind a list of names; a tint keeps the glass's edges and refraction,
+ * where a solid layer painted on top would cover them. Dark mode goes
+ * further: the map's bright labels and lit buildings show through dark
+ * glass far more than through light.
+ */
+const SHEET_TINT_ALPHA = { light: 0.6, dark: 0.85 };
+
+function GlassSheetBackground({ style }: BottomSheetBackgroundProps) {
+  const isDark = useColorScheme() === "dark";
+  const surface = isDark ? sheet.surfaceDark : sheet.surface;
+  return (
+    <GlassView
+      pointerEvents="none"
+      glassEffectStyle="regular"
+      colorScheme={isDark ? "dark" : "light"}
+      tintColor={withAlpha(
+        surface,
+        isDark ? SHEET_TINT_ALPHA.dark : SHEET_TINT_ALPHA.light,
+      )}
+      style={[style, glassStyles.glass]}
+    />
+  );
+}
+
+/** `#RRGGBB` plus an opacity, as `#RRGGBBAA`. */
+function withAlpha(hex: string, alpha: number): string {
+  const byte = Math.round(alpha * 255).toString(16).padStart(2, "0");
+  return `${hex}${byte}`;
+}
+
+/**
+ * A sheet as iOS 26 draws its own over Maps: Liquid Glass, with the system
+ * grabber — the map's own sheet and the friend profile over it. Where
+ * Liquid Glass is unavailable it falls back to the app's solid `sheetChrome`.
+ * Spread `chrome` onto the sheet and compose `style` into its own; a sheet's
+ * content must be transparent (`HAS_LIQUID_GLASS`) for the glass to show.
+ */
+export function glassSheetChrome(isDark: boolean) {
+  if (!HAS_LIQUID_GLASS) {
+    return { chrome: sheetChrome(isDark), style: sheetShadow };
+  }
+  return {
+    chrome: {
+      backgroundComponent: GlassSheetBackground,
+      handleStyle: { backgroundColor: "transparent" },
+      // UIKit's grabber: 36 by 5, in the tertiary label colour.
+      handleIndicatorStyle: {
+        width: 36,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: nativeListColors(isDark).tertiaryLabel,
+      },
+    },
+    // Glass casts its own shadow; a second one would muddy its edge.
+    style: undefined,
+  };
+}
+
+
+const glassStyles = StyleSheet.create({
+  glass: {
+    borderRadius: GLASS_SHEET_RADIUS,
+    borderCurve: "continuous",
+  },
+});

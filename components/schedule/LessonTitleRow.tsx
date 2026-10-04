@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleProp, StyleSheet, Text, TextStyle, View } from "react-native";
+import { fonts } from "@/constants/typography";
 
 type Props = {
   title: string;
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
   title: { flexShrink: 1 },
   code: {
     flexShrink: 0,
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 11,
     color: "#666",
     backgroundColor: "#EEF1F5",

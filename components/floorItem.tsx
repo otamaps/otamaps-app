@@ -1,6 +1,7 @@
 import { Floor } from "@/types";
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { fonts } from "@/constants/typography";
 
 type Props = {
   item: Floor;
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontFamily: "Figtree-Regular",
+    ...fonts.regular,
   },
   address: {
     fontSize: 14,

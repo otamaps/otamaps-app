@@ -19,6 +19,7 @@
         "EXPO_PUBLIC_OTAMAPS_API_URL": "https://api.otamaps.fi",
         "EXPO_PUBLIC_SENTRY_DSN": "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "development",
+        "OTAMAPS_VARIANT": "dev",
         "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true"
       }
     },
@@ -35,6 +36,9 @@
         "EXPO_PUBLIC_SENTRY_DSN": "https://715d2f2c3d467181244cf2004f289823@o4511883300765696.ingest.de.sentry.io/4511883303125072",
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview",
         "EXPO_PUBLIC_WILMA_PRIMARY_AUTH_ENABLED": "true"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {

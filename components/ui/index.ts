@@ -1,7 +1,21 @@
 export { AppHeader } from "./AppHeader";
 export { AppText } from "./AppText";
+export { Button } from "./Button";
+export { GlassSegmentedControl } from "./GlassSegmentedControl";
+export { useNativeHeader } from "./nativeHeader";
 export { Row } from "./Row";
+export { RowIcon } from "./RowIcon";
 export { Screen } from "./Screen";
+export { SegmentedControl } from "./SegmentedControl";
+export { useSelectorSwipe } from "./useSelectorSwipe";
+export { Surface } from "./Surface";
 export { SearchField } from "./SearchField";
 export { StateView } from "./StateView";
-export { palette, useTheme, type Palette, type Theme } from "./theme";
+export {
+  BACKGROUND_KEY,
+  palette,
+  useTheme,
+  type Background,
+  type Palette,
+  type Theme,
+} from "./theme";

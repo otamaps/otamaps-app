@@ -12,6 +12,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 const FABLAB_ENABLED_STORAGE_KEY = "fablabEnabled";
 
@@ -185,13 +186,13 @@ const styles = StyleSheet.create({
 	},
 	toggleTitle: {
 		fontSize: 16,
-		fontFamily: "Figtree-SemiBold",
+		...fonts.semiBold,
 		color: "#333",
 		marginBottom: 4,
 	},
 	toggleSubtitle: {
 		fontSize: 14,
-		fontFamily: "Figtree-Regular",
+		...fonts.regular,
 		color: "#666",
 		lineHeight: 20,
 		maxWidth: "90%",
@@ -218,13 +219,13 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		fontSize: 16,
-		fontFamily: "Figtree-SemiBold",
+		...fonts.semiBold,
 		color: "#333",
 		marginBottom: 4,
 	},
 	text: {
 		fontSize: 14,
-		fontFamily: "Figtree-Regular",
+		...fonts.regular,
 		color: "#666",
 		lineHeight: 20,
 	},
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
 		borderColor: "#EFF4FF",
 	},
 	tipTitle: {
-		fontFamily: "Figtree-SemiBold",
+		...fonts.semiBold,
 		color: "#222",
 		fontSize: 15,
 		marginBottom: 6,
@@ -247,6 +248,6 @@ const styles = StyleSheet.create({
 		color: "#4a5568",
 		fontSize: 14,
 		lineHeight: 20,
-		fontFamily: "Figtree-Regular",
+		...fonts.regular,
 	},
 });

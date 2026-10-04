@@ -20,6 +20,7 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { fonts } from "@/constants/typography";
 
 export type DayPickerSheetRef = {
   /** Opens the sheet, showing the month that `iso` (`YYYY-MM-DD`) falls in. */
@@ -259,7 +260,7 @@ const DayPickerSheet = forwardRef<DayPickerSheetRef, DayPickerSheetProps>(
                           isToday &&
                             !isSelected && {
                               color: isDark ? "#51a2ff" : "#3478F5",
-                              fontFamily: "Figtree-SemiBold",
+                              ...fonts.semiBold,
                             },
                           isSelected && styles.dayCellTextSelected,
                         ]}
@@ -294,14 +295,14 @@ const styles = StyleSheet.create({
   monthNavArrows: { flexDirection: "row" },
   todayBtn: { paddingVertical: 4, paddingRight: 4 },
   todayBtnText: {
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 13,
   },
   todayBtnTextDisabled: { color: "#c2c8d0" },
   monthLabel: {
     flex: 1,
     textAlign: "center",
-    fontFamily: "Figtree-SemiBold",
+    ...fonts.semiBold,
     fontSize: 17,
     color: "#222",
   },
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   weekdayLabel: {
     flex: 1,
     textAlign: "center",
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 12,
     color: "#888",
   },
@@ -340,12 +341,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   dayCellText: {
-    fontFamily: "Figtree-Medium",
+    ...fonts.medium,
     fontSize: 15,
     color: "#222",
   },
   dayCellTextWeekend: { color: "#c2c8d0" },
-  dayCellTextSelected: { color: "#fff", fontFamily: "Figtree-SemiBold" },
+  dayCellTextSelected: { color: "#fff", ...fonts.semiBold },
 });
 
 DayPickerSheet.displayName = "DayPickerSheet";
