@@ -50,6 +50,8 @@ import {
   BottomSheetFlatList,
   BottomSheetModalProvider,
   BottomSheetView,
+  useScrollEventsHandlersDefault,
+  type ScrollEventsHandlersHookType,
 } from "@gorhom/bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -92,6 +94,7 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  type SharedValue,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import FriendItem, {
@@ -260,6 +263,26 @@ function queuePillLabel(status: QueueStatus): string {
     : `Jono · ${getQueueLabel(status.status_level)}`;
 }
 
+/**
+ * The sheet's default scroll handling, plus a copy of the list's offset into
+ * `offset` for something outside it to read. Named as a hook because the sheet
+ * calls it as one.
+ */
+const scrollOffsetHook = (
+  offset: SharedValue<number>,
+): ScrollEventsHandlersHookType =>
+  function useScrollOffset(ref, contentOffsetY) {
+    const defaults = useScrollEventsHandlersDefault(ref, contentOffsetY);
+    return {
+      ...defaults,
+      handleOnScroll: (event, context) => {
+        "worklet";
+        offset.value = event.contentOffset.y;
+        defaults.handleOnScroll?.(event, context);
+      },
+    };
+  };
+
 export default function HomeScreen() {
   const isDark = useColorScheme() === "dark";
   const sheetColors = sheetPalette(isDark);
@@ -386,6 +409,13 @@ export default function HomeScreen() {
   // approaches full height where there is no room left for it.
   const sheetPosition = useSharedValue(0);
   const sheetIndex = useSharedValue(1);
+  // How far the friends list is scrolled, so a swipe down on the sheet can tell
+  // whether it is the list scrolling back up or the sheet being collapsed.
+  const friendsScrollOffset = useSharedValue(0);
+  const friendsScrollHandlers = useMemo(
+    () => scrollOffsetHook(friendsScrollOffset),
+    [friendsScrollOffset],
+  );
   const pillRowHeight = useSharedValue(30);
   const pillRowStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: sheetPosition.value - pillRowHeight.value - 12 }],
@@ -1880,6 +1910,11 @@ export default function HomeScreen() {
             ref={mapBottomSheetRef}
             initialSnap="mid"
             hidden={canteenVisible}
+            // The friends list scrolls freely at every height; a swipe down
+            // while it is at the top steps the sheet to a smaller size.
+            swipeDownScrollOffset={
+              selectedTab === "people" ? friendsScrollOffset : undefined
+            }
             animatedPosition={sheetPosition}
             animatedIndex={sheetIndex}
           >
@@ -1952,6 +1987,7 @@ export default function HomeScreen() {
 
                 {selectedTab === "people" && (
                   <BottomSheetFlatList
+                    scrollEventsHandlersHook={friendsScrollHandlers}
                     keyboardShouldPersistTaps="handled"
                     ListHeaderComponent={
                       <>
