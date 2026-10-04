@@ -1,7 +1,7 @@
 {
   "name": "otamaps-app",
   "main": "expo-router/entry",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "scripts": {
     "postinstall": "patch-package",
     "start": "expo start",

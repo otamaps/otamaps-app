@@ -2,12 +2,12 @@
   "expo": {
     "name": "OtaMaps",
     "slug": "otamaps",
-    "version": "0.4.5",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "scheme": "otamapsapp",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": "0.4.5",
+    "runtimeVersion": "0.5.0",
     "updates": {
       "url": "https://u.expo.dev/a66a863c-7d69-47e4-ab26-8f79f378847e"
     },
