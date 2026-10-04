@@ -12,6 +12,12 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Generated native projects (gitignored). Left out so EAS runs prebuild itself
+# from app.config.js; uploading them makes it treat the project as bare and
+# build whatever identity (bundle ID, pods) the last local prebuild left behind.
+/ios/
+/android/
+
 # Native and local build artifacts
 .kotlin/
 ios/.xcode.env.local

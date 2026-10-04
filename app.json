@@ -61,6 +61,7 @@
       "./plugins/withIosGoogleModularHeaders",
       "./plugins/withIosForceQuitNotification",
       "./plugins/withIosSegmentedControlFont",
+      "./plugins/withIosSceneLifecycle",
       "@bacons/apple-targets",
       [
         "expo-splash-screen",
