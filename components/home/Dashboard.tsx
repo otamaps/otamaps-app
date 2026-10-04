@@ -1,3 +1,4 @@
+import { PlatformSymbol } from "@/components/PlatformSymbol";
 import LessonTitleRow from "@/components/schedule/LessonTitleRow";
 import { LunchPill } from "@/components/schedule/LunchPill";
 import { timeTagColors } from "@/components/schedule/status";
@@ -351,11 +352,18 @@ function SectionCard({
           <Pressable
             onPress={onMore}
             hitSlop={8}
-            style={({ pressed }) => [pressed ? styles.pressed : null]}
+            style={({ pressed }) => [styles.moreLinkRow, pressed ? styles.pressed : null]}
           >
             <AppText variant="meta" color="accent" style={styles.moreLink}>
               Kaikki
             </AppText>
+            <PlatformSymbol
+              ios="chevron.right"
+              android="chevron_right"
+              size={12}
+              weight="semibold"
+              tintColor={theme.accent}
+            />
           </Pressable>
         ) : null}
       </View>
@@ -1245,6 +1253,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   badgeText: { color: colors.textOnDark },
+  moreLinkRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   moreLink: { ...fonts.medium },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 10 },
   emptyText: { textAlign: "center", paddingVertical: 8 },
