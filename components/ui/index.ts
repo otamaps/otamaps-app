@@ -7,6 +7,7 @@ export { Row } from "./Row";
 export { RowIcon } from "./RowIcon";
 export { Screen } from "./Screen";
 export { SegmentedControl } from "./SegmentedControl";
+export { useSelectorSwipe } from "./useSelectorSwipe";
 export { Surface } from "./Surface";
 export { SearchField } from "./SearchField";
 export { StateView } from "./StateView";

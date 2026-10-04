@@ -6,7 +6,9 @@ import {
   Surface,
   useNativeHeader,
   useTheme,
+  useSelectorSwipe,
 } from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
 import { radii } from "@/constants/theme";
 import { fetchCoursework, WilmaCourse } from "@/lib/wilma/graphqlClient";
 import { formatLocalISO, weekdayLabel } from "@/lib/wilma/scheduleDates";
@@ -211,6 +213,9 @@ export default function WilmaCourseworkScreen() {
   // the bar on scroll, and the bar draws the soft scroll edge those pages
   // show. A compact bar keeps the hard edge even when asked for `soft`.
   const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: tab === TABS[0][0],
     title: "Kurssit ja tehtävät",
     background: "page",
     // searchPlaceholder: "Hae kurssikoodilla tai tekstillä",
@@ -220,6 +225,7 @@ export default function WilmaCourseworkScreen() {
   // The scope bar belongs to the search field, so it is only there when
   // the header has one; otherwise the selector stays in the page.
   const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(TABS, tab, setTab);
 
   return (
     <>
@@ -228,6 +234,7 @@ export default function WilmaCourseworkScreen() {
           scope bar — beneath the field, as the teachers page's bar is shaped,
           so the bar's soft scroll edge runs under it. Where that isn't
           available it is the list's first item instead. */}
+      <GestureDetector gesture={swipe}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -317,6 +324,7 @@ export default function WilmaCourseworkScreen() {
           ))
         )}
       </ScrollView>
+      </GestureDetector>
       {/* After the list, not before: UIKit attaches the large title, search
           field and scroll-edge effect to the first scroll view in the
           screen, and this view draws nothing but would be first. */}

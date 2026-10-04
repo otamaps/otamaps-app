@@ -6,7 +6,9 @@ import {
   useNativeHeader,
   useTheme,
   type Theme,
+  useSelectorSwipe,
 } from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import {
   fetchMessages,
@@ -248,6 +250,9 @@ export default function MessagesScreen() {
   // A large title with the list as the screen's root, the search field under
   // it, and the folders in the bar as its scope bar — as the teachers page.
   const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: folder === FOLDERS[0][0],
     title: "Viestit",
     background: "card",
     searchPlaceholder: "Hae aiheella tai lähettäjällä",
@@ -261,10 +266,12 @@ export default function MessagesScreen() {
   });
 
   const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(FOLDERS, folder, setFolder);
 
   return (
     <>
       <Stack.Screen options={header} />
+      <GestureDetector gesture={swipe}>
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -325,6 +332,7 @@ export default function MessagesScreen() {
           />
         )}
       />
+      </GestureDetector>
       {/* After the list, not before: UIKit attaches the large title, search
           field and scroll-edge effect to the first scroll view in the
           screen, and this view draws nothing but would be first. */}

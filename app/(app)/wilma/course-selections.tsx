@@ -8,7 +8,9 @@ import {
   useNativeHeader,
   useTheme,
   type Theme,
+  useSelectorSwipe,
 } from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
 import { PlatformSymbol } from "@/components/PlatformSymbol";
 import { radii } from "@/constants/theme";
 import {
@@ -169,12 +171,16 @@ export default function WilmaCourseSelectionsScreen() {
   // …and the search field under the title, with the selector in the bar as
   // its scope bar, as the teachers page.
   const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: tab === TABS[0][0],
     title: "Kurssivalinnat",
     background: "page",
     searchPlaceholder: "Hae kurssikoodilla tai nimellä",
     onSearch: setQuery,
   });
   const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(TABS, tab, setTab);
 
   // Other schools' trays wait behind a disclosure, opened by default only
   // while searching, so a match there is never hidden.
@@ -311,6 +317,7 @@ export default function WilmaCourseSelectionsScreen() {
   return (
     <>
       <Stack.Screen options={header} />
+      <GestureDetector gesture={swipe}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -467,6 +474,7 @@ export default function WilmaCourseSelectionsScreen() {
           />
         )}
       </ScrollView>
+      </GestureDetector>
       {/* After the list, not before: UIKit attaches the large title, search
           field and scroll-edge effect to the first scroll view in the
           screen, and this view draws nothing but would be first. */}

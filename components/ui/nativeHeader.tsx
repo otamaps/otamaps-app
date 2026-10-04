@@ -37,6 +37,13 @@ type Args = {
    */
   large?: boolean;
   /**
+   * Whether swiping in from the screen's left edge goes back, on iOS. On by
+   * default. A page whose selector is changed by swiping sideways turns it off
+   * except while the first option is selected, so a swipe meant for the
+   * selector cannot leave the page.
+   */
+  swipeBack?: boolean;
+  /**
    * Adds the system search bar beneath the large title. Flat rather than a
    * nested object so that passing it inline cannot defeat the memoisation
    * below — an options object with a new identity each render makes
@@ -95,6 +102,7 @@ export function useNativeHeader({
   background = "page",
   back = true,
   large = true,
+  swipeBack = true,
   searchPlaceholder,
   onSearch,
   action,
@@ -108,6 +116,7 @@ export function useNativeHeader({
       headerShown: true,
       title,
       headerLargeTitle: large,
+      gestureEnabled: swipeBack,
       headerBackButtonDisplayMode: "minimal" as const,
       // The system's 1px hairline under the bar is its own hard edge no
       // matter how well `contentStyle` matches the content's color — every
@@ -237,6 +246,6 @@ export function useNativeHeader({
           }
         : {}),
     }),
-    [title, background, back, large, searchPlaceholder, onSearch, action, edgeEffect, theme, router],
+    [title, background, back, large, swipeBack, searchPlaceholder, onSearch, action, edgeEffect, theme, router],
   );
 }

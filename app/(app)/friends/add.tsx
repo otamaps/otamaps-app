@@ -1,9 +1,10 @@
-import { GlassSegmentedControl, useNativeHeader } from "@/components/ui";
+import { SegmentedControl, useNativeHeader, useSelectorSwipe } from "@/components/ui";
 import { getUser } from "@/lib/getUserHandle";
 import { supabase } from "@/lib/supabase";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { GestureDetector } from "react-native-gesture-handler";
 import {
   ActivityIndicator,
   FlatList,
@@ -200,12 +201,27 @@ const AddFriendScreen = () => {
   // title to collapse against. "flat" is the white/near-black this page
   // already uses, so the bar blends into it.
   const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: activeTab === "add",
     title: "Kaverit",
     background: "flat",
     large: false,
   });
 
+  const tabOptions = [
+    ["add", "Lisää kaveri"],
+    [
+      "requests",
+      requesters.length > 0
+        ? `Kaveripyynnöt (${requesters.length})`
+        : "Kaveripyynnöt",
+    ],
+  ] as const;
+  const swipe = useSelectorSwipe(tabOptions, activeTab, setActiveTab);
+
   return (
+    <GestureDetector gesture={swipe}>
     <KeyboardAvoidingView
       style={[styles.container, isDark && { backgroundColor: "#18191B" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -213,28 +229,17 @@ const AddFriendScreen = () => {
     >
       <Stack.Screen options={header} />
 
-      {/* Floats over the content on iOS, so it is first in the tree with a
-          zIndex rather than last; on Android it is the in-flow tab bar. */}
-      <GlassSegmentedControl
+      {/* The app's selector: the system segmented control, under the bar. */}
+      <SegmentedControl
         value={activeTab}
         onChange={setActiveTab}
-        options={[
-          ["add", "Lisää kaveri"],
-          [
-            "requests",
-            requesters.length > 0
-              ? `Kaveripyynnöt (${requesters.length})`
-              : "Kaveripyynnöt",
-          ],
-        ]}
-        style={styles.floatingTabs}
+        options={tabOptions}
       />
 
       {activeTab === "add" && (
         <View
           style={[
             styles.content,
-            Platform.OS === "ios" && styles.belowFloatingTabs,
             isDark && { backgroundColor: "#18191B" },
           ]}
         >
@@ -367,7 +372,6 @@ const AddFriendScreen = () => {
         <View
           style={[
             styles.requestsContent,
-            Platform.OS === "ios" && styles.belowFloatingTabs,
             isDark && { backgroundColor: "#18191B" },
           ]}
         >
@@ -449,6 +453,7 @@ const AddFriendScreen = () => {
         </View>
       )}
     </KeyboardAvoidingView>
+    </GestureDetector>
   );
 };
 
@@ -457,15 +462,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  floatingTabs: {
-    position: "absolute",
-    top: 12,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-  },
-  // Clears the floating selector: its 12pt inset plus the capsule's height.
-  belowFloatingTabs: { paddingTop: 72 },
   content: {
     flex: 1,
     padding: 24,

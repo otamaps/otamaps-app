@@ -5,7 +5,9 @@ import {
   Surface,
   useNativeHeader,
   useTheme,
+  useSelectorSwipe,
 } from "@/components/ui";
+import { GestureDetector } from "react-native-gesture-handler";
 import {
   fetchGradebook,
   fetchMatriculationResults,
@@ -112,6 +114,9 @@ export default function WilmaGradesScreen() {
   // A large title with the list as the screen's root, the search field under
   // it, and the selector in the bar as its scope bar — as the teachers page.
   const header = useNativeHeader({
+    // Back by swiping only from the first option; elsewhere a sideways swipe
+    // changes the option.
+    swipeBack: tab === TABS[0][0],
     title: "Arvosanat",
     background: "page",
     searchPlaceholder: "Hae oppiaineella tai kurssilla",
@@ -125,10 +130,12 @@ export default function WilmaGradesScreen() {
   });
 
   const scopeInBar = scopeBarIn(header);
+  const swipe = useSelectorSwipe(TABS, tab, setTab);
 
   return (
     <>
       <Stack.Screen options={header} />
+      <GestureDetector gesture={swipe}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -307,6 +314,7 @@ export default function WilmaGradesScreen() {
           </>
         )}
       </ScrollView>
+      </GestureDetector>
       {/* After the list, not before: UIKit attaches the large title, search
           field and scroll-edge effect to the first scroll view in the
           screen, and this view draws nothing but would be first. */}
