@@ -4,7 +4,7 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import DayScheduleSection, {
   type DayScheduleEntry,
 } from "@/components/schedule/DayScheduleSection";
-import { nativeListColors } from "@/components/sheets/sheetTheme";
+import { nativeListColors, sheetPalette } from "@/components/sheets/sheetTheme";
 import { colors } from "@/constants/theme";
 import { formatClassLabel } from "@/lib/classLabel";
 import { getReadableLabelColor } from "@/lib/color";
@@ -423,7 +423,12 @@ export default function FriendProfileSheetContent({
             !HAS_LIQUID_GLASS && pressed && styles.pressed,
           ]}
         >
-          <GlassSurface radius={18} interactive style={styles.closeButton}>
+          <GlassSurface
+            radius={18}
+            interactive
+            solid={sheetPalette(isDark).card}
+            style={styles.closeButton}
+          >
             <PlatformSymbol
               ios="xmark"
               android="close"

@@ -33,6 +33,12 @@ type Props = {
    * something around it — to make glass come and go; see below.
    */
   visible?: boolean;
+  /**
+   * Android only: a flat fill in place of the blur. The blur takes the
+   * colour of whatever is behind it, which on a sheet's own controls is the
+   * map showing through the sheet. Ignored where there is real glass.
+   */
+  solid?: string;
   /** Size and inner layout of the content. */
   style?: StyleProp<ViewStyle>;
 };
@@ -92,6 +98,7 @@ export function GlassSurface({
   radius,
   interactive,
   visible = true,
+  solid,
   style,
 }: Props) {
   const theme = useTheme();
@@ -121,6 +128,16 @@ export function GlassSurface({
         {/* The content carries the layout, so the glass sizes to it. */}
         <Animated.View style={[style, contentStyle]}>{children}</Animated.View>
       </GlassView>
+    );
+  }
+
+  if (Platform.OS === "android" && solid) {
+    return (
+      <Animated.View
+        style={[{ borderRadius: radius, backgroundColor: solid }, style, contentStyle]}
+      >
+        {children}
+      </Animated.View>
     );
   }
 

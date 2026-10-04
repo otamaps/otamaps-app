@@ -7,6 +7,7 @@ import { PlatformSymbol } from "@/components/PlatformSymbol";
 import {
   glassSheetChrome,
   nativeListColors,
+  sheetPalette,
 } from "@/components/sheets/sheetTheme";
 import { colors } from "@/constants/theme";
 import { Room, useRoomStore } from "@/lib/roomService";
@@ -357,7 +358,12 @@ const RoomModalSheet = forwardRef<RoomModalSheetMethods, RoomModalSheetProps>(
               onPress={close}
               style={({ pressed }) => [!HAS_LIQUID_GLASS && pressed && styles.pressed]}
             >
-              <GlassSurface radius={18} interactive style={styles.closeButton}>
+              <GlassSurface
+            radius={18}
+            interactive
+            solid={sheetPalette(isDark).card}
+            style={styles.closeButton}
+          >
                 <PlatformSymbol
                   ios="xmark"
                   android="close"
