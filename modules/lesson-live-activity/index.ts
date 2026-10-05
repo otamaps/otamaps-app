@@ -1,14 +1,29 @@
 import { Platform, requireOptionalNativeModule } from "expo-modules-core";
 
+/** One lesson, or the lunch window. Times are epoch seconds. */
+export type LessonActivitySegment = {
+  title: string;
+  room: string;
+  start: number;
+  end: number;
+};
+
 /** What the Lock Screen should say. Times are epoch seconds. */
 export type LessonActivitySnapshot = {
   dayLabel: string;
   currentTitle: string;
   currentRoom: string;
   currentEndsAt?: number;
+  currentStartsAt?: number;
   nextTitle: string;
   nextRoom: string;
   nextStartsAt?: number;
+  /**
+   * The rest of the day. Lets the card move on to the next lesson by itself
+   * between updates; `current*` and `next*` above are what it shows until
+   * then, and all an older build reads.
+   */
+  segments?: LessonActivitySegment[];
 };
 
 type LessonLiveActivityNativeModule = {

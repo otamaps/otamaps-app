@@ -2,14 +2,24 @@ import ActivityKit
 import ExpoModulesCore
 
 /// The JS-facing payload. Mirrors `LessonActivitySnapshot` in `index.ts`.
+struct LessonSegmentInput: Record {
+  @Field var title: String = ""
+  @Field var room: String = ""
+  @Field var start: Double = 0
+  @Field var end: Double = 0
+}
+
 struct LessonActivityInput: Record {
   @Field var dayLabel: String = ""
   @Field var currentTitle: String = ""
   @Field var currentRoom: String = ""
   @Field var currentEndsAt: Double? = nil
+  @Field var currentStartsAt: Double? = nil
   @Field var nextTitle: String = ""
   @Field var nextRoom: String = ""
   @Field var nextStartsAt: Double? = nil
+  /// The whole day, so the card can move on between updates.
+  @Field var segments: [LessonSegmentInput] = []
 }
 
 public class LessonLiveActivityModule: Module {
@@ -38,9 +48,16 @@ public class LessonLiveActivityModule: Module {
         currentTitle: input.currentTitle,
         currentRoom: input.currentRoom,
         currentEndsAt: input.currentEndsAt,
+        currentStartsAt: input.currentStartsAt,
         nextTitle: input.nextTitle,
         nextRoom: input.nextRoom,
-        nextStartsAt: input.nextStartsAt
+        nextStartsAt: input.nextStartsAt,
+        segments: input.segments.isEmpty
+          ? nil
+          : input.segments.map {
+            LessonActivityAttributes.ContentState.Segment(
+              title: $0.title, room: $0.room, start: $0.start, end: $0.end)
+          }
       )
 
       // Only ever one activity for this app: reuse whatever is already
@@ -81,8 +98,14 @@ public class LessonLiveActivityModule: Module {
     _ state: LessonActivityAttributes.ContentState,
     _ input: LessonActivityInput
   ) -> ActivityContent<LessonActivityAttributes.ContentState> {
-    let staleDate = [input.currentEndsAt, input.nextStartsAt]
-      .compactMap { $0 }
+    // The next moment the card has to change. With the whole day on board
+    // that is the first segment boundary still ahead; iOS redraws the card
+    // then, and it works out the lesson that followed. Without it, the
+    // nearer of the current lesson's end and the next one's start.
+    let now = Date().timeIntervalSince1970
+    let boundaries = input.segments.flatMap { [$0.start, $0.end] }.filter { $0 > now }
+    let fallback = [input.currentEndsAt, input.nextStartsAt].compactMap { $0 }
+    let staleDate = (boundaries.isEmpty ? fallback : boundaries)
       .min()
       .map { Date(timeIntervalSince1970: $0) }
     return ActivityContent(state: state, staleDate: staleDate)
