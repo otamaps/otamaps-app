@@ -13,7 +13,15 @@ import {
 } from "@/components/ui";
 import { colors, radii } from "@/constants/theme";
 import {fonts } from "@/constants/typography";
-import { syncLessonLiveActivity } from "@/lib/lessonLiveActivity";
+import {
+  lessonCardHasContent,
+  startLessonLiveActivityNow,
+  syncLessonLiveActivity,
+} from "@/lib/lessonLiveActivity";
+import {
+  isLessonActivityRunning,
+  isLiveActivityAvailable,
+} from "@/modules/lesson-live-activity";
 import {
   addMinutesClock,
   clockMinutes,
@@ -57,6 +65,10 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -66,6 +78,25 @@ import {
 } from "react-native";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+/** The day's lessons as the Lock Screen card takes them. */
+function liveActivityLessons(lessons: ScheduleLesson[]) {
+  return lessons.map((l) => {
+    const group = l.groups[0];
+    const { code, title } = lessonLabel(
+      group?.shortCaption,
+      group?.fullCaption,
+      l.class,
+    );
+    return {
+      start: l.start,
+      end: l.end,
+      title,
+      code,
+      room: group?.rooms[0]?.longCaption ?? "",
+    };
+  });
+}
 
 /** Never switch the "Tänään" card to the next school day earlier than this. */
 const NEXT_DAY_SWITCH_EARLIEST = "12:00";
@@ -295,6 +326,58 @@ const MORE_WILMA: {
 // ── Shared sub-components ──────────────────────────────────────────────────────
 
 /**
+ * Starts the Lock Screen lesson card when it has not started by itself. A
+ * secondary button — the accent as tint and label on a pale fill, not the solid
+ * fill of the screen's main actions — under the schedule and not part of it.
+ */
+function StartCardRow({
+  onPress,
+  busy,
+}: {
+  onPress: () => void;
+  busy: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={styles.startCardBlock}>
+      <Pressable
+        onPress={onPress}
+        disabled={busy}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy, busy }}
+        accessibilityLabel="Näytä lukujärjestys lukitusnäytöllä"
+        style={({ pressed }) => [
+          styles.startCardButton,
+          {
+            backgroundColor: theme.accentTint,
+            // The accent at low strength: an edge to read as a button by, not
+            // an outline that competes with the label.
+            borderColor: `${theme.accent}20`,
+          },
+          (pressed || busy) && styles.startCardPressed,
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator color={theme.accent} />
+        ) : (
+          <>
+            <PlatformSymbol
+              ios="lock.iphone"
+              android="lock"
+              size={17}
+              tintColor={theme.accent}
+            />
+            <AppText variant="rowTitle" color="accent">
+              Näytä lukitusnäytöllä
+            </AppText>
+          </>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * One section of the dashboard, set as the Me tab sets its groups: the
  * heading above the card in small capitals, and the card itself the same
  * radius and inset. Where the section has more behind it, "Kaikki" sits at
@@ -425,6 +508,48 @@ export default function Dashboard({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Whether the Lock Screen card is showing, so the button that starts it is
+  // offered only when it is not. `null` when this build cannot tell.
+  const [cardRunning, setCardRunning] = useState<boolean | null>(() =>
+    isLessonActivityRunning(),
+  );
+  const [startingCard, setStartingCard] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    setCardRunning(isLessonActivityRunning());
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") setCardRunning(isLessonActivityRunning());
+    });
+    return () => subscription.remove();
+  }, [data]);
+
+  const startCard = async () => {
+    if (!data || startingCard) return;
+    setStartingCard(true);
+    try {
+      const running = await startLessonLiveActivityNow({
+        lessons: liveActivityLessons(data.lessons),
+        lunch: data.lunch,
+        dayISO: data.scheduleDayISO,
+      });
+      setCardRunning(running);
+      if (running === false) {
+        Alert.alert(
+          "Kortti ei käynnistynyt",
+          "Tarkista iPhonen asetuksista, että OtaMapsille on sallittu Live Activities -toiminnot.",
+        );
+      }
+    } catch (error) {
+      reportHandledError(error, {
+        area: "live_activity",
+        operation: "start_on_request",
+        level: "warning",
+      });
+    } finally {
+      setStartingCard(false);
+    }
+  };
 
   // Drives which lesson row is highlighted as "current" and which are dimmed
   // as past; refreshed periodically rather than left stale for the whole day.
@@ -586,21 +711,7 @@ export default function Dashboard({
         // refreshed from whatever the app has just loaded. Deliberately not
         // awaited: a Lock Screen card must never hold up the dashboard.
         void syncLessonLiveActivity({
-          lessons: scheduleLessons.map((l) => {
-            const group = l.groups[0];
-            const { code, title } = lessonLabel(
-              group?.shortCaption,
-              group?.fullCaption,
-              l.class,
-            );
-            return {
-              start: l.start,
-              end: l.end,
-              title,
-              code,
-              room: group?.rooms[0]?.longCaption ?? "",
-            };
-          }),
+          lessons: liveActivityLessons(scheduleLessons),
           lunch,
           dayISO: scheduleDayISO,
         }).catch((error) =>
@@ -1002,6 +1113,22 @@ export default function Dashboard({
               )}
             </SectionCard>
 
+            {/* Not part of the schedule above: its own block beneath it. */}
+            {Platform.OS === "ios" &&
+            data &&
+            cardRunning !== true &&
+            isLiveActivityAvailable() &&
+            lessonCardHasContent({
+              lessons: liveActivityLessons(data.lessons),
+              lunch: data.lunch,
+              dayISO: data.scheduleDayISO,
+            }) ? (
+              <StartCardRow
+                onPress={() => void startCard()}
+                busy={startingCard}
+              />
+            ) : null}
+
             {/* Upcoming exams */}
             <SectionCard title="Tulevat kokeet">
               {!data?.exams.length ? (
@@ -1254,6 +1381,18 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: colors.textOnDark },
   moreLinkRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  startCardBlock: { marginHorizontal: 16, marginTop: 12 },
+  startCardButton: {
+    alignItems: "center",
+    borderCurve: "continuous",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    height: 46,
+    justifyContent: "center",
+  },
+  startCardPressed: { opacity: 0.7 },
   moreLink: { ...fonts.medium },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 10 },
   emptyText: { textAlign: "center", paddingVertical: 8 },

@@ -10,6 +10,7 @@ import {
   estimatePosition,
   resolveBeaconObservations,
 } from "./blePositionEstimator";
+import { refreshLessonLiveActivityFromCache } from "./lessonLiveActivity";
 import { supabase } from "./supabase";
 import {
   BeaconCatalogEntry,
@@ -291,6 +292,11 @@ export class BLELocationService {
       const results = await Promise.all(writes);
       const writeError = results.find((result) => result.error)?.error;
       if (writeError) return { success: false, error: writeError.message };
+
+      // The app is awake for this fix, perhaps in the background: a moment to
+      // bring the Lock Screen lesson card up to date. Best effort, and never
+      // allowed to turn a good upload into a failed one.
+      void refreshLessonLiveActivityFromCache().catch(() => undefined);
 
       const currentRoom = await getRoomNumber(selected);
       bleLog("BLE location updated", {
