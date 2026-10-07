@@ -20,6 +20,8 @@ struct LessonActivityInput: Record {
   @Field var nextStartsAt: Double? = nil
   /// The whole day, so the card can move on between updates.
   @Field var segments: [LessonSegmentInput] = []
+  /// The phone's appearance, so the card can follow it.
+  @Field var isDark: Bool? = nil
 }
 
 public class LessonLiveActivityModule: Module {
@@ -57,7 +59,8 @@ public class LessonLiveActivityModule: Module {
           : input.segments.map {
             LessonActivityAttributes.ContentState.Segment(
               title: $0.title, room: $0.room, start: $0.start, end: $0.end)
-          }
+          },
+        isDark: input.isDark
       )
 
       // Only ever one activity for this app: reuse whatever is already

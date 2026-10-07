@@ -43,6 +43,12 @@ struct LessonActivityAttributes: ActivityAttributes {
     /// which case `currentTitle` and `nextTitle` are shown as they are.
     var segments: [Segment]?
 
+    /// The phone's appearance when the app sent this, since the Lock Screen
+    /// does not report it reliably to the widget: newer iOS versions hand a
+    /// Live Activity a dark colour scheme whatever the setting. Absent from
+    /// an older app's updates, in which case the card is dark.
+    var isDark: Bool?
+
     var currentStartDate: Date? {
       currentStartsAt.map { Date(timeIntervalSince1970: $0) }
     }

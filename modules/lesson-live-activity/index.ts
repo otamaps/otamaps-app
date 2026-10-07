@@ -24,6 +24,8 @@ export type LessonActivitySnapshot = {
    * then, and all an older build reads.
    */
   segments?: LessonActivitySegment[];
+  /** The phone's appearance, which the Lock Screen does not pass on reliably. */
+  isDark?: boolean;
 };
 
 type LessonLiveActivityNativeModule = {

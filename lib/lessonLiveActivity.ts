@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Appearance } from "react-native";
 import {
   endLessonActivity,
   isLiveActivityAvailable,
@@ -77,9 +78,34 @@ async function clearCachedInputs(): Promise<void> {
 /** Which lessons the card is showing, so an unchanged card is not re-sent. */
 function cardSignature(
   current: ScheduleSegment | null,
-  next: ScheduleSegment | null
+  next: ScheduleSegment | null,
+  isDark: boolean
 ): string {
-  return [current?.start, current?.end, current?.title, next?.start, next?.title].join("|");
+  return [
+    current?.start,
+    current?.end,
+    current?.title,
+    next?.start,
+    next?.title,
+    isDark,
+  ].join("|");
+}
+
+/** The phone's appearance right now, which the card cannot read for itself. */
+function systemIsDark(): boolean {
+  return Appearance.getColorScheme() === "dark";
+}
+
+// One listener for the life of the app: when the appearance changes while the
+// app is running, rebuild the card so it follows. A change made with the app
+// closed shows on the next sync.
+let listeningForAppearance = false;
+function followAppearance(): void {
+  if (listeningForAppearance) return;
+  listeningForAppearance = true;
+  Appearance.addChangeListener(() => {
+    void refreshLessonLiveActivityFromCache();
+  });
 }
 
 /** Epoch seconds for an `HH:MM` clock value on `day`. */
@@ -224,7 +250,8 @@ async function showDay(
     return;
   }
 
-  const signature = cardSignature(current, next);
+  const isDark = systemIsDark();
+  const signature = cardSignature(current, next, isDark);
   if (onlyIfChanged && inputs.signature === signature) return;
 
   // Cached before the push, so a refresh has the day even if the push fails;
@@ -235,8 +262,10 @@ async function showDay(
     dayISO: inputs.dayISO,
   });
 
+  followAppearance();
   const shown = await startLessonActivity({
     dayLabel: weekdayLabel(day),
+    isDark,
     currentTitle: current ? segmentLabel(current) : "",
     currentRoom: current?.room ?? "",
     currentEndsAt: current ? epochSecondsAt(day, current.end) : undefined,

@@ -6,6 +6,13 @@ import WidgetKit
 /// accent is repeated here from `constants/theme.ts`.
 private let accent = Color(red: 0x34 / 255, green: 0x78 / 255, blue: 0xF5 / 255)
 
+/// The card's background, translucent so the wallpaper shows through. Chosen
+/// from the appearance the app sends rather than read from the environment: on
+/// newer iOS versions the Lock Screen hands a Live Activity a dark colour
+/// scheme whatever the phone is set to, or one that follows the wallpaper.
+private let cardBackgroundDark = Color(white: 0.11, opacity: 0.86)
+private let cardBackgroundLight = Color(white: 1.0, opacity: 0.90)
+
 /// A relative countdown to `date`, e.g. "12:04". Live Activity views are only
 /// re-rendered by the system on a content update, so a plain formatted string
 /// would freeze — `Text(timerInterval:)` is one of the few things that keeps
@@ -119,11 +126,19 @@ private struct CountdownBlock: View {
         .foregroundStyle(accent)
         .minimumScaleFactor(0.7)
         .lineLimit(1)
+        // A timer Text fills whatever width it is given and sets its digits
+        // from the leading edge, which left them floating away from the
+        // caption beneath. Right-align them in the space they take.
+        .multilineTextAlignment(.trailing)
+        .frame(maxWidth: .infinity, alignment: .trailing)
       Text(caption)
         .font(.caption2.weight(.medium))
         .foregroundStyle(.secondary)
     }
-    .fixedSize()
+    // Capped rather than `fixedSize()`: a timer Text asks for more width than
+    // its digits need, and left unbounded it pushed the row wider than the
+    // card, so the title and the countdown ran into its edges.
+    .frame(maxWidth: 140, alignment: .trailing)
   }
 }
 
@@ -174,16 +189,25 @@ private struct LessonActivityView: View {
         NextRow(title: next.title, start: next.startDate)
       }
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 12)
+    // Held to the card's width before the padding goes on, so nothing inside
+    // can be wider than the space the padding leaves.
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
   }
 }
 
 struct LessonActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: LessonActivityAttributes.self) { context in
+      // Dark when the app says so, and when it has not said anything — an older
+      // app's update — as that is how the card has always looked.
+      let dark = context.state.isDark ?? true
       LessonActivityView(state: context.state, dayLabel: context.attributes.dayLabel)
-        .activityBackgroundTint(nil)
+        // Set here so `.primary`, `.secondary` and the panel tint inside all
+        // follow the appearance chosen, not whatever iOS reports.
+        .environment(\.colorScheme, dark ? .dark : .light)
+        .activityBackgroundTint(dark ? cardBackgroundDark : cardBackgroundLight)
         .activitySystemActionForegroundColor(accent)
     } dynamicIsland: { context in
       DynamicIsland {
