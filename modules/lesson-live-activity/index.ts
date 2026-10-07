@@ -31,7 +31,7 @@ export type LessonActivitySnapshot = {
 type LessonLiveActivityNativeModule = {
   isAvailable: () => boolean;
   start: (snapshot: LessonActivitySnapshot) => Promise<boolean>;
-  end: () => Promise<void>;
+  end: (dismissAt?: number) => Promise<void>;
 };
 
 // Optional so a build without the widget extension — Android, or an iOS build
@@ -66,10 +66,14 @@ export async function startLessonActivity(
   }
 }
 
-export async function endLessonActivity(): Promise<void> {
+/**
+ * Ends the activity. With `dismissAt`, epoch seconds, it stays on the Lock
+ * Screen as it is until then and takes no more updates.
+ */
+export async function endLessonActivity(dismissAt?: number): Promise<void> {
   if (!native || Platform.OS !== "ios") return;
   try {
-    await native.end();
+    await native.end(dismissAt);
   } catch {
     // Ending is best effort — a stale card is not worth surfacing an error.
   }

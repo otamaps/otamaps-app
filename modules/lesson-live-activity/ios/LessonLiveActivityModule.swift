@@ -85,10 +85,16 @@ public class LessonLiveActivityModule: Module {
       }
     }
 
-    AsyncFunction("end") { () -> Void in
+    /// Ends the activity: at once, or — given `dismissAt`, in seconds since
+    /// 1970 — leaves it on the Lock Screen as it is until then. An ended
+    /// activity takes no more updates, but a countdown in it keeps running,
+    /// and iOS removes it at that time (at the latest four hours after it ends).
+    AsyncFunction("end") { (dismissAt: Double?) -> Void in
       guard #available(iOS 16.2, *) else { return }
+      let policy: ActivityUIDismissalPolicy =
+        dismissAt.map { .after(Date(timeIntervalSince1970: $0)) } ?? .immediate
       for activity in Activity<LessonActivityAttributes>.activities {
-        await activity.end(nil, dismissalPolicy: .immediate)
+        await activity.end(nil, dismissalPolicy: policy)
       }
     }
   }

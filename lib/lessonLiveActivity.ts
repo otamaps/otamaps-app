@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Appearance } from "react-native";
+import { AppState, Appearance } from "react-native";
 import {
   endLessonActivity,
   isLiveActivityAvailable,
@@ -27,6 +27,7 @@ export async function setLessonLiveActivityEnabled(
   await AsyncStorage.setItem(LIVE_ACTIVITY_ENABLED_KEY, String(enabled));
   if (!enabled) {
     await clearCachedInputs();
+    await clearEndedDay();
     await endLessonActivity();
   }
 }
@@ -75,6 +76,40 @@ async function clearCachedInputs(): Promise<void> {
   }
 }
 
+/**
+ * The day whose card has been ended with a delayed dismissal. An ended
+ * activity takes no more updates, and the app must not answer that by starting
+ * a second card for the same day when it next syncs.
+ */
+const ENDED_DAY_KEY = "lessonLiveActivityEndedDay";
+
+async function readEndedDay(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(ENDED_DAY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function markEndedDay(dayISO: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ENDED_DAY_KEY, dayISO);
+  } catch {
+    // Without the marker a later sync may start a new card; not worth failing.
+  }
+}
+
+async function clearEndedDay(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(ENDED_DAY_KEY);
+  } catch {
+    // Same: a stale marker only holds a card back for the rest of that day.
+  }
+}
+
+/** How long after the day's last lesson ends the card is taken down. */
+const FINISH_AFTER_SECONDS = 5 * 60;
+
 /** Which lessons the card is showing, so an unchanged card is not re-sent. */
 function cardSignature(
   current: ScheduleSegment | null,
@@ -99,12 +134,20 @@ function systemIsDark(): boolean {
 // One listener for the life of the app: when the appearance changes while the
 // app is running, rebuild the card so it follows. A change made with the app
 // closed shows on the next sync.
-let listeningForAppearance = false;
-function followAppearance(): void {
-  if (listeningForAppearance) return;
-  listeningForAppearance = true;
+let listeningForSystem = false;
+function followSystem(): void {
+  if (listeningForSystem) return;
+  listeningForSystem = true;
   Appearance.addChangeListener(() => {
     void refreshLessonLiveActivityFromCache();
+  });
+  // Opening the app is what the card's "tap to refresh" asks for, from
+  // whichever screen it opens on. Forced, since the card may be stale without
+  // anything in what it shows having changed.
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      void refreshLessonLiveActivityFromCache({ force: true });
+    }
   });
 }
 
@@ -203,7 +246,11 @@ export async function syncLessonLiveActivity(options: {
  * boundary again. Does nothing when the card would be unchanged.
  */
 export async function refreshLessonLiveActivityFromCache(
-  now: Date = new Date()
+  options: {
+    /** Send even if the card would be unchanged — to clear it being stale. */
+    force?: boolean;
+    now?: Date;
+  } = {}
 ): Promise<void> {
   if (!isLiveActivityAvailable()) return;
   // Fixes can arrive back to back; one refresh at a time is plenty.
@@ -215,7 +262,7 @@ export async function refreshLessonLiveActivityFromCache(
     const cached = await readCachedInputs();
     if (!cached) return;
 
-    await showDay(cached, now, true);
+    await showDay(cached, options.now ?? new Date(), !options.force);
   } finally {
     refreshInFlight = false;
   }
@@ -240,9 +287,13 @@ async function showDay(
   const isToday = day.toDateString() === now.toDateString();
   if (!isToday) {
     await clearCachedInputs();
+    await clearEndedDay();
     await endLessonActivity();
     return;
   }
+
+  // The card for today is already being finished off; leave it be.
+  if ((await readEndedDay()) === inputs.dayISO) return;
 
   const segments = buildDaySegments(inputs.lessons, inputs.lunch);
   const nowClock = now.toTimeString().slice(0, 5);
@@ -267,7 +318,7 @@ async function showDay(
     dayISO: inputs.dayISO,
   });
 
-  followAppearance();
+  followSystem();
   const shown = await startLessonActivity({
     dayLabel: weekdayLabel(day),
     isDark,
@@ -292,5 +343,18 @@ async function showDay(
       dayISO: inputs.dayISO,
       signature,
     });
+
+    // Nothing starts after what is on now, and nothing else outlasts it, so
+    // this is the last lesson. End the card with a delayed dismissal: it stays,
+    // counting down, until a few minutes after the lesson ends, then iOS takes
+    // it down — no app needed. A lunch window inside a longer block does not
+    // count: the block runs on after it, and an ended card could not show that.
+    const lastEnd = Math.max(
+      ...segments.map((segment) => epochSecondsAt(day, segment.end))
+    );
+    if (!next && current && epochSecondsAt(day, current.end) >= lastEnd) {
+      await markEndedDay(inputs.dayISO);
+      await endLessonActivity(lastEnd + FINISH_AFTER_SECONDS);
+    }
   }
 }

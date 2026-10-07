@@ -160,6 +160,9 @@ private struct CountdownBlock: View {
 private struct LessonActivityView: View {
   let state: LessonActivityAttributes.ContentState
   let dayLabel: String
+  /// iOS has marked the content out of date: the app has not updated it since
+  /// the boundary it was told to expect, and nothing will redraw it again.
+  let isStale: Bool
 
   var body: some View {
     // Worked out here, at draw time, so a card iOS redraws after a lesson has
@@ -173,9 +176,17 @@ private struct LessonActivityView: View {
         VStack(alignment: .leading, spacing: 2) {
           HStack(spacing: 6) {
             if hasCurrent { NowBadge() }
-            Text(dayLabel)
-              .font(.caption.weight(.semibold))
-              .foregroundStyle(.secondary)
+            if isStale && !resolved.dayOver {
+              // Opening the app brings the card up to date. Not shown once the
+              // day is over: nothing is left to refresh to.
+              Label("Päivitä napauttamalla", systemImage: "arrow.clockwise")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(accent)
+            } else {
+              Text(dayLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            }
           }
 
           if let current = resolved.current {
@@ -221,7 +232,8 @@ struct LessonActivity: Widget {
       // Dark when the app says so, and when it has not said anything — an older
       // app's update — as that is how the card has always looked.
       let dark = context.state.isDark ?? true
-      LessonActivityView(state: context.state, dayLabel: context.attributes.dayLabel)
+      LessonActivityView(
+        state: context.state, dayLabel: context.attributes.dayLabel, isStale: context.isStale)
         // Set here so `.primary`, `.secondary` and the panel tint inside all
         // follow the appearance chosen, not whatever iOS reports.
         .environment(\.colorScheme, dark ? .dark : .light)
