@@ -79,7 +79,13 @@ private struct RoomLabel: View {
 /// lesson above it.
 private struct NextRow: View {
   let title: String
+  let room: String
   let start: Date?
+
+  /// "MAA12.05 (Yrityskylä)": where the next lesson is, as well as what.
+  private var label: String {
+    room.isEmpty ? title : "\(title) (\(room))"
+  }
 
   var body: some View {
     HStack(spacing: 8) {
@@ -88,15 +94,21 @@ private struct NextRow: View {
         .foregroundStyle(accent)
       Text("Seuraavaksi")
         .foregroundStyle(.secondary)
-      Text(title)
+      Text(label)
         .fontWeight(.semibold)
         .lineLimit(1)
+        // Shrinks a little before it truncates, so a room name that only just
+        // misses fitting is still read in full.
+        .minimumScaleFactor(0.8)
+        .truncationMode(.tail)
       Spacer(minLength: 6)
       if let start {
+        // The time is kept whole; a long room name gives way first.
         Text(start, style: .time)
           .monospacedDigit()
           .fontWeight(.medium)
           .foregroundStyle(accent)
+          .layoutPriority(1)
       }
     }
     .font(.footnote)
@@ -110,6 +122,9 @@ private struct NextRow: View {
 /// period — time until the next one starts.
 private struct CountdownBlock: View {
   let resolved: LessonActivityAttributes.ContentState.Resolved
+  /// The Dynamic Island passes less of each.
+  var fontSize: CGFloat = 30
+  var maxWidth: CGFloat = 140
 
   var body: some View {
     if let current = resolved.current {
@@ -122,7 +137,7 @@ private struct CountdownBlock: View {
   private func block(date: Date, caption: String) -> some View {
     VStack(alignment: .trailing, spacing: 0) {
       countdown(to: date)
-        .font(.system(size: 30, weight: .bold, design: .rounded))
+        .font(.system(size: fontSize, weight: .bold, design: .rounded))
         .foregroundStyle(accent)
         .minimumScaleFactor(0.7)
         .lineLimit(1)
@@ -138,7 +153,7 @@ private struct CountdownBlock: View {
     // Capped rather than `fixedSize()`: a timer Text asks for more width than
     // its digits need, and left unbounded it pushed the row wider than the
     // card, so the title and the countdown ran into its edges.
-    .frame(maxWidth: 140, alignment: .trailing)
+    .frame(minWidth: 88, maxWidth: maxWidth, alignment: .trailing)
   }
 }
 
@@ -175,6 +190,9 @@ private struct LessonActivityView: View {
               .foregroundStyle(.secondary)
           }
         }
+        // First call on the row's width, so the title keeps what it needs and
+        // the countdown takes the rest, instead of the two splitting it evenly.
+        .layoutPriority(1)
 
         Spacer(minLength: 0)
 
@@ -186,7 +204,7 @@ private struct LessonActivityView: View {
       }
 
       if let next = resolved.next {
-        NextRow(title: next.title, start: next.startDate)
+        NextRow(title: next.title, room: next.room, start: next.startDate)
       }
     }
     // Held to the card's width before the padding goes on, so nothing inside
@@ -221,7 +239,7 @@ struct LessonActivity: Widget {
           }
         }
         DynamicIslandExpandedRegion(.trailing) {
-          CountdownBlock(resolved: context.state.resolved(at: Date.now))
+          CountdownBlock(resolved: context.state.resolved(at: Date.now), fontSize: 20, maxWidth: 90)
         }
         DynamicIslandExpandedRegion(.bottom) {
           let resolved = context.state.resolved(at: Date.now)
@@ -230,7 +248,7 @@ struct LessonActivity: Widget {
               LessonProgress(start: current.startDate, end: current.endDate)
             }
             if let next = resolved.next {
-              NextRow(title: next.title, start: next.startDate)
+              NextRow(title: next.title, room: next.room, start: next.startDate)
             }
           }
         }

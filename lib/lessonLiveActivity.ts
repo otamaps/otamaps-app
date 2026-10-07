@@ -116,8 +116,13 @@ function epochSecondsAt(day: Date, clock: string): number {
   return Math.round(at.getTime() / 1000);
 }
 
+/**
+ * What the card calls a segment: the course code alone, which is short enough
+ * to stay on one line and is what students go by. A segment without one — the
+ * lunch window — keeps its title.
+ */
 function segmentLabel(segment: ScheduleSegment): string {
-  return segment.code ? `${segment.title} ${segment.code}` : segment.title;
+  return segment.code || segment.title;
 }
 
 /**
