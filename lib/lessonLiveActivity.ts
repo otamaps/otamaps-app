@@ -2,8 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Appearance } from "react-native";
 import {
   endLessonActivity,
+  isLessonActivityRunning,
   isLiveActivityAvailable,
   startLessonActivity,
+  supportsDelayedEnd,
   type LessonActivitySegment,
 } from "@/modules/lesson-live-activity";
 import type { LunchMatch } from "./lunchShiftCore";
@@ -352,9 +354,58 @@ async function showDay(
     const lastEnd = Math.max(
       ...segments.map((segment) => epochSecondsAt(day, segment.end))
     );
-    if (!next && current && epochSecondsAt(day, current.end) >= lastEnd) {
+    if (
+      supportsDelayedEnd() &&
+      !next &&
+      current &&
+      epochSecondsAt(day, current.end) >= lastEnd
+    ) {
       await markEndedDay(inputs.dayISO);
       await endLessonActivity(lastEnd + FINISH_AFTER_SECONDS);
     }
   }
+}
+
+/**
+ * Whether there is anything for a card to show: a lesson under way or still to
+ * come on `dayISO`, if that is today. A card for a finished day would be taken
+ * straight back down.
+ */
+export function lessonCardHasContent(options: {
+  lessons: LessonInput[];
+  lunch: LunchMatch | null;
+  dayISO: string;
+  now?: Date;
+}): boolean {
+  const now = options.now ?? new Date();
+  const day = parseLocalISO(options.dayISO);
+  if (!day || day.toDateString() !== now.toDateString()) return false;
+  const { current, next } = nowAndNext(
+    buildDaySegments(options.lessons, options.lunch),
+    now.toTimeString().slice(0, 5)
+  );
+  return Boolean(current || next);
+}
+
+/**
+ * Starts the card on request — for when it has not started by itself. Asking
+ * for it turns the feature on, as the setting does, and lifts the end-of-day
+ * marker so a card finished earlier today can be shown again. Resolves to
+ * whether a card is now on the Lock Screen; `null` when this build cannot say,
+ * which on an older module is a start that went through but cannot be seen.
+ */
+export async function startLessonLiveActivityNow(options: {
+  lessons: LessonInput[];
+  lunch: LunchMatch | null;
+  dayISO: string;
+}): Promise<boolean | null> {
+  if (!isLiveActivityAvailable()) return false;
+  await AsyncStorage.setItem(LIVE_ACTIVITY_ENABLED_KEY, "true");
+  await clearEndedDay();
+  await showDay(
+    { lessons: options.lessons, lunch: options.lunch, dayISO: options.dayISO },
+    new Date(),
+    false
+  );
+  return isLessonActivityRunning();
 }

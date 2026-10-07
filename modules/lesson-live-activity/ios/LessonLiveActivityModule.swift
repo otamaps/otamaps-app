@@ -28,6 +28,21 @@ public class LessonLiveActivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("LessonLiveActivity")
 
+    /// What this build of the module can do, so JavaScript — which can be
+    /// updated over the air to an app with an older module — only asks for what
+    /// is there. 1 is the module before it had a version: no delayed `end`.
+    /// 2 adds `end(dismissAt)`. 3 adds `isActive`.
+    Function("apiVersion") { () -> Int in
+      return 3
+    }
+
+    /// Whether a lesson card is on the Lock Screen right now. An activity that
+    /// has ended, or that the user swiped away, is not.
+    Function("isActive") { () -> Bool in
+      guard #available(iOS 16.2, *) else { return false }
+      return !Activity<LessonActivityAttributes>.activities.isEmpty
+    }
+
     /// Whether this device can show one *and* the user has left Live
     /// Activities enabled for the app in Settings. Both have to be true, and
     /// the second can change while the app is running.
